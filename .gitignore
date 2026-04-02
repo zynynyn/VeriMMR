@@ -1,0 +1,53 @@
+# macOS system files
+.DS_Store
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+
+# VSCode editor configuration
+.vscode/
+
+# Runtime and download caches
+.infinity_cache/
+pretrained_models/
+embedding/
+index/
+output/
+logs/
+test/
+corpora/
+data/chat_sessions/
+
+# Environment variables and secrets
+.env
+
+# Example configuration files
+examples/parameter/*.yaml
+examples/server/*.yaml
+
+# Server configuration files for each server module
+servers/*/server.yaml
+
+# Python package metadata
+src/*.egg-info/
+
+# Large runtime artifacts (numpy embeddings, FAISS index)
+*.npy
+*.index
+
+# Reference papers (available via citations in README/notes)
+docs/
+
+# zkLLM: compiled binaries and object files (rebuild with make in src/zkllm/)
+src/zkllm/bin/
+src/zkllm/*.o
+src/zkllm/worker0/
+src/zkllm/worker1/
+src/zkllm/temp_*.bin
+
+# zkLLM workdir (large weight quantization files and corpus proofs, generated at runtime)
+zkllm-workdir/
+
+# Archive of original UltraRAG files (not part of this project)
+_archive/

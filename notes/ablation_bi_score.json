@@ -1,0 +1,298 @@
+{
+  "model": "jina-embeddings-v4",
+  "method": "BI Score (ShortGPT, arXiv:2403.03853)",
+  "n_text_samples": 20,
+  "n_image_samples": 20,
+  "text_bi": [
+    {
+      "layer": 0,
+      "bi_score": 0.955985
+    },
+    {
+      "layer": 1,
+      "bi_score": 0.170927
+    },
+    {
+      "layer": 2,
+      "bi_score": 0.054219
+    },
+    {
+      "layer": 3,
+      "bi_score": 0.036534
+    },
+    {
+      "layer": 4,
+      "bi_score": 0.048697
+    },
+    {
+      "layer": 5,
+      "bi_score": 0.042466
+    },
+    {
+      "layer": 6,
+      "bi_score": 0.046644
+    },
+    {
+      "layer": 7,
+      "bi_score": 0.057787
+    },
+    {
+      "layer": 8,
+      "bi_score": 0.051829
+    },
+    {
+      "layer": 9,
+      "bi_score": 0.057134
+    },
+    {
+      "layer": 10,
+      "bi_score": 0.055996
+    },
+    {
+      "layer": 11,
+      "bi_score": 0.062793
+    },
+    {
+      "layer": 12,
+      "bi_score": 0.05213
+    },
+    {
+      "layer": 13,
+      "bi_score": 0.039063
+    },
+    {
+      "layer": 14,
+      "bi_score": 0.036749
+    },
+    {
+      "layer": 15,
+      "bi_score": 0.033332
+    },
+    {
+      "layer": 16,
+      "bi_score": 0.028125
+    },
+    {
+      "layer": 17,
+      "bi_score": 0.024497
+    },
+    {
+      "layer": 18,
+      "bi_score": 0.024682
+    },
+    {
+      "layer": 19,
+      "bi_score": 0.019113
+    },
+    {
+      "layer": 20,
+      "bi_score": 0.018162
+    },
+    {
+      "layer": 21,
+      "bi_score": 0.014386
+    },
+    {
+      "layer": 22,
+      "bi_score": 0.013435
+    },
+    {
+      "layer": 23,
+      "bi_score": 0.0191
+    },
+    {
+      "layer": 24,
+      "bi_score": 0.020353
+    },
+    {
+      "layer": 25,
+      "bi_score": 0.025712
+    },
+    {
+      "layer": 26,
+      "bi_score": 0.031268
+    },
+    {
+      "layer": 27,
+      "bi_score": 0.039962
+    },
+    {
+      "layer": 28,
+      "bi_score": 0.033766
+    },
+    {
+      "layer": 29,
+      "bi_score": 0.024109
+    },
+    {
+      "layer": 30,
+      "bi_score": 0.051309
+    },
+    {
+      "layer": 31,
+      "bi_score": 0.038429
+    },
+    {
+      "layer": 32,
+      "bi_score": 0.024995
+    },
+    {
+      "layer": 33,
+      "bi_score": 0.0602
+    },
+    {
+      "layer": 34,
+      "bi_score": 0.021416
+    },
+    {
+      "layer": 35,
+      "bi_score": 0.076554
+    }
+  ],
+  "image_bi": [
+    {
+      "layer": 0,
+      "bi_score": 0.13997
+    },
+    {
+      "layer": 1,
+      "bi_score": 0.050254
+    },
+    {
+      "layer": 2,
+      "bi_score": 0.018316
+    },
+    {
+      "layer": 3,
+      "bi_score": 0.027778
+    },
+    {
+      "layer": 4,
+      "bi_score": 0.043938
+    },
+    {
+      "layer": 5,
+      "bi_score": 0.053166
+    },
+    {
+      "layer": 6,
+      "bi_score": 0.075972
+    },
+    {
+      "layer": 7,
+      "bi_score": 0.064647
+    },
+    {
+      "layer": 8,
+      "bi_score": 0.056293
+    },
+    {
+      "layer": 9,
+      "bi_score": 0.062562
+    },
+    {
+      "layer": 10,
+      "bi_score": 0.071656
+    },
+    {
+      "layer": 11,
+      "bi_score": 0.08897
+    },
+    {
+      "layer": 12,
+      "bi_score": 0.097235
+    },
+    {
+      "layer": 13,
+      "bi_score": 0.07147
+    },
+    {
+      "layer": 14,
+      "bi_score": 0.073846
+    },
+    {
+      "layer": 15,
+      "bi_score": 0.069213
+    },
+    {
+      "layer": 16,
+      "bi_score": 0.057398
+    },
+    {
+      "layer": 17,
+      "bi_score": 0.058149
+    },
+    {
+      "layer": 18,
+      "bi_score": 0.054322
+    },
+    {
+      "layer": 19,
+      "bi_score": 0.047659
+    },
+    {
+      "layer": 20,
+      "bi_score": 0.051179
+    },
+    {
+      "layer": 21,
+      "bi_score": 0.041377
+    },
+    {
+      "layer": 22,
+      "bi_score": 0.0376
+    },
+    {
+      "layer": 23,
+      "bi_score": 0.048175
+    },
+    {
+      "layer": 24,
+      "bi_score": 0.048439
+    },
+    {
+      "layer": 25,
+      "bi_score": 0.044112
+    },
+    {
+      "layer": 26,
+      "bi_score": 0.054304
+    },
+    {
+      "layer": 27,
+      "bi_score": 0.060817
+    },
+    {
+      "layer": 28,
+      "bi_score": 0.049259
+    },
+    {
+      "layer": 29,
+      "bi_score": 0.035849
+    },
+    {
+      "layer": 30,
+      "bi_score": 0.052864
+    },
+    {
+      "layer": 31,
+      "bi_score": 0.064626
+    },
+    {
+      "layer": 32,
+      "bi_score": 0.051081
+    },
+    {
+      "layer": 33,
+      "bi_score": 0.104774
+    },
+    {
+      "layer": 34,
+      "bi_score": 0.023736
+    },
+    {
+      "layer": 35,
+      "bi_score": 0.085774
+    }
+  ]
+}

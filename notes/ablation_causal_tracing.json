@@ -1,0 +1,443 @@
+{
+  "model": "jina-embeddings-v4",
+  "method": "causal tracing (Meng et al. ROME NeurIPS 2022)",
+  "corrupt_scale": 3.0,
+  "n_text_samples": 20,
+  "n_image_samples": 10,
+  "text_results": [
+    {
+      "layer": 0,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 1,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 2,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 3,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 4,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 5,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 6,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 7,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 8,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 9,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 10,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 11,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 12,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 13,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 14,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 15,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 16,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 17,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 18,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 19,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 20,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 21,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 22,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 23,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 24,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 25,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 26,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 27,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 28,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 29,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 30,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 31,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 32,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 33,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 34,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    },
+    {
+      "layer": 35,
+      "cos_corrupt": 0.37701,
+      "cos_restored": 1.0,
+      "recovery": 0.62299
+    }
+  ],
+  "image_results": [
+    {
+      "layer": 0,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 1,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 2,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 3,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 4,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 5,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 6,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 7,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 8,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 9,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 10,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 11,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 12,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 13,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 14,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 15,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 16,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 17,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 18,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 19,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 20,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 21,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 22,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 23,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 24,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 25,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 26,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 27,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 28,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 29,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 30,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 31,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 32,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 33,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 34,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    },
+    {
+      "layer": 35,
+      "cos_corrupt": 0.197,
+      "cos_restored": 1.0,
+      "recovery": 0.803
+    }
+  ]
+}

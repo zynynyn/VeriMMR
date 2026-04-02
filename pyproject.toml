@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ultrarag"
+version = "0.2.1"
+description = "UltraRAG 2.0"
+readme = "README.md"
+requires-python = ">=3.11, <3.13"
+dependencies = [
+    "fastmcp==2.11.3",
+    "pandas",
+    "Jinja2",
+    "openai",
+    "httpx[socks]",
+    "python-dotenv",
+    "PyYAML",
+    "tqdm",
+    "requests",
+    "orjson",
+    "tabulate",
+    "aiohttp",
+    "pillow",
+    "rouge-score",
+    "pytrec-eval-terrier",
+]
+
+[project.optional-dependencies]
+retriever = [
+    "infinity-emb",
+    "sentence-transformers",
+    "openai",
+    "bm25s",
+    "faiss-gpu-cu12",
+    "exa_py",
+    "tavily-python",
+]
+
+generation = [
+    "vllm",
+    "openai",
+    "transformers",
+]
+
+corpus = [
+    "chonkie",
+    "pymupdf",
+    "mineru[core]",
+]
+
+all = [
+    "ultrarag[retriever]",
+    "ultrarag[generation]",
+    "ultrarag[corpus]",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+ultrarag = "ultrarag.client:main"

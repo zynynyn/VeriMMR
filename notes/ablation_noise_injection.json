@@ -1,0 +1,443 @@
+{
+  "model": "jina-embeddings-v4",
+  "method": "adaptive Gaussian noise injection",
+  "noise_scale": 1.0,
+  "n_text_samples": 20,
+  "n_image_samples": 10,
+  "text_results": [
+    {
+      "layer": 0,
+      "cos_sim": 0.945418,
+      "sensitivity": 0.054582,
+      "noise_std": 0.526173
+    },
+    {
+      "layer": 1,
+      "cos_sim": 0.823659,
+      "sensitivity": 0.176341,
+      "noise_std": 1.03609
+    },
+    {
+      "layer": 2,
+      "cos_sim": 0.085792,
+      "sensitivity": 0.914208,
+      "noise_std": 20.454479
+    },
+    {
+      "layer": 3,
+      "cos_sim": 0.072388,
+      "sensitivity": 0.927612,
+      "noise_std": 22.900968
+    },
+    {
+      "layer": 4,
+      "cos_sim": 0.064483,
+      "sensitivity": 0.935517,
+      "noise_std": 23.699467
+    },
+    {
+      "layer": 5,
+      "cos_sim": 0.068083,
+      "sensitivity": 0.931917,
+      "noise_std": 23.931573
+    },
+    {
+      "layer": 6,
+      "cos_sim": 0.067371,
+      "sensitivity": 0.932629,
+      "noise_std": 24.077292
+    },
+    {
+      "layer": 7,
+      "cos_sim": 0.064864,
+      "sensitivity": 0.935136,
+      "noise_std": 24.249866
+    },
+    {
+      "layer": 8,
+      "cos_sim": 0.07817,
+      "sensitivity": 0.92183,
+      "noise_std": 24.315327
+    },
+    {
+      "layer": 9,
+      "cos_sim": 0.073522,
+      "sensitivity": 0.926478,
+      "noise_std": 24.645629
+    },
+    {
+      "layer": 10,
+      "cos_sim": 0.081209,
+      "sensitivity": 0.918791,
+      "noise_std": 24.921684
+    },
+    {
+      "layer": 11,
+      "cos_sim": 0.082729,
+      "sensitivity": 0.917271,
+      "noise_std": 25.050064
+    },
+    {
+      "layer": 12,
+      "cos_sim": 0.085733,
+      "sensitivity": 0.914267,
+      "noise_std": 25.102031
+    },
+    {
+      "layer": 13,
+      "cos_sim": 0.081447,
+      "sensitivity": 0.918553,
+      "noise_std": 25.139169
+    },
+    {
+      "layer": 14,
+      "cos_sim": 0.097656,
+      "sensitivity": 0.902344,
+      "noise_std": 25.196748
+    },
+    {
+      "layer": 15,
+      "cos_sim": 0.081173,
+      "sensitivity": 0.918827,
+      "noise_std": 25.213808
+    },
+    {
+      "layer": 16,
+      "cos_sim": 0.090469,
+      "sensitivity": 0.909531,
+      "noise_std": 25.460356
+    },
+    {
+      "layer": 17,
+      "cos_sim": 0.081461,
+      "sensitivity": 0.918539,
+      "noise_std": 25.610699
+    },
+    {
+      "layer": 18,
+      "cos_sim": 0.092193,
+      "sensitivity": 0.907807,
+      "noise_std": 25.673548
+    },
+    {
+      "layer": 19,
+      "cos_sim": 0.087269,
+      "sensitivity": 0.912731,
+      "noise_std": 25.762737
+    },
+    {
+      "layer": 20,
+      "cos_sim": 0.084218,
+      "sensitivity": 0.915782,
+      "noise_std": 25.825807
+    },
+    {
+      "layer": 21,
+      "cos_sim": 0.097666,
+      "sensitivity": 0.902334,
+      "noise_std": 25.776146
+    },
+    {
+      "layer": 22,
+      "cos_sim": 0.09089,
+      "sensitivity": 0.90911,
+      "noise_std": 25.745649
+    },
+    {
+      "layer": 23,
+      "cos_sim": 0.087986,
+      "sensitivity": 0.912014,
+      "noise_std": 25.757182
+    },
+    {
+      "layer": 24,
+      "cos_sim": 0.095893,
+      "sensitivity": 0.904107,
+      "noise_std": 25.738821
+    },
+    {
+      "layer": 25,
+      "cos_sim": 0.113545,
+      "sensitivity": 0.886455,
+      "noise_std": 25.70224
+    },
+    {
+      "layer": 26,
+      "cos_sim": 0.103775,
+      "sensitivity": 0.896225,
+      "noise_std": 25.652974
+    },
+    {
+      "layer": 27,
+      "cos_sim": 0.128124,
+      "sensitivity": 0.871876,
+      "noise_std": 25.600961
+    },
+    {
+      "layer": 28,
+      "cos_sim": 0.154183,
+      "sensitivity": 0.845817,
+      "noise_std": 25.521795
+    },
+    {
+      "layer": 29,
+      "cos_sim": 0.179963,
+      "sensitivity": 0.820037,
+      "noise_std": 25.266007
+    },
+    {
+      "layer": 30,
+      "cos_sim": 0.71007,
+      "sensitivity": 0.28993,
+      "noise_std": 6.387125
+    },
+    {
+      "layer": 31,
+      "cos_sim": 0.703061,
+      "sensitivity": 0.296939,
+      "noise_std": 8.092873
+    },
+    {
+      "layer": 32,
+      "cos_sim": 0.705432,
+      "sensitivity": 0.294568,
+      "noise_std": 9.3805
+    },
+    {
+      "layer": 33,
+      "cos_sim": 0.657015,
+      "sensitivity": 0.342985,
+      "noise_std": 13.144937
+    },
+    {
+      "layer": 34,
+      "cos_sim": 0.644234,
+      "sensitivity": 0.355766,
+      "noise_std": 15.241944
+    },
+    {
+      "layer": 35,
+      "cos_sim": 0.223548,
+      "sensitivity": 0.776452,
+      "noise_std": 63.893569
+    }
+  ],
+  "image_results": [
+    {
+      "layer": 0,
+      "cos_sim": 0.505155,
+      "sensitivity": 0.494845,
+      "noise_std": 1.413943
+    },
+    {
+      "layer": 1,
+      "cos_sim": 0.852119,
+      "sensitivity": 0.147881,
+      "noise_std": 1.498723
+    },
+    {
+      "layer": 2,
+      "cos_sim": 0.593497,
+      "sensitivity": 0.406503,
+      "noise_std": 3.09397
+    },
+    {
+      "layer": 3,
+      "cos_sim": 0.63425,
+      "sensitivity": 0.36575,
+      "noise_std": 3.345652
+    },
+    {
+      "layer": 4,
+      "cos_sim": 0.624726,
+      "sensitivity": 0.375274,
+      "noise_std": 3.436419
+    },
+    {
+      "layer": 5,
+      "cos_sim": 0.623452,
+      "sensitivity": 0.376548,
+      "noise_std": 3.472278
+    },
+    {
+      "layer": 6,
+      "cos_sim": 0.632001,
+      "sensitivity": 0.367999,
+      "noise_std": 3.500439
+    },
+    {
+      "layer": 7,
+      "cos_sim": 0.683218,
+      "sensitivity": 0.316782,
+      "noise_std": 3.522625
+    },
+    {
+      "layer": 8,
+      "cos_sim": 0.702691,
+      "sensitivity": 0.297309,
+      "noise_std": 3.544454
+    },
+    {
+      "layer": 9,
+      "cos_sim": 0.713709,
+      "sensitivity": 0.286291,
+      "noise_std": 3.589184
+    },
+    {
+      "layer": 10,
+      "cos_sim": 0.704474,
+      "sensitivity": 0.295526,
+      "noise_std": 3.61864
+    },
+    {
+      "layer": 11,
+      "cos_sim": 0.712058,
+      "sensitivity": 0.287942,
+      "noise_std": 3.648867
+    },
+    {
+      "layer": 12,
+      "cos_sim": 0.737054,
+      "sensitivity": 0.262946,
+      "noise_std": 3.67611
+    },
+    {
+      "layer": 13,
+      "cos_sim": 0.727642,
+      "sensitivity": 0.272358,
+      "noise_std": 3.672556
+    },
+    {
+      "layer": 14,
+      "cos_sim": 0.743548,
+      "sensitivity": 0.256452,
+      "noise_std": 3.674268
+    },
+    {
+      "layer": 15,
+      "cos_sim": 0.749553,
+      "sensitivity": 0.250447,
+      "noise_std": 3.678822
+    },
+    {
+      "layer": 16,
+      "cos_sim": 0.74252,
+      "sensitivity": 0.25748,
+      "noise_std": 3.724607
+    },
+    {
+      "layer": 17,
+      "cos_sim": 0.748645,
+      "sensitivity": 0.251355,
+      "noise_std": 3.775442
+    },
+    {
+      "layer": 18,
+      "cos_sim": 0.748447,
+      "sensitivity": 0.251553,
+      "noise_std": 3.825107
+    },
+    {
+      "layer": 19,
+      "cos_sim": 0.742561,
+      "sensitivity": 0.257439,
+      "noise_std": 3.859274
+    },
+    {
+      "layer": 20,
+      "cos_sim": 0.753454,
+      "sensitivity": 0.246546,
+      "noise_std": 3.928286
+    },
+    {
+      "layer": 21,
+      "cos_sim": 0.764504,
+      "sensitivity": 0.235496,
+      "noise_std": 3.969079
+    },
+    {
+      "layer": 22,
+      "cos_sim": 0.754605,
+      "sensitivity": 0.245395,
+      "noise_std": 3.961322
+    },
+    {
+      "layer": 23,
+      "cos_sim": 0.765972,
+      "sensitivity": 0.234028,
+      "noise_std": 4.028763
+    },
+    {
+      "layer": 24,
+      "cos_sim": 0.779031,
+      "sensitivity": 0.220969,
+      "noise_std": 4.091921
+    },
+    {
+      "layer": 25,
+      "cos_sim": 0.792951,
+      "sensitivity": 0.207049,
+      "noise_std": 4.134964
+    },
+    {
+      "layer": 26,
+      "cos_sim": 0.817941,
+      "sensitivity": 0.182059,
+      "noise_std": 4.19399
+    },
+    {
+      "layer": 27,
+      "cos_sim": 0.827274,
+      "sensitivity": 0.172726,
+      "noise_std": 4.452807
+    },
+    {
+      "layer": 28,
+      "cos_sim": 0.832771,
+      "sensitivity": 0.167229,
+      "noise_std": 4.703314
+    },
+    {
+      "layer": 29,
+      "cos_sim": 0.849264,
+      "sensitivity": 0.150736,
+      "noise_std": 4.93959
+    },
+    {
+      "layer": 30,
+      "cos_sim": 0.873747,
+      "sensitivity": 0.126253,
+      "noise_std": 5.118906
+    },
+    {
+      "layer": 31,
+      "cos_sim": 0.885359,
+      "sensitivity": 0.114641,
+      "noise_std": 6.4487
+    },
+    {
+      "layer": 32,
+      "cos_sim": 0.886403,
+      "sensitivity": 0.113597,
+      "noise_std": 7.451621
+    },
+    {
+      "layer": 33,
+      "cos_sim": 0.833384,
+      "sensitivity": 0.166616,
+      "noise_std": 10.8926
+    },
+    {
+      "layer": 34,
+      "cos_sim": 0.813214,
+      "sensitivity": 0.186786,
+      "noise_std": 12.867429
+    },
+    {
+      "layer": 35,
+      "cos_sim": 0.848945,
+      "sensitivity": 0.151055,
+      "noise_std": 49.105753
+    }
+  ]
+}

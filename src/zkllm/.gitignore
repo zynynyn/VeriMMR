@@ -1,0 +1,4 @@
+# Compiled CUDA binaries - platform-specific (sm_89, CUDA 12.8)
+# Rebuild with: cd /path/to/zkllm-ccs2024 && make <target>
+bin/
+swiglu-table.bin
