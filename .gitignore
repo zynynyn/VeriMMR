@@ -18,6 +18,7 @@ output/
 test/
 corpora/
 data/chat_sessions/
+data/huggingface_cache/
 
 # Environment variables and secrets
 .env
