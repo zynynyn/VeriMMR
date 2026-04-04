@@ -255,13 +255,13 @@ conda activate ultrarag
 主要依赖版本：`torch 2.8.0+cu128`、`faiss-gpu`、`sentence-transformers`、`pymupdf`、`py_ecc`、`mmh3`、`gradio`
 
 **模型路径**（默认）：
-- 检索模型：`/root/autodl-tmp/models/jina-embeddings-v4`
-- 生成模型：`/root/autodl-tmp/models/MiniCPM-V-4`
+- 检索模型：`/path/to/models/jina-embeddings-v4`
+- 生成模型：`/path/to/models/MiniCPM-V-4`
 
 ### 编译 zkLLM CUDA 二进制
 
 ```bash
-cd /root/autodl-tmp/UltraRAG/src/zkllm
+cd /path/to/VeriMMR/src/zkllm
 make all -j$(nproc)
 mkdir -p bin && cp ppgen commit-param self-attn ffn rmsnorm skip-connection bin/
 ```
@@ -271,7 +271,7 @@ mkdir -p bin && cp ppgen commit-param self-attn ffn rmsnorm skip-connection bin/
 ### 一键建库
 
 ```bash
-cd /root/autodl-tmp/UltraRAG
+cd /path/to/VeriMMR
 python script/build_verifiable_corpus.py --pdf data/nikon.pdf
 ```
 
