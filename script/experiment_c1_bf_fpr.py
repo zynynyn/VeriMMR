@@ -37,7 +37,13 @@ NOTES_DIR    = ROOT / "notes"
 HF_NAME      = "openbmb/VisRAG-Ret-Test-InfoVQA"
 N_ZAC        = 50       # ZAC 集合大小
 N_TRIALS     = 400      # B1 / B2 各自的试验次数
-SEED         = 42
+
+import argparse
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--seed", type=int, default=42,
+                 help="随机种子（不同种子→不同随机 embedding 序列，结果独立）")
+_args = _ap.parse_args()
+SEED = _args.seed
 
 def ts():
     return time.strftime("%H:%M:%S")
@@ -48,6 +54,7 @@ print(f"{'='*64}")
 print(f"  数据集   : {HF_NAME}")
 print(f"  ZAC 大小 : {N_ZAC}")
 print(f"  试验次数 : {N_TRIALS} × 2 = {N_TRIALS*2} 次")
+print(f"  随机种子 : {SEED}")
 print(f"  理论 ε   : 0.01")
 print(f"  开始     : {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -66,9 +73,10 @@ from datasets import load_dataset
 t0 = time.time()
 ds_corpus = load_dataset(HF_NAME, "corpus", split="train", cache_dir=str(CACHE_DIR))
 N_corpus  = len(ds_corpus)
-print(f"  corpus={N_corpus}  ({time.time()-t0:.1f}s)")
-assert N_corpus >= N_ZAC + N_TRIALS, \
-    f"语料库不足：需要 {N_ZAC + N_TRIALS} 张，实际 {N_corpus} 张"
+N_nonmember = N_corpus - N_ZAC   # 非成员图像池大小
+print(f"  corpus={N_corpus}  非成员池={N_nonmember}  ({time.time()-t0:.1f}s)")
+assert N_nonmember >= N_TRIALS, \
+    f"非成员图像不足：需要 {N_TRIALS} 张，实际 {N_nonmember} 张"
 
 img_f = next(f for f in ds_corpus.column_names if f in ("image","img","pixel_values","image_bytes"))
 
@@ -81,11 +89,13 @@ def to_pil(img_data) -> Image.Image:
         return Image.open(io.BytesIO(img_data["bytes"])).convert("RGB")
     raise TypeError(f"未知图像类型：{type(img_data)}")
 
-# ── 编码全部 N_ZAC + N_TRIALS 张图像 ─────────────────────────────────────────
-N_encode = N_ZAC + N_TRIALS
-print(f"\n[{ts()}] 编码前 {N_encode} 张图像 ...")
+# ── 加载全量 PIL（取字节用）+ 只对 ZAC 成员做 jina-v4 编码 ──────────────────
+# PIL 全量：供 B1 donor 图像保存 JPEG 字节（不需要 embedding）
+# 编码仅限 ZAC 成员（前 N_ZAC 张）：构建 ZAC 集合 + 作为 ref_emb
+print(f"\n[{ts()}] 加载全量 PIL（{N_corpus} 张）并对 ZAC 成员编码（前 {N_ZAC} 张）...")
 t_enc = time.time()
-pils, embs = [], []
+pils = []
+embs = []
 batch_imgs, BATCH = [], 4
 
 def flush():
@@ -96,18 +106,19 @@ def flush():
     embs.append(e)
     batch_imgs.clear()
 
-for i in range(N_encode):
+for i in range(N_corpus):
     pil = to_pil(ds_corpus[i][img_f])
-    pils.append(pil)
-    batch_imgs.append(pil)
-    if len(batch_imgs) >= BATCH:
-        flush()
-    if (i+1) % 100 == 0 or (i+1) == N_encode:
+    pils.append(pil)                    # 所有 PIL 都保留（B1 donor 取字节用）
+    if i < N_ZAC:                       # 只有 ZAC 成员才做 jina-v4 编码
+        batch_imgs.append(pil)
+        if len(batch_imgs) >= BATCH:
+            flush()
+    if (i+1) % 100 == 0 or (i+1) == N_corpus:
         elapsed = time.time() - t_enc
-        print(f"  [{ts()}] {i+1}/{N_encode}  {(i+1)/elapsed:.2f} img/s")
+        print(f"  [{ts()}] PIL {i+1}/{N_corpus}  编码进度 {min(i+1,N_ZAC)}/{N_ZAC}")
 flush()
-all_embs = np.vstack(embs).astype(np.float32)
-print(f"  编码完成  shape={all_embs.shape}  ({time.time()-t_enc:.1f}s)")
+all_embs = np.vstack(embs).astype(np.float32)   # shape=(N_ZAC, D)
+print(f"  PIL 全量加载完成，ZAC 成员编码 shape={all_embs.shape}  ({time.time()-t_enc:.1f}s)")
 
 # ── 构建 ZAC（前 N_ZAC 张）────────────────────────────────────────────────────
 print(f"\n[{ts()}] 构建 ZAC（{N_ZAC} 张）...")
@@ -141,19 +152,23 @@ with tempfile.TemporaryDirectory() as tmpdir:
     print(f"  假阴性（漏报）：{fn_count}/{N_ZAC}  {'✅ 零漏报' if fn_count==0 else '❌ 存在漏报'}")
 
     # ── B1-style：非成员图像 + 成员 embedding ────────────────────────────────
+    # 随机采样：从非成员池中随机取 N_TRIALS 张（seed 不同→子集不同→结果独立）
+    nm_indices = rng.choice(np.arange(N_ZAC, N_corpus), size=N_TRIALS, replace=False)
+    # 随机选取 ref_emb：从 ZAC 成员中随机选一个（seed 不同→ref 不同→SHA256 完全不同）
+    ref_emb_idx = int(rng.integers(0, N_ZAC))
+    ref_emb = all_embs[ref_emb_idx]
+
     print(f"\n[{ts()}] B1-style 误报测试（{N_TRIALS} 次）...")
-    print(f"  测试元素：SHA256(donor_bytes[N_ZAC..N_ZAC+N_TRIALS] ∥ emb[0])")
+    print(f"  测试元素：SHA256(donor_bytes[随机{N_TRIALS}张] ∥ emb[{ref_emb_idx}])")
+    print(f"  非成员池：{N_nonmember} 张，随机采样 {N_TRIALS} 张")
     t_b1 = time.time()
     fp_b1 = 0
-    # 为非成员图像保存临时文件
     nonmember_paths = []
-    for i in range(N_ZAC, N_ZAC + N_TRIALS):
+    for i in nm_indices:
         p = tmp / f"nm_{i:04d}.jpg"
         pils[i].save(str(p), format="JPEG", quality=95)
         nonmember_paths.append(str(p))
 
-    # 固定使用 emb[0]（ZAC 成员的 embedding），测试非成员图像字节
-    ref_emb = all_embs[0]
     for ti, nm_path in enumerate(nonmember_paths):
         elem = ZACAccumulator.image_embedding_hash(nm_path, ref_emb)
         ok   = acc.verify_membership_batch([elem], acc.prove_membership_batch([elem]))
@@ -188,31 +203,38 @@ with tempfile.TemporaryDirectory() as tmpdir:
     fpr_b2 = fp_b2 / N_TRIALS
     print(f"  B2-style 误报率：{fp_b2}/{N_TRIALS} = {fpr_b2*100:.2f}%")
 
-# ── 汇总 ──────────────────────────────────────────────────────────────────────
-total_fp  = fp_b1 + fp_b2
-total_n   = N_TRIALS * 2
-fpr_total = total_fp / total_n
+# ── 汇总（B1 / B2 分别计算置信区间）────────────────────────────────────────
+def wilson_ci(k, n, z=1.96):
+    if n == 0:
+        return 0.0, 0.0
+    p = k / n
+    denom  = 1 + z**2 / n
+    center = (p + z**2 / (2*n)) / denom
+    margin = z * (p*(1-p)/n + z**2/(4*n**2))**0.5 / denom
+    return max(0.0, center - margin), center + margin
 
-# 95% Wilson 置信区间
-z = 1.96
-n, p = total_n, fpr_total
-denom = 1 + z**2/n
-center = (p + z**2/(2*n)) / denom
-margin = z * (p*(1-p)/n + z**2/(4*n**2))**0.5 / denom
-ci_lo  = max(0.0, center - margin)
-ci_hi  = center + margin
+b1_lo, b1_hi = wilson_ci(fp_b1, N_TRIALS)
+b2_lo, b2_hi = wilson_ci(fp_b2, N_TRIALS)
 
+EPS = 0.01   # 理论误报率
 print(f"\n{'='*64}")
 print(f"Bloom Filter 误报率统计验证结果")
 print(f"{'='*64}")
-print(f"  合法成员假阴性（漏报）  : {fn_count}/{N_ZAC}  ({'✅ 零漏报' if fn_count==0 else '❌'})")
-print(f"  B1-style 误报           : {fp_b1}/{N_TRIALS}  ({fpr_b1*100:.2f}%)")
-print(f"  B2-style 误报           : {fp_b2}/{N_TRIALS}  ({fpr_b2*100:.2f}%)")
-print(f"  合计误报                : {total_fp}/{total_n}  ({fpr_total*100:.2f}%)")
-print(f"  95% Wilson CI           : [{ci_lo*100:.2f}%, {ci_hi*100:.2f}%]")
-print(f"  理论 ε=0.01 {'✅ 在 CI 内' if ci_lo <= 0.01 <= ci_hi else '❌ 不在 CI 内'}")
+print(f"  合法成员假阴性（漏报）")
+print(f"    {fn_count}/{N_ZAC}  {'✅ 零漏报' if fn_count==0 else '❌ 存在漏报'}")
+print(f"")
+print(f"  B1（图像替换，图像字节变/embedding 不变）")
+print(f"    误报：{fp_b1}/{N_TRIALS}  FPR={fpr_b1*100:.2f}%")
+print(f"    95% Wilson CI：[{b1_lo*100:.2f}%, {b1_hi*100:.2f}%]")
+print(f"    理论 ε=0.01 {'✅ 在 CI 内' if b1_lo <= EPS <= b1_hi else '❌ 不在 CI 内'}")
+print(f"")
+print(f"  B2（Embedding 替换，图像字节不变/embedding 变）")
+print(f"    误报：{fp_b2}/{N_TRIALS}  FPR={fpr_b2*100:.2f}%")
+print(f"    95% Wilson CI：[{b2_lo*100:.2f}%, {b2_hi*100:.2f}%]")
+print(f"    理论 ε=0.01 {'✅ 在 CI 内' if b2_lo <= EPS <= b2_hi else '❌ 不在 CI 内'}")
 
 # ── 保存 ──────────────────────────────────────────────────────────────────────
+import shutil
 result = {
     "dataset": "infovqa",
     "hf_name": HF_NAME,
@@ -220,23 +242,34 @@ result = {
     "config": {
         "n_zac": N_ZAC,
         "n_trials_per_type": N_TRIALS,
-        "n_trials_total": total_n,
-        "theoretical_epsilon": 0.01,
+        "theoretical_epsilon": EPS,
         "seed": SEED,
     },
     "results": {
         "false_negatives": fn_count,
-        "fp_b1_style": fp_b1,
-        "fp_b2_style": fp_b2,
-        "fpr_b1": round(fpr_b1, 6),
-        "fpr_b2": round(fpr_b2, 6),
-        "fpr_total": round(fpr_total, 6),
-        "ci_95_lo": round(ci_lo, 6),
-        "ci_95_hi": round(ci_hi, 6),
-        "theoretical_epsilon_in_ci": bool(ci_lo <= 0.01 <= ci_hi),
+        "B1_image_replace": {
+            "fp": fp_b1, "n": N_TRIALS,
+            "fpr": round(fpr_b1, 6),
+            "ci_95_lo": round(b1_lo, 6),
+            "ci_95_hi": round(b1_hi, 6),
+            "epsilon_in_ci": bool(b1_lo <= EPS <= b1_hi),
+        },
+        "B2_embedding_replace": {
+            "fp": fp_b2, "n": N_TRIALS,
+            "fpr": round(fpr_b2, 6),
+            "ci_95_lo": round(b2_lo, 6),
+            "ci_95_hi": round(b2_hi, 6),
+            "epsilon_in_ci": bool(b2_lo <= EPS <= b2_hi),
+        },
     },
 }
 out_path = NOTES_DIR / "experiment_c1_bf_fpr.json"
 out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
 print(f"\n结果已保存：{out_path}")
+
+# ── 清理缓存 ──────────────────────────────────────────────────────────────────
+if CACHE_DIR.exists():
+    shutil.rmtree(CACHE_DIR)
+    print(f"缓存已清理：{CACHE_DIR}")
+
 print(f"完成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}")

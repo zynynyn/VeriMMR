@@ -1,0 +1,40 @@
+{
+  "dataset": "infovqa",
+  "hf_name": "openbmb/VisRAG-Ret-Test-InfoVQA",
+  "timestamp": "2026-04-04 12:04:20",
+  "config": {
+    "n_zac": 50,
+    "n_trials_per_type": 400,
+    "theoretical_epsilon": 0.01,
+    "seed": 42,
+    "version": "v0_fixed_logic",
+    "note": "旧版逻辑：固定使用 images[50-449] + ref_emb=emb[0]，无随机采样"
+  },
+  "results": {
+    "false_negatives": 0,
+    "B1_image_replace": {
+      "fp": 7,
+      "n": 400,
+      "fpr": 0.0175,
+      "ci_95_lo": 0.008502,
+      "ci_95_hi": 0.035678,
+      "epsilon_in_ci": true
+    },
+    "B2_embedding_replace": {
+      "fp": 1,
+      "n": 400,
+      "fpr": 0.0025,
+      "ci_95_lo": 0.000441,
+      "ci_95_hi": 0.014024,
+      "epsilon_in_ci": true
+    },
+    "combined": {
+      "fp": 8,
+      "n": 800,
+      "fpr": 0.01,
+      "ci_95_lo": 0.005076,
+      "ci_95_hi": 0.019608,
+      "epsilon_in_ci": true
+    }
+  }
+}

@@ -1201,7 +1201,7 @@ def build_ui():
                         ans_html = gr.HTML(answer_html())
 
                     # ── 右列：可验证机制 ──────────────────────────────────────
-                    with gr.Column(scale=3):
+                    with gr.Column(scale=1):
                         gr.Markdown("### 可验证检索机制")
                         proof_id_state = gr.State("")
                         # 动态：只含时间轴节点（CSS/modal 已在页面级静态组件里）
@@ -1264,7 +1264,7 @@ def build_ui():
                         )
 
                     # ── 右列：建库时间轴 ──────────────────────────────────────
-                    with gr.Column(scale=3):
+                    with gr.Column(scale=1):
                         gr.Markdown("### 入库时间线 & 证明机制")
                         gr.Markdown(
                             "_点击各步骤的「展开 ›」按钮，查看该节点设置的证明机制详情_\n"
