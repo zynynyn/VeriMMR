@@ -1,0 +1,107 @@
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1（攻击验证版）：chartvqa  B1+B2+B3
+================================================================
+  数据集  : openbmb/VisRAG-Ret-Test-ChartQA
+  ZAC 样本: 50 张（B1/B2 各 10 个攻击样本）
+  Sumcheck: 50 queries（B3）
+  开始    : 2026-04-04 05:23:55
+
+[05:23:55] 加载 jina-v4 ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.90it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.86it/s]
+  loaded  (10.5s)
+
+[05:24:11] 加载数据集 ...
+  corpus=500  queries=63  qrels=63  (9.9s)
+  corpus 字段: ['corpus-id', 'image']
+  qrels  字段: ['query-id', 'corpus-id', 'score']
+  corpus_id=corpus-id  img=image  query_text=query
+
+[05:24:21] 构建 qrels ...
+  有标注查询：63 条
+
+[05:24:21] 编码语料图像（500 张）...
+  [05:24:42] 100/500  4.72 img/s  ETA 1.4min
+  [05:25:17] 200/500  3.53 img/s  ETA 1.4min
+  [05:25:46] 300/500  3.51 img/s  ETA 0.9min
+  [05:26:19] 400/500  3.38 img/s  ETA 0.5min
+  [05:26:52] 500/500  3.31 img/s  ETA 0.0min
+  承诺向量 shape=(500, 2048)  (151.2s)
+
+[05:26:52] 编码查询（63 条）...
+  shape=(63, 2048)  (0.3s)
+
+[05:26:52] 基线：干净 FAISS 搜索 ...
+  基线 MRR@10=87.43  R@1=82.54  R@5=93.65  R@10=93.65  （评测 63 条，跳过 0 条）
+
+[05:26:52] 构建 ZAC（50 张样本图像）...
+  ZAC Root: ae1a20222f22583221d6cb0abfa6f714…  (29.9s)
+
+[05:27:22] B1 图像替换攻击（10 个样本）...
+  攻击：将目标图像文件替换为另一张图像内容，embedding 不变
+  [01/10] vic=  0 donor= 25  before=True after=False  ✓
+  [02/10] vic=  1 donor= 26  before=True after=False  ✓
+  [03/10] vic=  2 donor= 27  before=True after=False  ✓
+  [04/10] vic=  3 donor= 28  before=True after=False  ✓
+  [05/10] vic=  4 donor= 29  before=True after=False  ✓
+  [06/10] vic=  5 donor= 30  before=True after=False  ✓
+  [07/10] vic=  6 donor= 31  before=True after=False  ✓
+  [08/10] vic=  7 donor= 32  before=True after=False  ✓
+  [09/10] vic=  8 donor= 33  before=True after=False  ✓
+  [10/10] vic=  9 donor= 34  before=True after=False  ✓
+  B1 检出率：10/10 = 100.0%  耗时 30.5s
+
+[05:27:53] B2 Embedding 替换攻击（10 个样本）...
+  攻击：图像文件不变，FAISS embedding 替换为随机单位向量
+  [01/10] tgt=  4  before=True after=False  ✓
+  [02/10] tgt= 32  before=True after=False  ✓
+  [03/10] tgt=  3  before=True after=False  ✓
+  [04/10] tgt= 28  before=True after=False  ✓
+  [05/10] tgt= 19  before=True after=False  ✓
+  [06/10] tgt= 44  before=True after=False  ✓
+  [07/10] tgt= 33  before=True after=False  ✓
+  [08/10] tgt= 49  before=True after=False  ✓
+  [09/10] tgt=  9  before=True after=False  ✓
+  [10/10] tgt= 39  before=True after=False  ✓
+  B2 检出率：10/10 = 100.0%  耗时 30.3s
+
+[05:28:23] B3 FAISS Embedding 替换攻击（相关语料项）...
+  攻击：将所有相关语料项的 FAISS embedding 替换为随机单位向量
+  替换了 60 个相关语料项的 embedding（corpus 占比 12.0%）
+  攻击后（无验证）MRR@10=0.00  R@1=0.00  R@5=0.00  R@10=0.00
+  Recall@10 下降：93.65pp  MRR@10 下降：87.43pp
+
+[05:28:23] Sumcheck 验证（50 条 query，承诺向量）...
+  B3 检出率：49/50 = 98.0%  耗时 78.2s  (1564ms/query)
+
+================================================================
+C1 攻击验证汇总：chartvqa
+================================================================
+
+  检索质量（B3 攻击前后对比）
+  指标                   基线（干净）          攻击后（无验证）
+  ──────────────────────────────────────────────
+  MRR@10                87.43              0.00
+  Recall@1              82.54              0.00
+  Recall@3              92.06              0.00
+  Recall@5              93.65              0.00
+  Recall@10             93.65              0.00
+
+  攻击检出率
+  ──────────────────────────────────────────────
+  B1 图像替换（ZAC）              10/10  (100.0%)
+  B2 Embedding 替换（ZAC 绑定）   10/10  (100.0%)
+  B3 排名操控（Sumcheck）          49/50  (98.0%)
+
+  VisRAG-Ret OOD 参照：MRR@10=75.99  Recall@10=91.4
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_attack_chartvqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+完成时间：2026-04-04 05:29:41

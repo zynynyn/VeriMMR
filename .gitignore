@@ -14,7 +14,7 @@ pretrained_models/
 embedding/
 index/
 output/
-logs/
+# logs/
 test/
 corpora/
 data/chat_sessions/

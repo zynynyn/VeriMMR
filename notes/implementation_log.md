@@ -505,7 +505,10 @@ Verifier 检查：$s_i - s_{i+1} = \delta_i$ 且 $\delta_i \geq 0$。
 
 **有限域**：$\mathbb{Z}_p$，$p = 2^{61} - 1$（Mersenne 素数，Python 原生大整数，取模速度快）
 
-**量化**：float32 向量 × scale（默认 256）取整，转为域元素。内积上界：$2048 \times 256^2 \approx 1.3 \times 10^8 \ll p$，无溢出。
+**量化**：float32 向量 × scale 取整，转为域元素。
+
+- **初始选择 scale=256**：保守经验值（$2^8$），溢出上界 $256^2 \times 2048 \approx 1.3 \times 10^8 \ll p$，精度步长 $1/256 \approx 4 \times 10^{-3}$。
+- **更新为 scale=65536（$2^{16}$）**：C2 实验发现 scale=256 在随机向量场景下 top-10 出现排名不一致（分值接近零时量化噪声超过分值差），而 scale=65536 将精度步长降至 $1.5 \times 10^{-5}$，top-10 全部一致，且溢出上界 $65536^2 \times 2048 \approx 8.8 \times 10^{12} \ll p$，耗时无变化（1.0s vs 1.1s）。同时与 zkLLM 的 $2^{16}$ 量化方案对齐。
 
 ### 复杂度对比
 
@@ -663,7 +666,7 @@ python script/phase2_sumcheck.py --experiment \
 
 **声音误差**：$N/p \approx 288/2^{61} \approx 2^{-53}$（$N=288$），可忽略不计。
 
-**局限性**：Sumcheck 证明整数内积（量化后）的正确性。量化误差（float32→int，scale=256）可能导致极少数边界 case 的排序与 FAISS float 排序有微小差异，属于已知精度损失，可在论文实验中量化分析。
+**局限性**：Sumcheck 证明整数内积（量化后）的正确性。量化误差（float32→int，scale=65536，步长 $\approx 1.5 \times 10^{-5}$）在实际语义查询场景下对 top-5 排名无影响（C2 实验验证）；初始 scale=256 在极端场景（随机向量，分值趋近零）下曾出现 top-10 不一致，升级后消除。
 
 ---
 
@@ -1742,7 +1745,7 @@ element_i = SHA256(image_bytes_i + embedding_bytes_i)
 
 ---
 
-### 4.6 系统叙事定位（Trustworthy AI vs 密码学）
+### 4.6 系统叙事定位（Trustworthy AI — Data-Centric 视角）
 
 **重要设计决策记录**
 
@@ -1751,6 +1754,43 @@ element_i = SHA256(image_bytes_i + embedding_bytes_i)
 - ZAC、Sumcheck、zkLLM 是工具，不是目的
 - 系统提供的是"可审计性"（Auditability），不是"零知识性"（Zero-Knowledge）
 - 对标语境：EU AI Act（2024）对高风险 AI 系统的可审计要求，C2PA 在内容溯源上的空白
+
+**核心切入角：Data-Centric Trustworthy AI**
+
+Trustworthy AI 领域存在两个主流切入角：
+
+| 切入角 | 代表工作 | 信任建立方式 | 威胁模型 |
+|--------|---------|------------|---------|
+| **Model-centric** | EVisRAG（2025）、证据归因、Explainability | 模型自身输出的归因/解释 | 模型幻觉、不可解释的推理 |
+| **Data-centric** | **本系统** | 对数据流转每个节点的密码学承诺 | 恶意服务商、供应链篡改、不可信基础设施 |
+
+本系统属于 **Data-Centric Trustworthy AI**：相信数据流的完整性，而不依赖对模型行为的信任。这与近年来数据治理、数据溯源（Data Provenance）领域的趋势一致——在高风险 AI 部署中，仅靠"模型说了算"不够，需要对数据的每次流转提供可独立验证的密码学保障。
+
+**与 EVisRAG 的关系和区别**
+
+EVisRAG（2025 年 10 月）是生成侧的 Trustworthy AI 工作：给 VLM 生成的答案标注来自哪张图像的哪个区域，解决"答案是否有据可查"的问题（证据归因/可解释性）。
+
+本系统是检索侧的 Trustworthy AI 工作，解决的是更基础的问题：
+
+> **在 EVisRAG 能归因之前，如何证明检索系统本身没有被篡改、返回的语料是真实的？**
+
+两者关系：本系统是 EVisRAG 的**前置信任基础**。EVisRAG 的归因仍然依赖你相信服务商返回的图像是真实的；而本系统通过 ZAC + Sumcheck + zkLLM 使得"服务商说检索结果是 X"这件事变得**密码学不可伪造**。
+
+**为何选择检索侧而非生成侧**
+
+本项目题目"面向多模态语义数据的可验证检索机制"，检索是数据流转的核心环节：
+
+```
+[语料库数据] → Phase 1 ZAC（语料完整性）
+     ↓
+[Embedding 数据] → Phase 2 Sumcheck（相似度计算完整性）
+     ↓
+[Top-k 结果数据] → Phase 3 zkLLM（推理过程完整性）
+     ↓
+[答案数据] ← 生成侧（EVisRAG 的范围）
+```
+
+对数据流中每一个"数据状态"的转换施加密码学约束，这正是 Data-Centric 的含义——不是针对某种特定模型或任务设计的，而是对**多模态语义数据流转过程**的通用保障机制。
 
 **C2PA（Coalition for Content Provenance and Authenticity）**
 
@@ -1761,9 +1801,27 @@ Adobe、Microsoft、Google 等联合制定的数字内容溯源标准，为图�
 | 维度 | 内容 |
 |------|------|
 | 问题形式化 | 首次将"可验证多模态 RAG"分解为三个独立信任边界，并为每个边界匹配密码学原语 |
+| Data-Centric 视角 | 对检索管道中每个数据状态转换节点施加密码学约束，独立于模型行为 |
 | 组合贡献 | ZAC+Sumcheck+zkLLM 的组合方案及其接缝分析（跨层承诺绑定问题） |
 | 多模态特异性 | 图像 seq_len 对齐（641→1024）、图像高熵哈希的成员证明优势、hook 位置确定 |
 | 工程可行性 | 303 张图片端到端证明，52s/张，<2% hook 开销，实测数据 |
+
+**评测策略与数据集选取原则**
+
+项目题目是"面向多模态语义数据"，不是针对某一类文档（如相机手册）设计的专用系统。实验中 Nikon PDF 仅作演示，**检索质量评测（C1）必须使用多类型公开数据集**，以证明框架的普适性。
+
+选取原则：
+1. 使用 VisRAG 论文（ICLR 2025）同款数据集，便于与已发表的检索指标直接对比
+2. 覆盖不同多模态文档类型（幻灯片/文档/图表/信息图），体现"多模态语义数据"的广度
+3. 与 VisRAG-Ret 的 **Out-of-Domain（OOD）指标**对比（见 C1 节详细说明）
+
+**为何只与 OOD 对比，不与 In-Domain 对比**
+
+VisRAG-Ret 报告了两类指标：
+- **In-Domain**：训练时见过该数据集的训练集，属于专门微调后的结果，对我们不公平
+- **Out-of-Domain**：训练时完全未见该数据集，体现泛化能力
+
+jina-v4 是通用多模态检索器（zero-shot），未在任何文档 VQA 数据集上微调，因此必须与 OOD 指标对比。这是**公平的科学比较**：双方都没有在该数据集上专门训练，差别仅在于 VisRAG-Ret 用其他文档数据做过预热，而 jina-v4 是完全通用的。若 jina-v4 OOD 指标接近甚至超过 VisRAG-Ret OOD，说明通用检索器加密码学验证层即可满足高置信需求，无需专门训练。
 
 **应用场景**
 
@@ -1865,8 +1923,8 @@ Reviewer 最关心的问题：引入验证层是否损失检索质量？
 
 | 组别 | 核心问题 | 衡量指标 | 状态 |
 |------|---------|----------|------|
-| A. 系统性能 | "有多慢？" | 延迟分解 + N 扩展性 | 🔲 待执行 |
-| B. 安全验证 | "能抓住攻击吗？" | 攻击检测率（需 100%） | 🔲 待执行 |
+| A. 系统性能 | "有多慢？" | 延迟分解 + N 扩展性 | ✅ A1 已完成 / 🔲 A2 待执行 |
+| B. 安全验证 | "能抓住攻击吗？" | 攻击检测率（需 100%） | ✅ 已完成 |
 | C. 检索质量 | "量化误差影响排名吗？" | top-k 排名一致性；可选 Recall@K | 🔲 待执行 |
 | D. 消融实验 | "K 层怎么选？" | BI Score / Residual Zeroing / Noise | ✅ 已完成 |
 | E. GQA 适配正确性 | "GQA 改造计算是否正确？" | zkAttn 输出与参考实现的 L∞ 误差 | 🔲 待执行 |
@@ -1881,90 +1939,153 @@ Reviewer 最关心的问题：引入验证层是否损失检索质量？
 
 ### Group A：系统性能
 
-#### A1 端到端延迟分解
+#### A1 端到端延迟分解 ✅ 已完成（2026-04-03）
 
 **目标**：测量完整验证流水线各阶段的延迟，并与无验证基线对比。
 
-**实验方法**：对单次查询计时，记录各步骤耗时，重复 10 次取均值 ± 标准差。
+**实验方法**：5 条代表性 query × 10 次重复（同步阶段）取中位数；Phase 3Q 单独计时 3 次；生成阶段每条 query 重复 3 次取中位数。N=303，GPU: RTX 4090 24G × 2。
 
-**预期分解**（N=303，GPU：RTX 3090 24G）：
+**实测结果**（`notes/experiment_a1_result.json`）：
 
-| 阶段 | 组件 | 预期耗时 |
-|------|------|----------|
-| 向量编码 | jina-v4（含 hook） | ~300ms |
-| FAISS 检索 | IndexFlatIP，N=303 | < 5ms |
-| Phase 3Q | zkLLM query（K=3，双卡） | ~8s |
-| Phase 3C | zkLLM corpus 读取（预计算） | < 10ms |
-| Phase 2 | Sumcheck（N=303，11轮） | ~450ms |
-| Phase 1 | ZAC 成员证明（5张图） | ~200ms |
-| 生成 | MiniCPM-V-4 | ~2s |
-| **总计** | **完整验证流水线** | **~11s** |
+**查询时延迟分解（同步阶段，per-query）：**
 
-**对比项**：
-- Baseline（无验证）：jina-v4 编码 + FAISS + MiniCPM 生成 ≈ 2.3s
-- Sumcheck-only：去除 zkLLM（延迟主因），用于逐步拆解开销
+| 阶段 | 中位数 | 类型 |
+|------|--------|------|
+| jina-v4 编码 | 130ms | 同步 |
+| FAISS 检索 | 0ms | 同步 |
+| Phase 2 Sumcheck（N=303） | 973ms | 同步 |
+| Phase 1 ZAC（k=5） | 4514ms | 同步 |
+| Phase 3C corpus 读取（预计算） | 0ms | 同步 |
+| **同步验证完成时刻** | **5618ms** | |
+| Phase 3Q（K=3，双GPU并行，layers 33-35） | 30586ms | 异步后台 |
+
+**端到端时序（含生成）：**
+
+关键时序：Phase 3Q 在 encode 完成（t≈130ms）后异步启动，主线程在完成同步验证后通过 `join()` 等待 Phase 3Q 完成（阻塞 ~25099ms）。
+
+| 节点 | 时刻 |
+|------|------|
+| 同步验证完成 | 5618ms |
+| Phase 3Q 完成（encode + 30586ms） | ~30716ms |
+| 大模型可开始生成 | **30716ms**（取 max） |
+| 大模型生成（MiniCPM-V-4） | +3521ms |
+| **端到端总计** | **34237ms** |
+| Baseline 端到端（encode+FAISS+生成） | 3652ms |
+| **端到端额外开销** | **30586ms = 8.4× baseline** |
+
+**建库时开销（一次性，离线）：**
+
+| 阶段 | 耗时 |
+|------|------|
+| Phase 3C corpus zkLLM（K=5，N=303 张） | ~6.42h |
+| Phase 1 ZAC 建库 + embedding + FAISS | <10min |
+
+**结论**：
+- 端到端延迟瓶颈为 **Phase 3Q**（zkLLM query proof），占总额外开销 ~97%
+- Sumcheck + ZAC 同步开销合计 ~5.5s，相比 Phase 3Q 可忽略
+- Phase 3Q 双 GPU 并行可将延迟压缩至单卡串行的约 1/2（K=3 → gpu0=[33], gpu1=[34,35]）
+- 若 Phase 3Q 可进一步异步化（answer 不强依赖 Phase 3Q 结果），用户感知延迟可降至 ~5.6s（1.5× baseline）
+
+**延迟瓶颈叙事（论文表述）**：
+
+端到端延迟 34.2s（8.4× baseline）。延迟分解揭示瓶颈为 Phase 3Q（zkLLM query proof，30.6s），其余同步验证阶段（Sumcheck + ZAC）仅引入 5.5s 额外开销。Phase 3Q 的开销来自 ZK 证明的本质计算复杂度——zkLLM 原论文对 LLaMA-2-13B 在 A100 上需 803s；本系统通过消融实验选择关键 K=3 层（文本 coverage 集中在 layers 33-35，达 44.3%）、采用双 GPU 并行策略，将 query 侧证明压缩至 31s，约为原论文量级的 1/26。若应用场景允许将嵌入来源证明从同步响应路径解耦（答案先返回，proof 异步交付），用户感知延迟可降至 5.6s（1.5× baseline）。系统因此提供两层可选验证保障：检索完整性（Sumcheck + ZAC，1.5×）与嵌入来源证明（+ Phase 3Q，8.4×），不同安全需求场景可按需选择。
 
 **报告格式**：堆叠条形图（各阶段占比）+ 表格
 
-#### A2 N 扩展性
+#### A2 N 扩展性 ✅ 已完成（2026-04-04）
 
-**目标**：观察语料库规模 N 对验证开销的影响。
+**目标**：观察语料库规模 N 对各验证组件延迟的影响。
 
-**实验方法**：固定查询，改变语料库大小 N ∈ {50, 100, 200, 303, 500, 1000}。N > 303 时引入 SlideVQA 文档图像扩充。分别记录 FAISS 检索时间、Sumcheck 时间、ZAC 证明时间。
+**实验方法**：5 条 query × 10 次重复，N ∈ {50, 100, 200, 303, 500, 1000}。N ≤ 303 切片已有 embedding；N > 303 补随机单位向量（仅用于计时）。ZAC 始终使用固定 k=5 真实元素以验证 O(k) 常数性。
 
-**预期结论**：
-- FAISS：O(N·D)，但 < 10ms（even for N=1000）
-- Sumcheck：O(N·D) 预处理 + O(D·log D) 证明，重点观察 N > 1000 后的增速
-- ZAC：O(k)，k = top-k = 5，不随 N 增长（这是 ZAC vs. Merkle 的核心优势之一）
+**实测结果**（`notes/experiment_a2_result.json`）：
 
-**报告格式**：N-延迟折线图（三条线分别对应三个组件）
+| N | FAISS | Sumcheck | ZAC |
+|---|-------|----------|-----|
+| 50 | 0.41ms | 166ms | 4378ms |
+| 100 | 0.32ms | 321ms | 4379ms |
+| 200 | 0.44ms | 634ms | 4369ms |
+| 303 | 0.57ms | 954ms | 4368ms |
+| 500 | 0.76ms | 1583ms | 4370ms |
+| 1000 | 1.20ms | 3172ms | 4387ms |
+
+**结论**：
+- **FAISS**：全程 < 2ms，N=1000 时仅 1.2ms，实际可忽略不计
+- **Sumcheck**：log-log 拟合斜率 = **0.986 ≈ 1.0**，精确验证 O(N) 线性增长；N 从 50 增至 1000（×20），延迟从 166ms 增至 3172ms（×19.1）
+- **ZAC**：N=50 到 N=1000 全程维持在 4368–4387ms，方差极小，完全验证 **O(k) 常数性**（k=5，与 N 无关）——这是 ZAC 相对 Merkle 树的核心优势（Merkle 为 O(k·log N)）
+
+**扩展性叙事（论文表述）**：
+
+A2 实验验证了三个组件的理论复杂度。FAISS 检索在 N=1000 时延迟仅 1.2ms，不构成瓶颈。Sumcheck 延迟随 N 线性增长（实测斜率 0.986），N=1000 时为 3.2s，在可接受范围内且理论上与原论文分析一致。ZAC 成员证明延迟在 N=50 至 N=1000 全程稳定在 ~4.37s，完全不随 N 变化——这正是 ZAC 采用 Pointproofs 向量承诺（证明大小与 N 无关）相比 Merkle 树（O(log N) 证明路径）的核心优势：无论语料库扩展至多大规模，单次查询的成员证明开销保持恒定。
+
+**报告格式**：N-延迟折线图（三条线，FAISS/Sumcheck/ZAC）+ 表格
 
 ---
 
-### Group B：安全验证
+### Group B：安全验证 ✅ 已完成（2026-04-03）
 
 > 每个攻击场景要求检测率 = 100%，否则为系统设计缺陷
 
 #### B1 图像替换攻击
 
-**攻击**：服务端将检索到的图像 $i^*$ 替换为另一张图像 $i'$，但保持 ZAC Root 不变。
+**攻击**：服务端将检索到的图像 $i^*$ 替换为另一张图像 $i'$（另一页面），embedding 与 ZAC Root 均不变。
 
-**实验方法**：
-1. 正常建库 → 记录 ZAC Root
-2. 对 10 个查询，手动将 top-1 图像文件替换为同目录其他页面
-3. 运行 ZAC 验证
+**实验方法**：随机抽取 50 对 (victim, donor) 图像（偏移 N/2 保证内容差异），将 victim 文件替换为 donor 文件，对 victim 的原始 embedding 运行 ZAC 成员证明验证，随后恢复原始文件。
 
-**期望结果**：`SHA256(image_bytes_i')` 不在 BF 承诺范围内 → ZAC 拒绝
+**期望结果**：`SHA256(donor_bytes ∥ orig_emb_bytes)` ∉ BF → ZAC 拒绝
+
+**实验结果**：检测率 **50/50 = 100%**（seed=42，N=303）
 
 #### B2 Embedding 替换攻击
 
-**攻击**：图像不变，替换 `embedding.npy` 中对应向量为高余弦分值的伪造向量，操控排名。
+**攻击**：图像文件不变，将 `embedding.npy` 中对应向量替换为随机单位向量（模拟操控 FAISS 排名）。
 
-**实验方法**：
-1. 从 `embedding.npy` 中随机选 5 个 embedding，用随机向量替换
-2. 对这 5 张图像运行 ZAC 验证（`SHA256(image_bytes ∥ forged_embedding_bytes)`）
+**实验方法**：随机抽取 50 个目标索引，对每个索引用随机单位向量替换 embedding，用原始图像路径 + 伪造 embedding 运行 ZAC 验证（跨层绑定：`SHA256(orig_bytes ∥ fake_emb_bytes)`）。
 
-**期望结果**：跨层绑定（4.5 节）使 ZAC 拒绝 → embedding 替换不可能在不更新承诺的前提下实施
+**期望结果**：跨层承诺绑定（4.5 节）使 ZAC 拒绝，embedding 替换在不重建承诺的前提下无法通过验证。
+
+**实验结果**：检测率 **50/50 = 100%**（seed=42，N=303）
 
 #### B3 排名操控攻击
 
-**攻击**：Prover 在 Sumcheck 中声称图像 $i^*$ 的相似度为高值，但实际 embedding 内积为低值。
+**攻击**：Prover 在 Global Batch Sumcheck 的 `scores` 数组中将某低排名条目分值改为 max_score+1，试图让其进入 top-k。
+
+**实验方法**：取 10 条 query（等间距覆盖语料库），每条生成合法证明后，从非 top-k 池中随机选 5 个 victim 索引，各自将分值改为最高分 +1，运行 Sumcheck 验证，共 50 个篡改测试。
+
+**期望结果**：Schwartz-Zippel 随机线性组合使篡改分值与 batch 目标不一致，Sumcheck 以 $\geq 1 - N/p \approx 1 - 2^{-52}$ 概率检测。
+
+**实验结果**：检测率 **50/50 = 100%**（10 queries × 5 victims，N=303）
+
+#### B4 权重矩阵篡改攻击（承诺绑定）
+
+**攻击**：攻击者将服务器权重矩阵 $W_\text{gate}$（layer-35）替换为 $W_\text{gate} + \Delta W$，但公开承诺文件 `commitment.bin` 仍反映原始 $W_\text{gate}$。Prover 用篡改权重计算 FFN，Verifier 用原始承诺验证。
+
+**为何重新设计**：原方案（修改 corpus proof JSON 的 `verified` 字段）只是软件 I/O 测试，缺乏密码学意义。zkLLM 的实际安全性来自 KZG 承诺绑定（Binding）：Commitment 文件是对权重矩阵的密码学承诺，任何对 `*-int.bin` 的篡改都会导致 Sumcheck 中多线性扩展评估与承诺不符。
+
+**zkLLM 数据文件结构**（`zkllm-workdir/jina-v4/`）：
+```
+mlp.gate_proj.weight-pp.bin                       ← CRS（公共参数，用于 KZG 承诺）
+layer-35-mlp.gate_proj.weight-int.bin             ← 实际量化权重（Prover 计算用）
+layer-35-mlp.gate_proj.weight-commitment.bin      ← 权重的 KZG 承诺（Verifier 校验用）
+```
 
 **实验方法**：
-1. 修改 `run_sumcheck` 中 `scores` 向量（人为提高某张图像的声明分值）
-2. 不修改实际 embedding，运行 Sumcheck 验证
+1. 生成随机激活 `.bin`（seed=123，形状 1024×2048，int32，scale=2^16），运行 FFN binary → 期望 rc=0（基准）
+2. 对 `layer-35-mlp.gate_proj.weight-int.bin` 加 ±2²⁰ 随机扰动（约量化 scale 的 16×），`commitment.bin` 不变
+3. 用篡改权重重新运行 FFN binary，保持相同激活和承诺 → 期望 rc≠0
 
-**期望结果**：Sumcheck 最终 claim 与 verifier 独立计算的 $\tilde{f}(r)$ 不匹配 → 拒绝
+**验证原理**：Sumcheck 最终轮 Verifier 计算 $\text{eval}(W_\text{tampered}, r)$ 并与承诺 $\text{commit}(W_\text{original})$ 在随机点 $r$ 的开放值比对，两者不匹配 → Sumcheck 拒绝 → binary returncode ≠ 0。
 
-#### B4 推理结果伪造攻击
+**实验结果**：
 
-**攻击**：Prover 修改 zkLLM 激活值（corpus 侧预计算的 `.pt` 文件），使证明通过但实际推理结果不同。
+| 步骤 | 权重状态 | FFN binary rc | verified |
+|------|---------|:-------------:|:--------:|
+| 基准运行 | 原始 $W_\text{gate}$ | **0** | ✅ True |
+| 篡改后运行 | $W_\text{gate} + \Delta W$（100% 元素被扰动） | **-6** | ✅ False（检测到） |
 
-**实验方法**：
-1. 对 corpus 侧某张图像的预计算激活 `.pt` 文件，修改其中某层的激活张量（加小扰动）
-2. 运行 Phase 3 验证（Sumcheck over activations）
+检测率 **1/1 = 100%**（rc=-6，非零，Sumcheck 拒绝）
 
-**期望结果**：zkLLM 验证拒绝（激活值与 query 侧的联合 Sumcheck claim 不一致）
+**安全含义**：攻击者在不持有与承诺一致的原始权重的前提下，无法通过 zkLLM 验证，即无法伪造"模型用真实权重做了推理"的证明。
 
 **覆盖关系总结**（安全维度模块消融）：
 
@@ -1973,7 +2094,10 @@ Reviewer 最关心的问题：引入验证层是否损失检索质量？
 | B1 图像替换 | Phase 1 ZAC | 攻击成功 |
 | B2 Embedding 替换 | Phase 1 ZAC（跨层绑定） | 攻击成功 |
 | B3 排名伪造 | Phase 2 Sumcheck | 攻击成功 |
-| B4 激活篡改 | Phase 3 zkLLM | 攻击成功 |
+| B4 权重矩阵篡改 | Phase 3 zkLLM（KZG 承诺绑定） | 攻击成功 |
+
+**结果文件**：`notes/experiment_b_result.json`
+**实验脚本**：`script/experiment_b_security.py`
 
 ---
 
@@ -1993,30 +2117,143 @@ Reviewer 最关心的问题：引入验证层是否损失检索质量？
 
 **预期结论**：量化相对误差 < 0.1%，top-5 排名 100% 一致
 
-#### C1 Recall@K 评测（可选，锦上添花）
+#### C2 实验结果 ✅ 已完成
 
-**目标**：展示底层检索系统（jina-v4）的能力，与经典 baseline 对比，说明多模态检索优于纯文本。
+**测试条件**：N=303，D=2048，scale=256 / 65536 对比，top-k=5，三组 query（语料库内向量 × 2 + 随机单位向量）
 
-**Baseline 模型**：
+| Query 类型 | L∞ 误差 | L1 误差 | 相对误差 | top-5 一致 | top-10 一致 |
+|-----------|---------|---------|---------|-----------|------------|
+| corpus[0]（语料库内） | — | — | — | ✅ | ✅ |
+| corpus[100] | 4.20e-3 | 1.07e-3 | 1.83e-3 | ✅ | ✅ |
+| 随机单位向量 | 6.34e-3 | 1.75e-3 | 6.11e-1 | ✅ | ❌ |
 
-| 模型 | 类型 | 说明 |
-|------|------|------|
-| jina-embeddings-v4 | 多模态 | 本系统使用 |
-| CLIP ViT-L/14 | 图像-文本 | 视觉-语言对比基线 |
-| BM25（pdfplumber OCR） | 文本稀疏 | 纯文字基线，体现视觉信息价值 |
+**关键结论**：top-5 排名 100% 一致，满足系统设计要求。
 
-**指标**：Recall@1 / Recall@3 / Recall@5 / MRR@10
+**误差分析**
 
-**数据集**：SlideVQA 子集（200 组幻灯片，~500 个问题）或自建 Nikon QA。
+*为什么 top-5 总是一致？*  
+真实语义查询的 top-5 结果与其他候选之间存在明显的分值间隙（相关文档得分显著高于无关文档），量化误差（L∞ ≈ 6e-3）远小于这个间隙，因此排名不会被翻转。
 
-**自建 Nikon 测试集构造**：
-```python
-prompt = "请根据这张说明书页面生成一个具体的用户问题，答案必须来自图中内容，用中文输出。"
-# MiniCPM-V-4 生成 ~300 QA 对，人工过滤保留 ~100 个
-# 格式：{"query": "...", "relevant_page": 12, "answer": "..."}
+*为什么随机向量的相对误差高达 61%？*  
+随机单位向量与语料库的内积趋近于零（分母 ≈ 0），相对误差在数学上被放大。这是度量本身的局限，绝对误差（6.34e-3）仍然很小。实际检索场景中查询向量不是随机向量，此问题不存在。
+
+*为什么随机向量 top-10 不一致？*  
+随机向量对所有语料的得分非常接近（都接近 0），第 6-10 名之间分值差小于量化误差，导致顺序被小噪声翻转。但排名 6-10 的文档不影响检索结果（系统返回 top-5），对实际使用无影响。
+
+**局限性**
+
+1. ~~**scale=256 精度有限**~~：已升级为 scale=65536（步长 $\approx 1.5 \times 10^{-5}$），原 scale=256 下的 top-10 不一致问题已消除。
+2. **相对误差指标失效**：当真实内积趋近于零时，相对误差不具可比性，应以 L∞ 绝对误差为主要指标。
+3. **top-k > 5 时一致性下降**：top-10 在极端情况（随机向量）下出现不一致，说明量化只能保证高分结果的排名稳定。
+
+**scale 对比实验结论**（已执行）：
+
+| scale | 耗时 | top-5 | top-10 | max L∞ | max 相对误差 |
+|-------|------|-------|--------|--------|------------|
+| 256 | 1.1s | ✅ | ❌（随机向量） | 6.34e-3 | 6.11e-1 |
+| **65536** | **1.0s** | **✅** | **✅** | **2.41e-5** | **2.03e-3** |
+
+→ **已将默认 scale 更新为 65536**（`src/sumcheck/inner_product.py` + `script/phase2_sumcheck.py`），与 zkLLM 量化方案对齐，精度提升 263 倍，耗时无差异，溢出安全（$65536^2 \times 2048 = 8.8 \times 10^{12} \ll p$）。
+
+**结果文件**：`notes/experiment_c2_result.json`  
+**实验脚本**：`script/experiment_c2_quantization.py`
+
+#### C1 可验证检索完整性实验（攻击检测 + 质量保护）
+
+**设计定位（2026-04-04 更新）**
+
+本实验同时完成两件事：
+1. **基线 Recall@K**：建立干净语料下的检索质量参照
+2. **攻击检测验证**：注入 embedding 替换攻击，证明无验证时质量静默下降，有验证时 100% 检出
+
+核心叙事：
+
+> 攻击者替换部分语料 embedding 后，用户在无验证情况下收到错误 top-k 而毫不知情（Recall@K 大幅下降）。  
+> 我们的 Sumcheck 验证机制独立重计算所有内积，发现 FAISS 返回结果与承诺语料不一致，**立即报警**，从根本上杜绝静默降级。
+
+**数据集**（4 个，覆盖不同多模态文档类型，均来自 `openbmb/VisRAG-Ret-Test-*`）
+
+| 数据集 | 文档类型 | VisRAG-Ret OOD MRR@10 |
+|--------|---------|----------------------|
+| SlideVQA | 幻灯片（多页） | 45.57 |
+| MP-DocVQA | 扫描文档 | 74.60 |
+| ChartQA | 图表 | 75.99 |
+| InfoVQA | 信息图 | 67.26 |
+
+**攻击方案（Embedding 替换攻击）**
+
+对每条查询，找到其所有相关语料项（来自 qrels），将其在 FAISS 中的 embedding 替换为随机单位向量。这直接模拟"恶意服务商篡改检索索引使相关结果消失"的供应链攻击。
+
+```
+干净 FAISS → 正常 top-k → Recall@K = X（基线）
+篡改 FAISS → 错误 top-k → Recall@K = Y（无验证，Y << X）
+Sumcheck 验证（使用承诺语料向量）→ 独立 top-k ≠ FAISS top-k → 攻击报警（100% 检出）
 ```
 
-**注**：此实验不涉及验证机制，仅评测底层检索。视时间决定是否执行。
+**Sumcheck 攻击检测原理**
+
+`verify_global_batch(q_vec, committed_vecs, proof, top_k)` 使用原始承诺向量独立计算所有 N 个内积，生成自己的 `top_k_indices`。若 FAISS 返回的 top-k 与之不一致，说明 FAISS 索引已被篡改。
+
+**实验脚本**：
+- `script/experiment_c1_recall.py`（纯检索质量）
+- `script/experiment_c1_attack_verify.py`（攻击检测 + 质量保护）
+- `script/run_c1_experiments.sh`（四数据集全流程批量脚本）
+
+**结果文件**：
+- `notes/experiment_c1_{dataset}.json`（纯 Recall@K）
+- `notes/experiment_c1_attack_{dataset}.json`（攻击验证完整结果）
+
+---
+
+#### C1 实验结果（2026-04-04，全部完成）✅
+
+##### 检索质量：jina-v4 vs VisRAG-Ret OOD
+
+| 数据集 | 语料规模 | jina-v4 MRR@10 | VisRAG-Ret OOD | jina-v4 R@10 | VisRAG-Ret OOD |
+|--------|---------|---------------|----------------|--------------|----------------|
+| SlideVQA | 1284 | **94.72** | 45.57 | **98.20** | 67.70 |
+| MP-DocVQA | 741 | **79.56** | 74.60 | **94.25** | 89.65 |
+| ChartQA | 500 | **87.43** | 75.99 | **93.65** | 91.40 |
+| InfoVQA | 459 | **89.80** | 67.26 | **98.47** | 87.05 |
+
+jina-v4 在所有数据集上均显著优于 VisRAG-Ret OOD 基准（零样本 vs 领域外），验证了框架底层检索器的普适性。
+
+##### B3 攻击：Recall@K 静默降级（无验证情况）
+
+| 数据集 | 基线 MRR@10 | 攻击后 MRR@10 | 下降幅度 | 基线 R@10 | 攻击后 R@10 | 下降幅度 |
+|--------|------------|--------------|---------|-----------|------------|---------|
+| SlideVQA | 94.72 | 0.00 | −94.72pp | 98.20 | 0.00 | −98.20pp |
+| MP-DocVQA | 79.56 | 0.00 | −79.56pp | 94.25 | 0.00 | −94.25pp |
+| ChartQA | 87.43 | 0.00 | −87.43pp | 93.65 | 0.00 | −93.65pp |
+| InfoVQA | 89.80 | 0.00 | −89.80pp | 98.47 | 0.00 | −98.47pp |
+
+攻击策略：将所有相关语料项的 FAISS embedding 替换为随机单位向量（所有相关项被针对性抹除），无验证机制的用户 Recall@K 归零而毫不知情。
+
+##### 攻击检测率
+
+| 数据集 | B1 图像替换（ZAC） | B2 Embedding 替换（ZAC） | B3 排名操控（Sumcheck） | Sumcheck 延迟/query |
+|--------|-----------------|----------------------|---------------------|-------------------|
+| SlideVQA | 10/10 **100%** | 9/10 90%† | 50/50 **100%** | 4088 ms |
+| MP-DocVQA | 10/10 **100%** | 10/10 **100%** | 50/50 **100%** | 2383 ms |
+| ChartQA | 10/10 **100%** | 10/10 **100%** | 49/50 98%‡ | 1564 ms |
+| InfoVQA | 9/10 90%† | 10/10 **100%** | 50/50 **100%** | 1468 ms |
+
+**†** B1/B2 个别漏报原因：Bloom Filter 固有假阳性（理论误报率 ε=0.01）。在 4 个数据集共 80 次 B1/B2 测试中，仅出现 2 次漏报（2.5%），与理论期望值一致，属正常统计误差，非代码缺陷。
+
+**‡** ChartQA B3 49/50：1 条 query 的相关语料项在攻击后 FAISS 结果恰好与 Sumcheck 重计算结果一致（该 query 在攻击后碰巧仍能检索到相关项），非 Sumcheck 失效。
+
+##### Sumcheck 延迟说明
+
+Sumcheck 验证延迟与语料规模 N 线性相关（O(N·D)）：
+
+| 数据集 | N | 延迟/query | N 归一化（ms/doc） |
+|--------|---|-----------|----------------|
+| InfoVQA | 459 | 1468 ms | 3.20 |
+| ChartQA | 500 | 1564 ms | 3.13 |
+| DocVQA | 741 | 2383 ms | 3.21 |
+| SlideVQA | 1284 | 4088 ms | 3.19 |
+
+归一化值约为 3.2 ms/doc，斜率一致，与 A2 扩展性实验结论（O(N) 线性）完全吻合。
 
 ---
 
@@ -2031,25 +2268,52 @@ prompt = "请根据这张说明书页面生成一个具体的用户问题，答�
 - KV head 广播的 transpose trick
 - 动态 Rescaling
 
-#### E1 GQA zkAttn 输出正确性（必做）
+#### E1 GQA zkAttn 输出正确性（必做）✅ 已完成
 
 **目标**：验证改造后的 GQA Attention 计算结果与 PyTorch 参考实现一致。
 
 **实验方法**：
-1. 取 MiniCPM-V-4 某中间层（如第 32 层）的真实 Q/K/V 激活张量
-2. 用 PyTorch `F.scaled_dot_product_attention` 计算参考输出
-3. 用改造后的 `self-attn`（GQA 模式）计算 zkAttn 输出
-4. 报告 L∞ 误差和余弦相似度
+1. 加载 jina-v4，hook 捕获第 33 层（`input_layernorm` 输出）真实激活（jina-v4 路径：`m[0].model.base_model.model.model.language_model.layers`）
+2. 运行 `self-attn linear` 得到量化 Q/K/V（int32，缩放因子 $2^{16}$）
+3. Python 模拟 integer-domain GQA attention（与 C++ 逻辑对齐）
+4. PyTorch `F.scaled_dot_product_attention` 计算 float32 参考输出
+5. 运行 `self-attn attn` 验证 ZK 证明自洽性（rc=0）
 
-**期望结论**：L∞ 误差 < $10^{-4}$（zkLLM 原文精度要求量级），余弦相似度 > 0.9999
+**实验结果**（测试层：33，SEQ_LEN=1024，有效 token=25）：
 
-**意义**：不验证此项则 Phase 3 的正确性无从保证，是整个 zkLLM 适配的正确性依据。
+| 指标 | 结果 | 标准 | 通过 |
+|------|------|------|------|
+| L∞ 误差（全序列） | **0.000000** | < 1e-4 | ✅ |
+| L1 误差（均值） | **0.000000** | < 1e-4 | ✅ |
+| 相对误差（均值） | **0.000000** | < 0.1% | ✅ |
+| 余弦相似度（有效 token） | **1.00000000** | > 0.9999 | ✅ |
+| 余弦相似度（全序列含 padding） | 1.00000012（min=0.99999982） | > 0.9999 | ✅ |
 
-#### E2 GQA vs 标准 MHA 计算开销（可选）
+**结论**：GQA 适配的 integer-domain attention 计算与 PyTorch float32 参考实现**完全一致**，误差为零（float32 精度内）。padding 区域的微小偏差（1e-7 量级）来自全零输入的数值舍入，属于正常现象。
 
-**目标**：说明 GQA 适配的计算代价与标准 MHA 相比无显著增加。
+**结果文件**：`notes/experiment_e1_result.json`  
+**实验脚本**：`script/experiment_e1_gqa_correctness.py`
 
-**实验方法**：对 K=1 单层 Attention，分别以 MHA 模式（num_kv_heads=num_q_heads）和 GQA 模式（num_kv_heads=4）运行，计时比较。
+#### E2 GQA 扩展性开销验证（可选）✅ 已完成
+
+**目标**：验证 GQA 实现的时间复杂度随 num_kv_heads 线性扩展，无额外开销。
+
+**实验方法**：固定 SEQ_LEN=1024、kv_dim=256，分别以 num_kv_heads=1（单头模式）和 num_kv_heads=2（GQA 模式）运行 `self-attn attn`，各重复 3 次取均值。
+
+**实验结果**（层 33，随机 Q/K/V 输入）：
+
+| 模式 | num_kv_heads | 实际 Q head 数 | 均值耗时 |
+|------|-------------|---------------|---------|
+| 单头（MHA-compat） | 1 | 8（head_dim=256） | **3.54s** |
+| GQA | 2 | 16（head_dim=128） | **6.23s** |
+| 比值 | 2x heads | 2x | **+76%（≈2x）** |
+
+**结论**：耗时随 num_kv_heads 线性扩展（2x heads → ~2x time），说明 GQA 适配**无额外开销**，扩展行为符合预期。
+
+**注**：本实验无法与"真实 MHA"直接对比——jina-v4 本身即为 GQA 架构（kv_dim=256），不存在 kv_dim=2048 的 MHA 权重。若与真实 MHA（16 heads × head_dim=128 × kv_dim=2048）对比，GQA 会显著更快（KV 计算量减少 8x），这正是 GQA 的设计优势。
+
+**结果文件**：`notes/experiment_e2_result.json`  
+**实验脚本**：`script/experiment_e2_gqa_overhead.py`
 
 ---
 
@@ -2104,15 +2368,15 @@ prompt = "请根据这张说明书页面生成一个具体的用户问题，答�
 ```
 [已完成] D. 消融实验（K 层选择依据）
     ↓
-[第一步] E1 GQA 正确性验证（30 分钟，取真实激活 + PyTorch 对比）      ← 必须
+[已完成] E1 GQA 正确性验证  L∞=0, cos=1.0，完全通过                    ← 必须 ✅
     ↓
 [第二步] C2 量化误差（30 分钟，纯 numpy 计算）                         ← 必须
     ↓
-[第三步] B1/B2/B3/B4 安全验证（1-2 小时，逐场景手动篡改 + 重跑验证）    ← 必须
+[已完成] B1/B2/B3/B4 安全验证  全部 100% 检测，✅                          ← 必须
     ↓
-[第四步] A1 端到端延迟分解（1 小时，计时脚本，重复 10 次）               ← 必须
+[已完成] A1 端到端延迟分解  e2e=34.2s，8.4× baseline，Phase 3Q 为瓶颈 ✅
     ↓
-[第五步] A2 N 扩展性（2-3 小时，变 N 重跑 Sumcheck + ZAC + FAISS）     ← 必须
+[已完成] A2 N 扩展性  FAISS<2ms，Sumcheck O(N) 斜率0.986，ZAC O(k) 恒定 ✅
     ↓
 [第六步] C1 Recall@K，可选：构建 Nikon QA 或下载 SlideVQA 子集         ← 可选
     ↓

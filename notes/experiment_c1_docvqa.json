@@ -1,0 +1,36 @@
+{
+  "dataset": "docvqa",
+  "hf_name": "openbmb/VisRAG-Ret-Test-MP-DocVQA",
+  "timestamp": "2026-04-04 03:49:59",
+  "config": {
+    "model": "/root/autodl-tmp/models/jina-embeddings-v4",
+    "eval_ks": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "n_corpus": 741,
+    "n_queries_total": 591,
+    "n_queries_evaluated": 591,
+    "n_queries_skipped": 0,
+    "embedding_dim": 2048,
+    "encode_corpus_s": 346.2,
+    "encode_query_s": 1.9,
+    "search_s": 0.1106
+  },
+  "results": {
+    "mrr_at_10": 79.5646,
+    "recall_at_1": 72.5888,
+    "recall_at_3": 84.6024,
+    "recall_at_5": 89.3401,
+    "recall_at_10": 94.247
+  },
+  "paper_reference_ood": {
+    "model": "VisRAG-Ret (MiniCPM-V 2.0)",
+    "setting": "out-of-domain",
+    "source": "VisRAG ICLR 2025 Table 3",
+    "mrr_at_10": 74.6,
+    "recall_at_10": 89.65
+  }
+}

@@ -1,0 +1,73 @@
+nohup: ignoring input
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1：docvqa  (openbmb/VisRAG-Ret-Test-MP-DocVQA)
+================================================================
+  模型      : /root/autodl-tmp/models/jina-embeddings-v4
+  缓存目录  : /root/autodl-tmp/UltraRAG/data/huggingface_cache
+  结果输出  : /root/autodl-tmp/UltraRAG/notes/experiment_c1_docvqa.json
+  清理缓存  : 是
+  开始时间  : 2026-04-04 03:43:31
+
+[03:43:31] 加载 jina-v4 模型...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 20.20it/s]
+  loaded  (10.2s)
+
+[03:43:47] 加载数据集...
+Generating train split:   0%|          | 0/741 [00:00<?, ? examples/s]Generating train split:  13%|█▎        | 100/741 [00:00<00:02, 263.01 examples/s]Generating train split:  27%|██▋       | 200/741 [00:00<00:01, 386.57 examples/s]Generating train split:  54%|█████▍    | 400/741 [00:00<00:00, 650.08 examples/s]Generating train split:  67%|██████▋   | 500/741 [00:00<00:00, 642.76 examples/s]Generating train split:  94%|█████████▍| 700/741 [00:01<00:00, 862.89 examples/s]Generating train split: 100%|██████████| 741/741 [00:01<00:00, 696.34 examples/s]
+Generating train split:   0%|          | 0/591 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 591/591 [00:00<00:00, 34633.16 examples/s]
+Generating train split:   0%|          | 0/591 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 591/591 [00:00<00:00, 122230.46 examples/s]
+  corpus=741  queries=591  qrels=591  (24.1s)
+  corpus 字段 : ['corpus-id', 'image']
+  qrels  字段 : ['query-id', 'corpus-id', 'score']
+
+[03:44:11] 构建 qrels 索引...
+  有标注查询：591 条
+  corpus_id 字段 : corpus-id
+  query_id  字段 : query-id
+  query_text字段 : query
+  图像字段       : image
+
+[03:44:11] 编码语料图像（741 张，batch=4）...
+  [03:45:01] 100/741  2.02 img/s  ETA 5.3 min
+  [03:45:47] 200/741  2.07 img/s  ETA 4.3 min
+  [03:46:34] 300/741  2.10 img/s  ETA 3.5 min
+  [03:47:20] 400/741  2.12 img/s  ETA 2.7 min
+  [03:48:07] 500/741  2.12 img/s  ETA 1.9 min
+  [03:48:52] 600/741  2.13 img/s  ETA 1.1 min
+  [03:49:38] 700/741  2.14 img/s  ETA 0.3 min
+  [03:49:57] 741/741  2.14 img/s  ETA 0.0 min
+  完成  shape=(741, 2048)  耗时=346.2s
+
+[03:49:57] 编码查询文本（591 条）...
+  完成  shape=(591, 2048)  耗时=1.9s
+
+[03:49:59] FAISS 构建索引并搜索...
+  ntotal=741  D=2048
+  搜索完成  (0.111s)
+
+[03:49:59] 计算指标...
+
+================================================================
+结果：docvqa
+================================================================
+  评测查询：591  跳过：0
+  指标                jina-v4  VisRAG-Ret OOD
+  ──────────────────────────────────────────
+  MRR@10              79.56           74.60
+  Recall@1            72.59               —
+  Recall@3            84.60               —
+  Recall@5            89.34               —
+  Recall@10           94.25           89.65
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_docvqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+
+完成时间：2026-04-04 03:49:59

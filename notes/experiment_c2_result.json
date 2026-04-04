@@ -1,0 +1,73 @@
+{
+  "N": 303,
+  "D": 2048,
+  "top_k": 5,
+  "scales": {
+    "256": {
+      "elapsed_s": 1.0798303922638297,
+      "all_top5": true,
+      "all_top10": false,
+      "max_l_inf": 0.0063397809863090515,
+      "max_rel_err": 0.611019478674489,
+      "queries": [
+        {
+          "query": "corpus[0]\uff08\u8bed\u6599\u5e93\u5185 query\uff09",
+          "l_inf": 0.0039435625076293945,
+          "l1_mean": 0.001113105036637964,
+          "rel_err": 0.0019734016112464346,
+          "top5_match": true,
+          "top10_match": true
+        },
+        {
+          "query": "corpus[100]",
+          "l_inf": 0.004203200340270996,
+          "l1_mean": 0.0010670178597516353,
+          "rel_err": 0.0018278500214812812,
+          "top5_match": true,
+          "top10_match": true
+        },
+        {
+          "query": "\u968f\u673a\u5355\u4f4d\u5411\u91cf",
+          "l_inf": 0.0063397809863090515,
+          "l1_mean": 0.001745210013816459,
+          "rel_err": 0.611019478674489,
+          "top5_match": true,
+          "top10_match": false
+        }
+      ]
+    },
+    "65536": {
+      "elapsed_s": 1.0200256910175085,
+      "all_top5": true,
+      "all_top10": true,
+      "max_l_inf": 2.41186935454607e-05,
+      "max_rel_err": 0.002030565381781313,
+      "queries": [
+        {
+          "query": "corpus[0]\uff08\u8bed\u6599\u5e93\u5185 query\uff09",
+          "l_inf": 2.41186935454607e-05,
+          "l1_mean": 7.626267838546938e-06,
+          "rel_err": 1.3246143329939385e-05,
+          "top5_match": true,
+          "top10_match": true
+        },
+        {
+          "query": "corpus[100]",
+          "l_inf": 1.369742676615715e-05,
+          "l1_mean": 4.0949638871469904e-06,
+          "rel_err": 7.119069740159143e-06,
+          "top5_match": true,
+          "top10_match": true
+        },
+        {
+          "query": "\u968f\u673a\u5355\u4f4d\u5411\u91cf",
+          "l_inf": 1.697358675301075e-05,
+          "l1_mean": 4.797661369635721e-06,
+          "rel_err": 0.002030565381781313,
+          "top5_match": true,
+          "top10_match": true
+        }
+      ]
+    }
+  }
+}

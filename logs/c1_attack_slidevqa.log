@@ -1,0 +1,118 @@
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1（攻击验证版）：slidevqa  B1+B2+B3
+================================================================
+  数据集  : openbmb/VisRAG-Ret-Test-SlideVQA
+  ZAC 样本: 50 张（B1/B2 各 10 个攻击样本）
+  Sumcheck: 50 queries（B3）
+  开始    : 2026-04-04 04:55:49
+
+[04:55:49] 加载 jina-v4 ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.59it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.55it/s]
+  loaded  (10.3s)
+
+[04:56:05] 加载数据集 ...
+Generating train split:   0%|          | 0/1284 [00:00<?, ? examples/s]Generating train split:  31%|███       | 400/1284 [00:00<00:00, 2277.80 examples/s]Generating train split: 100%|██████████| 1284/1284 [00:00<00:00, 4468.74 examples/s]Generating train split: 100%|██████████| 1284/1284 [00:00<00:00, 4094.70 examples/s]
+Generating train split:   0%|          | 0/556 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 556/556 [00:00<00:00, 27396.04 examples/s]
+Generating train split:   0%|          | 0/702 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 702/702 [00:00<00:00, 145223.25 examples/s]
+  corpus=1284  queries=556  qrels=702  (10.4s)
+  corpus 字段: ['corpus-id', 'image']
+  qrels  字段: ['query-id', 'corpus-id', 'score']
+  corpus_id=corpus-id  img=image  query_text=query
+
+[04:56:15] 构建 qrels ...
+  有标注查询：556 条
+
+[04:56:15] 编码语料图像（1284 张）...
+  [04:57:00] 100/1284  2.20 img/s  ETA 9.0min
+  [04:57:45] 200/1284  2.21 img/s  ETA 8.2min
+  [04:58:31] 300/1284  2.21 img/s  ETA 7.4min
+  [04:59:16] 400/1284  2.21 img/s  ETA 6.7min
+  [05:00:01] 500/1284  2.22 img/s  ETA 5.9min
+  [05:00:46] 600/1284  2.22 img/s  ETA 5.1min
+  [05:01:31] 700/1284  2.22 img/s  ETA 4.4min
+  [05:02:16] 800/1284  2.22 img/s  ETA 3.6min
+  [05:03:01] 900/1284  2.22 img/s  ETA 2.9min
+  [05:03:45] 1000/1284  2.22 img/s  ETA 2.1min
+  [05:04:30] 1100/1284  2.22 img/s  ETA 1.4min
+  [05:05:15] 1200/1284  2.22 img/s  ETA 0.6min
+  [05:05:53] 1284/1284  2.22 img/s  ETA 0.0min
+  承诺向量 shape=(1284, 2048)  (578.1s)
+
+[05:05:53] 编码查询（556 条）...
+  shape=(556, 2048)  (2.0s)
+
+[05:05:55] 基线：干净 FAISS 搜索 ...
+  基线 MRR@10=94.72  R@1=92.09  R@5=98.02  R@10=98.20  （评测 556 条，跳过 0 条）
+
+[05:05:55] 构建 ZAC（50 张样本图像）...
+  ZAC Root: 948eb028068e42338d9552cabba1fa8d…  (29.9s)
+
+[05:06:25] B1 图像替换攻击（10 个样本）...
+  攻击：将目标图像文件替换为另一张图像内容，embedding 不变
+  [01/10] vic=  0 donor= 25  before=True after=False  ✓
+  [02/10] vic=  1 donor= 26  before=True after=False  ✓
+  [03/10] vic=  2 donor= 27  before=True after=False  ✓
+  [04/10] vic=  3 donor= 28  before=True after=False  ✓
+  [05/10] vic=  4 donor= 29  before=True after=False  ✓
+  [06/10] vic=  5 donor= 30  before=True after=False  ✓
+  [07/10] vic=  6 donor= 31  before=True after=False  ✓
+  [08/10] vic=  7 donor= 32  before=True after=False  ✓
+  [09/10] vic=  8 donor= 33  before=True after=False  ✓
+  [10/10] vic=  9 donor= 34  before=True after=False  ✓
+  B1 检出率：10/10 = 100.0%  耗时 29.9s
+
+[05:06:55] B2 Embedding 替换攻击（10 个样本）...
+  攻击：图像文件不变，FAISS embedding 替换为随机单位向量
+  [01/10] tgt=  4  before=True after=False  ✓
+  [02/10] tgt= 32  before=True after=False  ✓
+  [03/10] tgt=  3  before=True after=False  ✓
+  [04/10] tgt= 28  before=True after=True  ✗
+  [05/10] tgt= 19  before=True after=False  ✓
+  [06/10] tgt= 44  before=True after=False  ✓
+  [07/10] tgt= 33  before=True after=False  ✓
+  [08/10] tgt= 49  before=True after=False  ✓
+  [09/10] tgt=  9  before=True after=False  ✓
+  [10/10] tgt= 39  before=True after=False  ✓
+  B2 检出率：9/10 = 90.0%  耗时 30.2s
+
+[05:07:25] B3 FAISS Embedding 替换攻击（相关语料项）...
+  攻击：将所有相关语料项的 FAISS embedding 替换为随机单位向量
+  替换了 518 个相关语料项的 embedding（corpus 占比 40.3%）
+  攻击后（无验证）MRR@10=0.00  R@1=0.00  R@5=0.00  R@10=0.00
+  Recall@10 下降：98.20pp  MRR@10 下降：94.72pp
+
+[05:07:26] Sumcheck 验证（50 条 query，承诺向量）...
+  B3 检出率：50/50 = 100.0%  耗时 204.4s  (4088ms/query)
+
+================================================================
+C1 攻击验证汇总：slidevqa
+================================================================
+
+  检索质量（B3 攻击前后对比）
+  指标                   基线（干净）          攻击后（无验证）
+  ──────────────────────────────────────────────
+  MRR@10                94.72              0.00
+  Recall@1              92.09              0.00
+  Recall@3              97.30              0.00
+  Recall@5              98.02              0.00
+  Recall@10             98.20              0.00
+
+  攻击检出率
+  ──────────────────────────────────────────────
+  B1 图像替换（ZAC）              10/10  (100.0%)
+  B2 Embedding 替换（ZAC 绑定）   9/10  (90.0%)
+  B3 排名操控（Sumcheck）          50/50  (100.0%)
+
+  VisRAG-Ret OOD 参照：MRR@10=45.57  Recall@10=67.7
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_attack_slidevqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+完成时间：2026-04-04 05:10:50

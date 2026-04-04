@@ -72,11 +72,12 @@ def _fs_challenge(transcript: bytes, g0: int, g1: int, g2: int) -> Tuple[int, by
 
 # ── Quantization ───────────────────────────────────────────────────────────────
 
-def quantize(v: List[float], scale: int = 256) -> List[int]:
+def quantize(v: List[float], scale: int = 65536) -> List[int]:
     """
     Convert float32 vector to integer field elements.
     Multiply by scale and round to nearest integer.
-    Typical range for jina-v4 embeddings with scale=256: within ±8192.
+    scale=65536 (2^16): aligns with zkLLM quantization, L∞ error ~2e-5,
+    overflow-safe: scale^2 * D = 8.8e12 << p = 2.3e18.
     """
     return [_m(int(round(x * scale))) for x in v]
 
@@ -86,7 +87,7 @@ def quantize(v: List[float], scale: int = 256) -> List[int]:
 def prove_inner_product(
     q: List[Union[int, float]],
     v: List[Union[int, float]],
-    scale: int = 256,
+    scale: int = 65536,
 ) -> dict:
     """
     Non-interactive Sumcheck proof that  H = Σⱼ q_j · v_j  (over ℤ_p).
@@ -182,7 +183,7 @@ def verify_inner_product(
     Returns True iff all checks pass.
     """
     if scale is None:
-        scale = proof.get("scale", 256)
+        scale = proof.get("scale", 65536)
 
     if q and isinstance(q[0], float):
         q_int = quantize(q, scale)
@@ -283,7 +284,7 @@ def _field_to_signed(h: int, p: int = P) -> int:
 def prove_retrieval(
     q_vec: List[float],
     corpus_vecs: List[List[float]],
-    scale: int = 256,
+    scale: int = 65536,
 ) -> dict:
     """
     For one query and its top-k retrieved vectors, generate:
@@ -323,7 +324,7 @@ def verify_retrieval(
     Verify all inner-product proofs and the ranking proof.
     Returns True only if every check passes.
     """
-    scale = proof.get("scale", 256)
+    scale = proof.get("scale", 65536)
     ip_proofs = proof.get("ip_proofs", [])
     rank_proof = proof.get("rank_proof", {})
 
@@ -361,7 +362,7 @@ def verify_retrieval(
 def prove_global_batch(
     q_vec: List[float],
     all_corpus_vecs: List[List[float]],
-    scale: int = 256,
+    scale: int = 65536,
 ) -> dict:
     """
     Batch Sumcheck proof certifying ALL N inner products in one shot.
@@ -454,7 +455,7 @@ def verify_global_batch(
         top_k_indices   – List[int] of top-k corpus indices (highest score first)
         top_k_scores    – List[int] corresponding signed scores
     """
-    scale  = proof.get("scale", 256)
+    scale  = proof.get("scale", 65536)
     scores = proof.get("scores", [])
     rho    = proof.get("rho")
     s_batch_claimed = proof.get("s_batch")

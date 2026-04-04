@@ -1,0 +1,75 @@
+nohup: ignoring input
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1：slidevqa  (openbmb/VisRAG-Ret-Test-SlideVQA)
+================================================================
+  模型      : /root/autodl-tmp/models/jina-embeddings-v4
+  缓存目录  : /root/autodl-tmp/UltraRAG/data/huggingface_cache
+  结果输出  : /root/autodl-tmp/UltraRAG/notes/experiment_c1_slidevqa.json
+  清理缓存  : 是
+  开始时间  : 2026-04-04 03:14:52
+
+[03:14:52] 加载 jina-v4 模型...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 20.21it/s]
+  loaded  (10.3s)
+
+[03:15:08] 加载数据集...
+  corpus=1284  queries=556  qrels=702  (9.9s)
+  corpus 字段 : ['corpus-id', 'image']
+  qrels  字段 : ['query-id', 'corpus-id', 'score']
+
+[03:15:18] 构建 qrels 索引...
+  有标注查询：556 条
+  corpus_id 字段 : corpus-id
+  query_id  字段 : query-id
+  query_text字段 : query
+  图像字段       : image
+
+[03:15:18] 编码语料图像（1284 张，batch=4）...
+  [03:16:03] 100/1284  2.23 img/s  ETA 8.9 min
+  [03:16:48] 200/1284  2.23 img/s  ETA 8.1 min
+  [03:17:32] 300/1284  2.24 img/s  ETA 7.3 min
+  [03:18:17] 400/1284  2.24 img/s  ETA 6.6 min
+  [03:19:02] 500/1284  2.23 img/s  ETA 5.8 min
+  [03:19:47] 600/1284  2.23 img/s  ETA 5.1 min
+  [03:20:32] 700/1284  2.23 img/s  ETA 4.4 min
+  [03:21:17] 800/1284  2.23 img/s  ETA 3.6 min
+  [03:22:01] 900/1284  2.23 img/s  ETA 2.9 min
+  [03:22:45] 1000/1284  2.24 img/s  ETA 2.1 min
+  [03:23:30] 1100/1284  2.24 img/s  ETA 1.4 min
+  [03:24:14] 1200/1284  2.24 img/s  ETA 0.6 min
+  [03:24:52] 1284/1284  2.24 img/s  ETA 0.0 min
+  完成  shape=(1284, 2048)  耗时=573.9s
+
+[03:24:52] 编码查询文本（556 条）...
+  完成  shape=(556, 2048)  耗时=2.1s
+
+[03:24:54] FAISS 构建索引并搜索...
+  ntotal=1284  D=2048
+  搜索完成  (0.179s)
+
+[03:24:54] 计算指标...
+
+================================================================
+结果：slidevqa
+================================================================
+  评测查询：556  跳过：0
+  指标                jina-v4  VisRAG-Ret OOD
+  ──────────────────────────────────────────
+  MRR@10              94.72           45.57
+  Recall@1            92.09               —
+  Recall@3            97.30               —
+  Recall@5            98.02               —
+  Recall@10           98.20           67.70
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_slidevqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+
+完成时间：2026-04-04 03:24:54

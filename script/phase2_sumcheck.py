@@ -250,8 +250,8 @@ def run_unit_tests():
     for d in [4, 16, 128, 256, 2048]:
         q = rand_vec(d)
         v = rand_vec(d)
-        proof = prove_inner_product(q, v, scale=256)
-        ok = verify_inner_product(q, v, proof, scale=256)
+        proof = prove_inner_product(q, v, scale=65536)
+        ok = verify_inner_product(q, v, proof, scale=65536)
         # Check claimed H matches direct computation
         from sumcheck.inner_product import quantize, _m
         q_int = quantize(q, 256)
@@ -266,9 +266,9 @@ def run_unit_tests():
     # Tamper test
     q = rand_vec(64)
     v = rand_vec(64)
-    proof = prove_inner_product(q, v, scale=256)
+    proof = prove_inner_product(q, v, scale=65536)
     v_bad = v.copy(); v_bad[0] += 0.1
-    ok_tamper = verify_inner_product(q, v_bad, proof, scale=256)
+    ok_tamper = verify_inner_product(q, v_bad, proof, scale=65536)
     print(f"  Tamper test (d=64, v[0]+=0.1): {'PASS (rejected)' if not ok_tamper else 'FAIL (accepted!)'}")
     passed += (not ok_tamper)
     total += 1
@@ -291,7 +291,7 @@ def run_unit_tests():
     N_g, d_g, k_g = 8, 16, 3
     corpus_g = [rand_vec(d_g) for _ in range(N_g)]
     q_g = rand_vec(d_g)
-    proof_g = prove_global_batch(q_g, corpus_g, scale=256)
+    proof_g = prove_global_batch(q_g, corpus_g, scale=65536)
     result_g = verify_global_batch(q_g, corpus_g, proof_g, top_k=k_g)
     gb_ok = result_g["verified"] and len(result_g["top_k_indices"]) == k_g
     print(f"  Global batch N={N_g}, d={d_g}, k={k_g}: {'PASS' if gb_ok else 'FAIL'}")
@@ -302,7 +302,7 @@ def run_unit_tests():
     N_g2, d_g2, k_g2 = 20, 64, 5
     corpus_g2 = [rand_vec(d_g2) for _ in range(N_g2)]
     q_g2 = rand_vec(d_g2)
-    proof_g2 = prove_global_batch(q_g2, corpus_g2, scale=256)
+    proof_g2 = prove_global_batch(q_g2, corpus_g2, scale=65536)
     result_g2 = verify_global_batch(q_g2, corpus_g2, proof_g2, top_k=k_g2)
     gb2_ok = result_g2["verified"] and len(result_g2["top_k_indices"]) == k_g2
     print(f"  Global batch N={N_g2}, d={d_g2}, k={k_g2}: {'PASS' if gb2_ok else 'FAIL'}")
@@ -355,7 +355,7 @@ def main():
     parser.add_argument("--embedding-npy",  default="embedding/embedding.npy")
     parser.add_argument("--corpus-jsonl",   default="corpora/image.jsonl")
     parser.add_argument("--k",          type=int, default=5)
-    parser.add_argument("--scale",      type=int, default=256)
+    parser.add_argument("--scale",      type=int, default=65536)
     parser.add_argument("--output",     default="output/phase2/sumcheck_experiment.json")
     args = parser.parse_args()
 

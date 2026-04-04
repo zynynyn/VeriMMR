@@ -1,0 +1,635 @@
+nohup: ignoring input
+
+============================================================
+  SlideVQA attack_verify → /root/autodl-tmp/UltraRAG/logs/c1_attack_slidevqa.log
+  2026-04-04 04:55:48
+============================================================
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1（攻击验证版）：slidevqa  B1+B2+B3
+================================================================
+  数据集  : openbmb/VisRAG-Ret-Test-SlideVQA
+  ZAC 样本: 50 张（B1/B2 各 10 个攻击样本）
+  Sumcheck: 50 queries（B3）
+  开始    : 2026-04-04 04:55:49
+
+[04:55:49] 加载 jina-v4 ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.59it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.55it/s]
+  loaded  (10.3s)
+
+[04:56:05] 加载数据集 ...
+Generating train split:   0%|          | 0/1284 [00:00<?, ? examples/s]Generating train split:  31%|███       | 400/1284 [00:00<00:00, 2277.80 examples/s]Generating train split: 100%|██████████| 1284/1284 [00:00<00:00, 4468.74 examples/s]Generating train split: 100%|██████████| 1284/1284 [00:00<00:00, 4094.70 examples/s]
+Generating train split:   0%|          | 0/556 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 556/556 [00:00<00:00, 27396.04 examples/s]
+Generating train split:   0%|          | 0/702 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 702/702 [00:00<00:00, 145223.25 examples/s]
+  corpus=1284  queries=556  qrels=702  (10.4s)
+  corpus 字段: ['corpus-id', 'image']
+  qrels  字段: ['query-id', 'corpus-id', 'score']
+  corpus_id=corpus-id  img=image  query_text=query
+
+[04:56:15] 构建 qrels ...
+  有标注查询：556 条
+
+[04:56:15] 编码语料图像（1284 张）...
+  [04:57:00] 100/1284  2.20 img/s  ETA 9.0min
+  [04:57:45] 200/1284  2.21 img/s  ETA 8.2min
+  [04:58:31] 300/1284  2.21 img/s  ETA 7.4min
+  [04:59:16] 400/1284  2.21 img/s  ETA 6.7min
+  [05:00:01] 500/1284  2.22 img/s  ETA 5.9min
+  [05:00:46] 600/1284  2.22 img/s  ETA 5.1min
+  [05:01:31] 700/1284  2.22 img/s  ETA 4.4min
+  [05:02:16] 800/1284  2.22 img/s  ETA 3.6min
+  [05:03:01] 900/1284  2.22 img/s  ETA 2.9min
+  [05:03:45] 1000/1284  2.22 img/s  ETA 2.1min
+  [05:04:30] 1100/1284  2.22 img/s  ETA 1.4min
+  [05:05:15] 1200/1284  2.22 img/s  ETA 0.6min
+  [05:05:53] 1284/1284  2.22 img/s  ETA 0.0min
+  承诺向量 shape=(1284, 2048)  (578.1s)
+
+[05:05:53] 编码查询（556 条）...
+  shape=(556, 2048)  (2.0s)
+
+[05:05:55] 基线：干净 FAISS 搜索 ...
+  基线 MRR@10=94.72  R@1=92.09  R@5=98.02  R@10=98.20  （评测 556 条，跳过 0 条）
+
+[05:05:55] 构建 ZAC（50 张样本图像）...
+  ZAC Root: 948eb028068e42338d9552cabba1fa8d…  (29.9s)
+
+[05:06:25] B1 图像替换攻击（10 个样本）...
+  攻击：将目标图像文件替换为另一张图像内容，embedding 不变
+  [01/10] vic=  0 donor= 25  before=True after=False  ✓
+  [02/10] vic=  1 donor= 26  before=True after=False  ✓
+  [03/10] vic=  2 donor= 27  before=True after=False  ✓
+  [04/10] vic=  3 donor= 28  before=True after=False  ✓
+  [05/10] vic=  4 donor= 29  before=True after=False  ✓
+  [06/10] vic=  5 donor= 30  before=True after=False  ✓
+  [07/10] vic=  6 donor= 31  before=True after=False  ✓
+  [08/10] vic=  7 donor= 32  before=True after=False  ✓
+  [09/10] vic=  8 donor= 33  before=True after=False  ✓
+  [10/10] vic=  9 donor= 34  before=True after=False  ✓
+  B1 检出率：10/10 = 100.0%  耗时 29.9s
+
+[05:06:55] B2 Embedding 替换攻击（10 个样本）...
+  攻击：图像文件不变，FAISS embedding 替换为随机单位向量
+  [01/10] tgt=  4  before=True after=False  ✓
+  [02/10] tgt= 32  before=True after=False  ✓
+  [03/10] tgt=  3  before=True after=False  ✓
+  [04/10] tgt= 28  before=True after=True  ✗
+  [05/10] tgt= 19  before=True after=False  ✓
+  [06/10] tgt= 44  before=True after=False  ✓
+  [07/10] tgt= 33  before=True after=False  ✓
+  [08/10] tgt= 49  before=True after=False  ✓
+  [09/10] tgt=  9  before=True after=False  ✓
+  [10/10] tgt= 39  before=True after=False  ✓
+  B2 检出率：9/10 = 90.0%  耗时 30.2s
+
+[05:07:25] B3 FAISS Embedding 替换攻击（相关语料项）...
+  攻击：将所有相关语料项的 FAISS embedding 替换为随机单位向量
+  替换了 518 个相关语料项的 embedding（corpus 占比 40.3%）
+  攻击后（无验证）MRR@10=0.00  R@1=0.00  R@5=0.00  R@10=0.00
+  Recall@10 下降：98.20pp  MRR@10 下降：94.72pp
+
+[05:07:26] Sumcheck 验证（50 条 query，承诺向量）...
+  B3 检出率：50/50 = 100.0%  耗时 204.4s  (4088ms/query)
+
+================================================================
+C1 攻击验证汇总：slidevqa
+================================================================
+
+  检索质量（B3 攻击前后对比）
+  指标                   基线（干净）          攻击后（无验证）
+  ──────────────────────────────────────────────
+  MRR@10                94.72              0.00
+  Recall@1              92.09              0.00
+  Recall@3              97.30              0.00
+  Recall@5              98.02              0.00
+  Recall@10             98.20              0.00
+
+  攻击检出率
+  ──────────────────────────────────────────────
+  B1 图像替换（ZAC）              10/10  (100.0%)
+  B2 Embedding 替换（ZAC 绑定）   9/10  (90.0%)
+  B3 排名操控（Sumcheck）          50/50  (100.0%)
+
+  VisRAG-Ret OOD 参照：MRR@10=45.57  Recall@10=67.7
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_attack_slidevqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+完成时间：2026-04-04 05:10:50
+[OK] SlideVQA attack_verify 完成  2026-04-04 05:10:52
+
+============================================================
+  DocVQA attack_verify → /root/autodl-tmp/UltraRAG/logs/c1_attack_docvqa.log
+  2026-04-04 05:10:52
+============================================================
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1（攻击验证版）：docvqa  B1+B2+B3
+================================================================
+  数据集  : openbmb/VisRAG-Ret-Test-MP-DocVQA
+  ZAC 样本: 50 张（B1/B2 各 10 个攻击样本）
+  Sumcheck: 50 queries（B3）
+  开始    : 2026-04-04 05:10:53
+
+[05:10:53] 加载 jina-v4 ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.50it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.46it/s]
+  loaded  (10.1s)
+
+[05:11:08] 加载数据集 ...
+Generating train split:   0%|          | 0/741 [00:00<?, ? examples/s]Generating train split:  13%|█▎        | 100/741 [00:00<00:02, 272.79 examples/s]Generating train split:  27%|██▋       | 200/741 [00:00<00:01, 400.27 examples/s]Generating train split:  54%|█████▍    | 400/741 [00:00<00:00, 676.61 examples/s]Generating train split:  67%|██████▋   | 500/741 [00:00<00:00, 663.34 examples/s]Generating train split:  94%|█████████▍| 700/741 [00:01<00:00, 880.14 examples/s]Generating train split: 100%|██████████| 741/741 [00:01<00:00, 718.99 examples/s]
+Generating train split:   0%|          | 0/591 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 591/591 [00:00<00:00, 37347.58 examples/s]
+Generating train split:   0%|          | 0/591 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 591/591 [00:00<00:00, 146850.34 examples/s]
+  corpus=741  queries=591  qrels=591  (11.0s)
+  corpus 字段: ['corpus-id', 'image']
+  qrels  字段: ['query-id', 'corpus-id', 'score']
+  corpus_id=corpus-id  img=image  query_text=query
+
+[05:11:19] 构建 qrels ...
+  有标注查询：591 条
+
+[05:11:19] 编码语料图像（741 张）...
+  [05:12:10] 100/741  1.96 img/s  ETA 5.4min
+  [05:12:59] 200/741  2.01 img/s  ETA 4.5min
+  [05:13:46] 300/741  2.05 img/s  ETA 3.6min
+  [05:14:33] 400/741  2.06 img/s  ETA 2.8min
+  [05:15:21] 500/741  2.07 img/s  ETA 1.9min
+  [05:16:08] 600/741  2.08 img/s  ETA 1.1min
+  [05:16:55] 700/741  2.09 img/s  ETA 0.3min
+  [05:17:14] 741/741  2.09 img/s  ETA 0.0min
+  承诺向量 shape=(741, 2048)  (355.2s)
+
+[05:17:14] 编码查询（591 条）...
+  shape=(591, 2048)  (2.1s)
+
+[05:17:17] 基线：干净 FAISS 搜索 ...
+  基线 MRR@10=79.56  R@1=72.59  R@5=89.34  R@10=94.25  （评测 591 条，跳过 0 条）
+
+[05:17:17] 构建 ZAC（50 张样本图像）...
+  ZAC Root: adef5d279ea3aa9757dc8c42d26cf8a1…  (29.7s)
+
+[05:17:48] B1 图像替换攻击（10 个样本）...
+  攻击：将目标图像文件替换为另一张图像内容，embedding 不变
+  [01/10] vic=  0 donor= 25  before=True after=False  ✓
+  [02/10] vic=  1 donor= 26  before=True after=False  ✓
+  [03/10] vic=  2 donor= 27  before=True after=False  ✓
+  [04/10] vic=  3 donor= 28  before=True after=False  ✓
+  [05/10] vic=  4 donor= 29  before=True after=False  ✓
+  [06/10] vic=  5 donor= 30  before=True after=False  ✓
+  [07/10] vic=  6 donor= 31  before=True after=False  ✓
+  [08/10] vic=  7 donor= 32  before=True after=False  ✓
+  [09/10] vic=  8 donor= 33  before=True after=False  ✓
+  [10/10] vic=  9 donor= 34  before=True after=False  ✓
+  B1 检出率：10/10 = 100.0%  耗时 30.1s
+
+[05:18:18] B2 Embedding 替换攻击（10 个样本）...
+  攻击：图像文件不变，FAISS embedding 替换为随机单位向量
+  [01/10] tgt=  4  before=True after=False  ✓
+  [02/10] tgt= 32  before=True after=False  ✓
+  [03/10] tgt=  3  before=True after=False  ✓
+  [04/10] tgt= 28  before=True after=False  ✓
+  [05/10] tgt= 19  before=True after=False  ✓
+  [06/10] tgt= 44  before=True after=False  ✓
+  [07/10] tgt= 33  before=True after=False  ✓
+  [08/10] tgt= 49  before=True after=False  ✓
+  [09/10] tgt=  9  before=True after=False  ✓
+  [10/10] tgt= 39  before=True after=False  ✓
+  B2 检出率：10/10 = 100.0%  耗时 30.3s
+
+[05:18:48] B3 FAISS Embedding 替换攻击（相关语料项）...
+  攻击：将所有相关语料项的 FAISS embedding 替换为随机单位向量
+  替换了 354 个相关语料项的 embedding（corpus 占比 47.8%）
+  攻击后（无验证）MRR@10=0.00  R@1=0.00  R@5=0.00  R@10=0.00
+  Recall@10 下降：94.25pp  MRR@10 下降：79.56pp
+
+[05:18:48] Sumcheck 验证（50 条 query，承诺向量）...
+  B3 检出率：50/50 = 100.0%  耗时 119.1s  (2383ms/query)
+
+================================================================
+C1 攻击验证汇总：docvqa
+================================================================
+
+  检索质量（B3 攻击前后对比）
+  指标                   基线（干净）          攻击后（无验证）
+  ──────────────────────────────────────────────
+  MRR@10                79.56              0.00
+  Recall@1              72.59              0.00
+  Recall@3              84.60              0.00
+  Recall@5              89.34              0.00
+  Recall@10             94.25              0.00
+
+  攻击检出率
+  ──────────────────────────────────────────────
+  B1 图像替换（ZAC）              10/10  (100.0%)
+  B2 Embedding 替换（ZAC 绑定）   10/10  (100.0%)
+  B3 排名操控（Sumcheck）          50/50  (100.0%)
+
+  VisRAG-Ret OOD 参照：MRR@10=74.6  Recall@10=89.65
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_attack_docvqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+完成时间：2026-04-04 05:20:47
+[OK] DocVQA attack_verify 完成  2026-04-04 05:20:50
+
+============================================================
+  ChartQA recall (--no-clean) → /root/autodl-tmp/UltraRAG/logs/c1_recall_chartvqa.log
+  2026-04-04 05:20:50
+============================================================
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1：chartvqa  (openbmb/VisRAG-Ret-Test-ChartQA)
+================================================================
+  模型      : /root/autodl-tmp/models/jina-embeddings-v4
+  缓存目录  : /root/autodl-tmp/UltraRAG/data/huggingface_cache
+  结果输出  : /root/autodl-tmp/UltraRAG/notes/experiment_c1_chartvqa.json
+  清理缓存  : 否
+  开始时间  : 2026-04-04 05:20:50
+
+[05:20:50] 加载 jina-v4 模型...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.94it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.90it/s]
+  loaded  (10.6s)
+
+[05:21:06] 加载数据集...
+Generating train split:   0%|          | 0/500 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 500/500 [00:00<00:00, 4741.41 examples/s]Generating train split: 100%|██████████| 500/500 [00:00<00:00, 4719.49 examples/s]
+Generating train split:   0%|          | 0/63 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 63/63 [00:00<00:00, 11356.42 examples/s]
+Generating train split:   0%|          | 0/63 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 63/63 [00:00<00:00, 13927.95 examples/s]
+  corpus=500  queries=63  qrels=63  (17.1s)
+  corpus 字段 : ['corpus-id', 'image']
+  qrels  字段 : ['query-id', 'corpus-id', 'score']
+
+[05:21:23] 构建 qrels 索引...
+  有标注查询：63 条
+  corpus_id 字段 : corpus-id
+  query_id  字段 : query-id
+  query_text字段 : query
+  图像字段       : image
+
+[05:21:23] 编码语料图像（500 张，batch=4）...
+  [05:21:44] 100/500  4.80 img/s  ETA 1.4 min
+  [05:22:19] 200/500  3.60 img/s  ETA 1.4 min
+  [05:22:47] 300/500  3.58 img/s  ETA 0.9 min
+  [05:23:20] 400/500  3.43 img/s  ETA 0.5 min
+  [05:23:53] 500/500  3.35 img/s  ETA 0.0 min
+  完成  shape=(500, 2048)  耗时=149.3s
+
+[05:23:53] 编码查询文本（63 条）...
+  完成  shape=(63, 2048)  耗时=0.3s
+
+[05:23:53] FAISS 构建索引并搜索...
+  ntotal=500  D=2048
+  搜索完成  (0.009s)
+
+[05:23:53] 计算指标...
+
+================================================================
+结果：chartvqa
+================================================================
+  评测查询：63  跳过：0
+  指标                jina-v4  VisRAG-Ret OOD
+  ──────────────────────────────────────────
+  MRR@10              87.43           75.99
+  Recall@1            82.54               —
+  Recall@3            92.06               —
+  Recall@5            93.65               —
+  Recall@10           93.65           91.40
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_chartvqa.json
+缓存保留：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+
+完成时间：2026-04-04 05:23:53
+[OK] ChartQA recall (--no-clean) 完成  2026-04-04 05:23:54
+
+============================================================
+  ChartQA attack_verify → /root/autodl-tmp/UltraRAG/logs/c1_attack_chartvqa.log
+  2026-04-04 05:23:54
+============================================================
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1（攻击验证版）：chartvqa  B1+B2+B3
+================================================================
+  数据集  : openbmb/VisRAG-Ret-Test-ChartQA
+  ZAC 样本: 50 张（B1/B2 各 10 个攻击样本）
+  Sumcheck: 50 queries（B3）
+  开始    : 2026-04-04 05:23:55
+
+[05:23:55] 加载 jina-v4 ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.90it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.86it/s]
+  loaded  (10.5s)
+
+[05:24:11] 加载数据集 ...
+  corpus=500  queries=63  qrels=63  (9.9s)
+  corpus 字段: ['corpus-id', 'image']
+  qrels  字段: ['query-id', 'corpus-id', 'score']
+  corpus_id=corpus-id  img=image  query_text=query
+
+[05:24:21] 构建 qrels ...
+  有标注查询：63 条
+
+[05:24:21] 编码语料图像（500 张）...
+  [05:24:42] 100/500  4.72 img/s  ETA 1.4min
+  [05:25:17] 200/500  3.53 img/s  ETA 1.4min
+  [05:25:46] 300/500  3.51 img/s  ETA 0.9min
+  [05:26:19] 400/500  3.38 img/s  ETA 0.5min
+  [05:26:52] 500/500  3.31 img/s  ETA 0.0min
+  承诺向量 shape=(500, 2048)  (151.2s)
+
+[05:26:52] 编码查询（63 条）...
+  shape=(63, 2048)  (0.3s)
+
+[05:26:52] 基线：干净 FAISS 搜索 ...
+  基线 MRR@10=87.43  R@1=82.54  R@5=93.65  R@10=93.65  （评测 63 条，跳过 0 条）
+
+[05:26:52] 构建 ZAC（50 张样本图像）...
+  ZAC Root: ae1a20222f22583221d6cb0abfa6f714…  (29.9s)
+
+[05:27:22] B1 图像替换攻击（10 个样本）...
+  攻击：将目标图像文件替换为另一张图像内容，embedding 不变
+  [01/10] vic=  0 donor= 25  before=True after=False  ✓
+  [02/10] vic=  1 donor= 26  before=True after=False  ✓
+  [03/10] vic=  2 donor= 27  before=True after=False  ✓
+  [04/10] vic=  3 donor= 28  before=True after=False  ✓
+  [05/10] vic=  4 donor= 29  before=True after=False  ✓
+  [06/10] vic=  5 donor= 30  before=True after=False  ✓
+  [07/10] vic=  6 donor= 31  before=True after=False  ✓
+  [08/10] vic=  7 donor= 32  before=True after=False  ✓
+  [09/10] vic=  8 donor= 33  before=True after=False  ✓
+  [10/10] vic=  9 donor= 34  before=True after=False  ✓
+  B1 检出率：10/10 = 100.0%  耗时 30.5s
+
+[05:27:53] B2 Embedding 替换攻击（10 个样本）...
+  攻击：图像文件不变，FAISS embedding 替换为随机单位向量
+  [01/10] tgt=  4  before=True after=False  ✓
+  [02/10] tgt= 32  before=True after=False  ✓
+  [03/10] tgt=  3  before=True after=False  ✓
+  [04/10] tgt= 28  before=True after=False  ✓
+  [05/10] tgt= 19  before=True after=False  ✓
+  [06/10] tgt= 44  before=True after=False  ✓
+  [07/10] tgt= 33  before=True after=False  ✓
+  [08/10] tgt= 49  before=True after=False  ✓
+  [09/10] tgt=  9  before=True after=False  ✓
+  [10/10] tgt= 39  before=True after=False  ✓
+  B2 检出率：10/10 = 100.0%  耗时 30.3s
+
+[05:28:23] B3 FAISS Embedding 替换攻击（相关语料项）...
+  攻击：将所有相关语料项的 FAISS embedding 替换为随机单位向量
+  替换了 60 个相关语料项的 embedding（corpus 占比 12.0%）
+  攻击后（无验证）MRR@10=0.00  R@1=0.00  R@5=0.00  R@10=0.00
+  Recall@10 下降：93.65pp  MRR@10 下降：87.43pp
+
+[05:28:23] Sumcheck 验证（50 条 query，承诺向量）...
+  B3 检出率：49/50 = 98.0%  耗时 78.2s  (1564ms/query)
+
+================================================================
+C1 攻击验证汇总：chartvqa
+================================================================
+
+  检索质量（B3 攻击前后对比）
+  指标                   基线（干净）          攻击后（无验证）
+  ──────────────────────────────────────────────
+  MRR@10                87.43              0.00
+  Recall@1              82.54              0.00
+  Recall@3              92.06              0.00
+  Recall@5              93.65              0.00
+  Recall@10             93.65              0.00
+
+  攻击检出率
+  ──────────────────────────────────────────────
+  B1 图像替换（ZAC）              10/10  (100.0%)
+  B2 Embedding 替换（ZAC 绑定）   10/10  (100.0%)
+  B3 排名操控（Sumcheck）          49/50  (98.0%)
+
+  VisRAG-Ret OOD 参照：MRR@10=75.99  Recall@10=91.4
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_attack_chartvqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+完成时间：2026-04-04 05:29:41
+[OK] ChartQA attack_verify 完成  2026-04-04 05:29:43
+
+============================================================
+  InfoVQA recall (--no-clean) → /root/autodl-tmp/UltraRAG/logs/c1_recall_infovqa.log
+  2026-04-04 05:29:43
+============================================================
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1：infovqa  (openbmb/VisRAG-Ret-Test-InfoVQA)
+================================================================
+  模型      : /root/autodl-tmp/models/jina-embeddings-v4
+  缓存目录  : /root/autodl-tmp/UltraRAG/data/huggingface_cache
+  结果输出  : /root/autodl-tmp/UltraRAG/notes/experiment_c1_infovqa.json
+  清理缓存  : 否
+  开始时间  : 2026-04-04 05:29:43
+
+[05:29:43] 加载 jina-v4 模型...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.63it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.59it/s]
+  loaded  (10.0s)
+
+[05:29:59] 加载数据集...
+Generating train split:   0%|          | 0/459 [00:00<?, ? examples/s]Generating train split:  22%|██▏       | 100/459 [00:00<00:01, 252.48 examples/s]Generating train split:  65%|██████▌   | 300/459 [00:00<00:00, 484.94 examples/s]Generating train split: 100%|██████████| 459/459 [00:00<00:00, 615.61 examples/s]
+Generating train split:   0%|          | 0/718 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 718/718 [00:00<00:00, 37523.80 examples/s]
+Generating train split:   0%|          | 0/718 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 718/718 [00:00<00:00, 152334.98 examples/s]
+  corpus=459  queries=718  qrels=718  (24.5s)
+  corpus 字段 : ['corpus-id', 'image']
+  qrels  字段 : ['query-id', 'corpus-id', 'score']
+
+[05:30:23] 构建 qrels 索引...
+  有标注查询：718 条
+  corpus_id 字段 : corpus-id
+  query_id  字段 : query-id
+  query_text字段 : query
+  图像字段       : image
+
+[05:30:23] 编码语料图像（459 张，batch=4）...
+  [05:31:10] 100/459  2.13 img/s  ETA 2.8 min
+  [05:31:58] 200/459  2.12 img/s  ETA 2.0 min
+  [05:32:43] 300/459  2.15 img/s  ETA 1.2 min
+  [05:33:31] 400/459  2.13 img/s  ETA 0.5 min
+  [05:33:58] 459/459  2.14 img/s  ETA 0.0 min
+  完成  shape=(459, 2048)  耗时=215.8s
+
+[05:33:59] 编码查询文本（718 条）...
+  完成  shape=(718, 2048)  耗时=2.5s
+
+[05:34:02] FAISS 构建索引并搜索...
+  ntotal=459  D=2048
+  搜索完成  (0.084s)
+
+[05:34:02] 计算指标...
+
+================================================================
+结果：infovqa
+================================================================
+  评测查询：718  跳过：0
+  指标                jina-v4  VisRAG-Ret OOD
+  ──────────────────────────────────────────
+  MRR@10              89.80           67.26
+  Recall@1            84.82               —
+  Recall@3            94.01               —
+  Recall@5            95.96               —
+  Recall@10           98.47           87.05
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_infovqa.json
+缓存保留：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+
+完成时间：2026-04-04 05:34:02
+[OK] InfoVQA recall (--no-clean) 完成  2026-04-04 05:34:03
+
+============================================================
+  InfoVQA attack_verify → /root/autodl-tmp/UltraRAG/logs/c1_attack_infovqa.log
+  2026-04-04 05:34:03
+============================================================
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+================================================================
+实验 C1（攻击验证版）：infovqa  B1+B2+B3
+================================================================
+  数据集  : openbmb/VisRAG-Ret-Test-InfoVQA
+  ZAC 样本: 50 张（B1/B2 各 10 个攻击样本）
+  Sumcheck: 50 queries（B3）
+  开始    : 2026-04-04 05:34:04
+
+[05:34:04] 加载 jina-v4 ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.49it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.44it/s]
+  loaded  (10.7s)
+
+[05:34:20] 加载数据集 ...
+  corpus=459  queries=718  qrels=718  (9.7s)
+  corpus 字段: ['corpus-id', 'image']
+  qrels  字段: ['query-id', 'corpus-id', 'score']
+  corpus_id=corpus-id  img=image  query_text=query
+
+[05:34:29] 构建 qrels ...
+  有标注查询：718 条
+
+[05:34:29] 编码语料图像（459 张）...
+  [05:35:18] 100/459  2.08 img/s  ETA 2.9min
+  [05:36:06] 200/459  2.08 img/s  ETA 2.1min
+  [05:36:52] 300/459  2.11 img/s  ETA 1.3min
+  [05:37:41] 400/459  2.09 img/s  ETA 0.5min
+  [05:38:08] 459/459  2.10 img/s  ETA 0.0min
+  承诺向量 shape=(459, 2048)  (219.5s)
+
+[05:38:09] 编码查询（718 条）...
+  shape=(718, 2048)  (2.4s)
+
+[05:38:11] 基线：干净 FAISS 搜索 ...
+  基线 MRR@10=89.80  R@1=84.82  R@5=95.96  R@10=98.47  （评测 718 条，跳过 0 条）
+
+[05:38:11] 构建 ZAC（50 张样本图像）...
+  ZAC Root: b0fbd8db587bd8c8e53b868ccd0ffb89…  (29.6s)
+
+[05:38:42] B1 图像替换攻击（10 个样本）...
+  攻击：将目标图像文件替换为另一张图像内容，embedding 不变
+  [01/10] vic=  0 donor= 25  before=True after=False  ✓
+  [02/10] vic=  1 donor= 26  before=True after=False  ✓
+  [03/10] vic=  2 donor= 27  before=True after=False  ✓
+  [04/10] vic=  3 donor= 28  before=True after=False  ✓
+  [05/10] vic=  4 donor= 29  before=True after=True  ✗
+  [06/10] vic=  5 donor= 30  before=True after=False  ✓
+  [07/10] vic=  6 donor= 31  before=True after=False  ✓
+  [08/10] vic=  7 donor= 32  before=True after=False  ✓
+  [09/10] vic=  8 donor= 33  before=True after=False  ✓
+  [10/10] vic=  9 donor= 34  before=True after=False  ✓
+  B1 检出率：9/10 = 90.0%  耗时 30.3s
+
+[05:39:13] B2 Embedding 替换攻击（10 个样本）...
+  攻击：图像文件不变，FAISS embedding 替换为随机单位向量
+  [01/10] tgt=  4  before=True after=False  ✓
+  [02/10] tgt= 32  before=True after=False  ✓
+  [03/10] tgt=  3  before=True after=False  ✓
+  [04/10] tgt= 28  before=True after=False  ✓
+  [05/10] tgt= 19  before=True after=False  ✓
+  [06/10] tgt= 44  before=True after=False  ✓
+  [07/10] tgt= 33  before=True after=False  ✓
+  [08/10] tgt= 49  before=True after=False  ✓
+  [09/10] tgt=  9  before=True after=False  ✓
+  [10/10] tgt= 39  before=True after=False  ✓
+  B2 检出率：10/10 = 100.0%  耗时 30.0s
+
+[05:39:43] B3 FAISS Embedding 替换攻击（相关语料项）...
+  攻击：将所有相关语料项的 FAISS embedding 替换为随机单位向量
+  替换了 261 个相关语料项的 embedding（corpus 占比 56.9%）
+  攻击后（无验证）MRR@10=0.00  R@1=0.00  R@5=0.00  R@10=0.00
+  Recall@10 下降：98.47pp  MRR@10 下降：89.80pp
+
+[05:39:43] Sumcheck 验证（50 条 query，承诺向量）...
+  B3 检出率：50/50 = 100.0%  耗时 73.4s  (1468ms/query)
+
+================================================================
+C1 攻击验证汇总：infovqa
+================================================================
+
+  检索质量（B3 攻击前后对比）
+  指标                   基线（干净）          攻击后（无验证）
+  ──────────────────────────────────────────────
+  MRR@10                89.80              0.00
+  Recall@1              84.82              0.00
+  Recall@3              94.01              0.00
+  Recall@5              95.96              0.00
+  Recall@10             98.47              0.00
+
+  攻击检出率
+  ──────────────────────────────────────────────
+  B1 图像替换（ZAC）              9/10  (90.0%)
+  B2 Embedding 替换（ZAC 绑定）   10/10  (100.0%)
+  B3 排名操控（Sumcheck）          50/50  (100.0%)
+
+  VisRAG-Ret OOD 参照：MRR@10=67.26  Recall@10=87.05
+
+结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_attack_infovqa.json
+缓存已清理：/root/autodl-tmp/UltraRAG/data/huggingface_cache
+完成时间：2026-04-04 05:40:56
+[OK] InfoVQA attack_verify 完成  2026-04-04 05:40:58
+
+============================================================
+  全部 C1 实验完成
+  2026-04-04 05:40:58
+============================================================
+日志目录：/root/autodl-tmp/UltraRAG/logs
+-rw-r--r-- 1 root root 4.9K Apr  4 05:29 /root/autodl-tmp/UltraRAG/logs/c1_attack_chartvqa.log
+-rw-r--r-- 1 root root 6.0K Apr  4 05:20 /root/autodl-tmp/UltraRAG/logs/c1_attack_docvqa.log
+-rw-r--r-- 1 root root 4.9K Apr  4 05:40 /root/autodl-tmp/UltraRAG/logs/c1_attack_infovqa.log
+-rw-r--r-- 1 root root 6.0K Apr  4 05:10 /root/autodl-tmp/UltraRAG/logs/c1_attack_slidevqa.log
+-rw-r--r-- 1 root root 3.7K Apr  4 03:49 /root/autodl-tmp/UltraRAG/logs/c1_docvqa.log
+-rw-r--r-- 1 root root  30K Apr  4 05:40 /root/autodl-tmp/UltraRAG/logs/c1_master.log
+-rw-r--r-- 1 root root 3.2K Apr  4 05:23 /root/autodl-tmp/UltraRAG/logs/c1_recall_chartvqa.log
+-rw-r--r-- 1 root root 3.3K Apr  4 05:34 /root/autodl-tmp/UltraRAG/logs/c1_recall_infovqa.log
+-rw-r--r-- 1 root root 3.0K Apr  4 03:24 /root/autodl-tmp/UltraRAG/logs/c1_slidevqa.log
