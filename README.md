@@ -230,10 +230,9 @@ UltraRAG/
 │   ├── implementation_log.md        # 完整实现记录、实验分析、设计决策
 │   ├── experiment_*.json            # 各组实验原始数据
 │   └── figures/                     # 可视化图表
-└── data/nikon.pdf                   # 示例 PDF（尼康 Z8 相机手册）
+└── data/nikon.pdf                   # 示例 PDF，可通过下方链接下载
 ```
-
----
+（注：可通过[此处](https://download.nikonimglib.com/archive4/ywJ4K00fa2Lr05vv5OS00pV5Hg36/Z7Z6UM_TH(Sc)07.pdf)下载示例PDF）
 
 ## 快速开始
 

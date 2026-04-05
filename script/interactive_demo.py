@@ -1188,7 +1188,7 @@ def build_ui():
                         gr.Markdown("### 检索过程")
                         # submit_btn 将按钮渲染在文本框内部右侧
                         q_input = gr.Textbox(
-                            placeholder="输入查询，例：What is the sensor resolution of Nikon Z8?",
+                            placeholder="输入查询，例：尼康Z7的电子减震功能在哪些场景不可用？",
                             lines=1, show_label=False,
                             submit_btn="→",
                         )
