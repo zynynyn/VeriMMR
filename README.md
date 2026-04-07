@@ -46,8 +46,6 @@
 | B2 Embedding 替换 | 篡改 FAISS 中的向量以操控排名 | Phase 1 ZAC（跨层绑定） |
 | B3 排名伪造 | 伪造内积分值或隐藏更高分结果 | Phase 2 Sumcheck |
 | B4 权重篡改 | 替换模型权重使推理过程不可追溯 | Phase 3 zkLLM |
-
-![alt text](VeriMMR-架构图.png)
 ---
 
 ## 实验结果摘要
@@ -97,34 +95,7 @@ N 从 50 增至 1000，ZAC 延迟始终稳定在 ~4.37s（证明大小 48 字节
 
 ## 技术架构
 
-### 三层验证覆盖范围
-
-```
-离线阶段（建库，一次性）
-──────────────────────────────────────────────────
-
-PDF → 图像₁…图像ₙ
-         │
-         ├── SHA256(imageᵢ ∥ embᵢ) → ZAC 承诺 cm（48B）   ← Phase 1 可验证来源
-         │
-         └── jina-v4（3.9B，ViT + LM 36层 + MeanPool）
-                  ↓
-              向量 v₁…vₙ（2048维）
-                  │
-                  ├── FAISS IndexFlatIP                    ← 精确搜索
-                  └── zkLLM 证明₁…ₙ（K=5层，预计算）      ← Phase 3 推理可验证
-
-在线阶段（每次查询）
-──────────────────────────────────────────────────
-
-用户 query → jina-v4 → 向量 q
-                  │
-                  ├── FAISS 搜索 → top-k 候选
-                  ├── Sumcheck Global Batch（所有 N 个内积）← Phase 2 计算可验证
-                  ├── ZAC.ProveM（top-k 图像成员证明）    ← Phase 1 来源可验证
-                  └── Phase 3Q 后台证明 query 推理         ← Phase 3 推理可验证
-```
-
+![alt text](VeriMMR-架构图.png)
 ### 密码学选型
 
 | 组件 | 方案 | 关键性质 |
