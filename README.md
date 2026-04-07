@@ -47,6 +47,7 @@
 | B3 排名伪造 | 伪造内积分值或隐藏更高分结果 | Phase 2 Sumcheck |
 | B4 权重篡改 | 替换模型权重使推理过程不可追溯 | Phase 3 zkLLM |
 
+![alt text](VeriMMR-架构图.png)
 ---
 
 ## 实验结果摘要
