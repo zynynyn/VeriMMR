@@ -1338,13 +1338,13 @@ zkLLM 内部 NTT（Number Theoretic Transform）和矩阵分块要求 $\text{seq
 - **脚本**：`script/ablation_layer_sensitivity.py --mode bi`
 - **输出**：`notes/ablation_bi_score.png`，`notes/ablation_bi_score.json`
 
-**实验 B：单层删除 + embedding cos 下降（已实现，待扩展至多模态）**
+**实验 B：单层删除 + embedding cos 下降（✅ 已完成，文本 + 图像双模态）**
 
 - **方法**：每次将一层的残差置零（等价删层），测 embedding 相对 baseline 的 cos 下降
 - **指标**：`sensitivity_l = 1 − cosine(baseline, ablated_l)`
 - **样本**：文本 + 图像各 20 个
 - **参考**：arXiv:2409.14381（直接删层 + 性能下降方法）
-- **脚本**：`script/ablation_layer_sensitivity.py --mode zero`（已实现文本，待加图像）
+- **脚本**：`script/ablation_layer_sensitivity.py --mode zero`（`run_ablation_texts` + `run_ablation_images` 均已实现，输出文本/图像各自图表 + 双模态对比图）
 
 **实验 C 旧版：噪声注入（对照实验，存在级联传播问题）**
 
