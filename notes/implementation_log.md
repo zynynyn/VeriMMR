@@ -1272,8 +1272,8 @@ zkLLM 内部 NTT（Number Theoretic Transform）和矩阵分块要求 $\text{seq
      },
      "corpus_proofs": [
        [
-         { "image_id": "nikon/page_57.jpg", "status": "completed", "k_layers": 6, "verified": true, "elapsed_ms": 45513 },
-         { "image_id": "nikon/page_31.jpg", "status": "completed", "k_layers": 6, "verified": true, "elapsed_ms": 45387 },
+         { "image_id": "nikon/page_57.jpg", "status": "completed", "k_layers": 5, "verified": true, "elapsed_ms": 76231 },
+         { "image_id": "nikon/page_31.jpg", "status": "completed", "k_layers": 5, "verified": true, "elapsed_ms": 75920 },
          ...
        ]
      ]
@@ -1284,16 +1284,16 @@ zkLLM 内部 NTT（Number Theoretic Transform）和矩阵分块要求 $\text{seq
    ```bash
    cd /root/autodl-tmp/UltraRAG
    # 先预计算前 2 张（测试验证）
-   python script/build_corpus_zkllm_proofs.py --limit 2 --k_layers 6
-   # 全量运行（后台，约 3.6 小时，288 张 × 45s）
-   nohup python script/build_corpus_zkllm_proofs.py --k_layers 6 \
+   python script/build_corpus_zkllm_proofs.py --limit 2 --k_layers 5
+   # 全量运行（后台，实测约 6.42h，303 张 × 均值 76.3s）
+   nohup python script/build_corpus_zkllm_proofs.py --k_layers 5 \
        > /tmp/corpus_zkllm_proof.log 2>&1 &
    ```
 
-   **实测结果**（K=6，RTX 4090 D）：
-   - `nikon/page_0.jpg`：✓ 45513ms（6 层全部 verified=true）
-   - `nikon/page_1.jpg`：✓ 45387ms（6 层全部 verified=true）
-   - 288 张全量：~3.6 小时（后台异步运行中）
+   **实测结果**（K=5，RTX 4090 D，N=303 张，真实激活）：
+   - 单张均值：76.3s（min 74.2s，max 81.1s）
+   - 全量总计：23,123s = **6.42h**（单 GPU）；双 GPU 并行约 **3.21h**
+   - 数据来源：每个 corpus_proof JSON 的 `elapsed_ms` 字段（实测值，非估算）
 
    **与 query-side 证明的区别**：
    | | 语料库侧（corpus proof） | 查询侧（query proof） |
@@ -1977,7 +1977,7 @@ Reviewer 最关心的问题：引入验证层是否损失检索质量？
 
 | 阶段 | 耗时 |
 |------|------|
-| Phase 3C corpus zkLLM（K=5，N=303 张） | ~6.42h |
+| Phase 3C corpus zkLLM（K=5，N=303 张） | **6.42h**（实测，均值 76.3s/张，单 GPU）；双 GPU ≈ 3.21h |
 | Phase 1 ZAC 建库 + embedding + FAISS | <10min |
 
 **结论**：
