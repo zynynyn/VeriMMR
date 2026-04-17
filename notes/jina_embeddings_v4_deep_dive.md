@@ -142,15 +142,27 @@ offsets = batch_doc["image_grid_thw"][:, 1] * batch_doc["image_grid_thw"][:, 2]
 # offsets[i] = 图像 i 的 patch 数量（H_patches × W_patches）
 ```
 
-### 4.4 Spatial Merge（空间合并）
+### 4.4 PatchMerger（Spatial Merge + MLP 投影）
 
-为减少 token 数量，相邻 $2 \times 2$ 个 patch 的特征被拼接后投影，形成一个 token：
+32 个 ViT block 跑完后，输出 patch 序列经过 `PatchMerger` 模块压缩并投影到 LM 维度。PatchMerger 内部依次完成两件事：
 
-- `spatial_merge_size = 2`：每 $2 \times 2 = 4$ 个 patch 合并为 1 个 token
-- 合并后 token 数量：$T_v = \frac{N_\text{patch}}{4} = \frac{H \times W}{14^2 \times 4} = \frac{H \times W}{784}$
-- 每个 token 的维度从 $1280$ 通过线性投影升到 LM 的 $2048$
-> 这里要升为2048维是用了线性投影，因为要和text部分对齐。设这里的权重矩阵是W，W 里的每个数都是训练出来的，反向传播时根据损失函数自动更新。训练完之后 W 固定，推理时就是纯粹的矩阵乘法。
-<br>W 学的是如何把**视觉特征重新组合**，使得输出的 2048 维向量是语言模型最容易理解的表示形式。不是简单的"取前几维"或"补零"，而是对所有维度加权混合重新排列。
+1. **Spatial Merge（空间合并）**：将 ViT 输出中空间上相邻的 $2 \times 2 = 4$ 个 patch，通过 `.view(-1, 5120)` 拼成一个 5120 维向量，token 数量缩减为原来的 $\frac{1}{4}$
+2. **MLP 投影**：用两层 MLP 将 5120 维映射到 LM 所需的 2048 维
+
+合并后 token 数量：$T_v = \frac{N_\text{patch}}{4} = \frac{H \times W}{14^2 \times 4} = \frac{H \times W}{784}$
+
+**PatchMerger 完整结构**（`Qwen2_5_VLPatchMerger`，代码实测）：
+
+```
+输入: [N_patch, 1280]
+  → RMSNorm(1280)
+  → .view(-1, 5120)          ← Spatial Merge：4 patch 拼接
+  → Linear(5120, 5120) + GELU
+  → Linear(5120, 2048)
+输出: [N_patch/4, 2048]      ← 对齐 LM 输入维度
+```
+
+**注意**：PatchMerger 的激活函数是 **GELU**，不是 SwiGLU。这是整个 jina-v4 架构中唯一使用 GELU 的地方；ViT Block 的 FFN 和 LM 的 FFN 均使用 SwiGLU。
 
 **例**：一张 $448 \times 448$ 的图像：
 $$N_\text{patch} = \frac{448}{14} \times \frac{448}{14} = 32 \times 32 = 1024, \quad T_v = \frac{1024}{4} = 256 \text{ tokens}$$

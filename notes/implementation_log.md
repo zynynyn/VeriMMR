@@ -859,7 +859,7 @@ zkLLM 的三个核心协议对 jina-v4 各组件的覆盖情况：
 |------|---------|-----------|------|
 | ViT patch embed | Conv3d（线性）| Sumcheck | 线性操作，理论直接支持 |
 | ViT 32 blocks | Attention + SwiGLU + RMSNorm | zkAttn + tlookup | 与 LLaMA 注意力公式相同 |
-| ViT Spatial Merge | MLP 投影（线性）| Sumcheck | |
+| ViT PatchMerger | 2 层 GELU MLP（RMSNorm→concat 4 patch→5120→GELU→5120→2048）| Sumcheck + tlookup（GELU）| 非线性激活为 GELU 而非 SwiGLU |
 | LM 36 layers | GQA + SwiGLU + RMSNorm | zkAttn + tlookup | ✅ 已适配 GQA（kv_dim=256，num_kv_heads=2，per-head 证明循环）|
 | LoRA delta | 低秩矩阵乘法 $\mathbf{BA}$ | Sumcheck × 2 | 额外开销约 3%，可忽略 |
 | MeanPool + L2Norm | 加权均值 + sqrt | Sumcheck + tlookup | 直接支持 |
