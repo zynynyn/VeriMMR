@@ -87,6 +87,78 @@ vector<Claim> zkFC::prove(const FrTensor& X, const FrTensor& Y) const
 }
 
 
+vector<Claim> zkFC::prove_batch(
+    const FrTensor& X,
+    const vector<pair<const zkFC*, const FrTensor*>>& layers_and_Ys)
+{
+    uint n = layers_and_Ys.size();
+    if (n == 0) return {};
+    if (n == 1) return layers_and_Ys[0].first->prove(X, *layers_and_Ys[0].second);
+
+    uint inputSize = layers_and_Ys[0].first->inputSize;
+    uint batchSize = X.size / inputSize;
+
+    // Shared random points
+    auto u_batch = random_vec(ceilLog2(batchSize));
+    auto u_input = random_vec(ceilLog2(inputSize));
+
+    // Per-weight: claim_i and W_reduced_i
+    vector<vector<Fr_t>> u_outputs(n);
+    vector<Fr_t> ci(n);
+    vector<FrTensor> Wr;
+
+    for (uint i = 0; i < n; i++) {
+        const zkFC* layer = layers_and_Ys[i].first;
+        const FrTensor& Y  = *layers_and_Ys[i].second;
+        u_outputs[i] = random_vec(ceilLog2(layer->outputSize));
+        ci[i] = Y.multi_dim_me({u_batch, u_outputs[i]}, {batchSize, layer->outputSize});
+        Wr.push_back(layer->weights.partial_me(u_outputs[i], layer->outputSize, 1));
+    }
+
+    // Schwartz-Zippel challenges: alpha[0]=1, alpha[i] random for i>0
+    const Fr_t ONE {1u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
+    vector<Fr_t> alpha(n);
+    alpha[0] = ONE;
+    if (n > 1) {
+        auto rnd = random_vec(n - 1);
+        for (uint i = 1; i < n; i++) alpha[i] = rnd[i-1];
+    }
+
+    // combined_claim = sum(alpha[i] * ci[i])
+    Fr_t combined_claim = ci[0];
+    for (uint i = 1; i < n; i++)
+        combined_claim = combined_claim + alpha[i] * ci[i];
+
+    // Shared X_reduced — only ONE partial_me over X
+    auto X_reduced = X.partial_me(u_batch, batchSize, inputSize);
+
+    // combined_W = Wr[0] + alpha[1]*Wr[1] + ...
+    FrTensor combined_W = Wr[0];
+    for (uint i = 1; i < n; i++)
+        combined_W += Wr[i] * alpha[i];
+
+    // One zkip instead of n
+    vector<Polynomial> proof;
+    auto final_claim = zkip(combined_claim, X_reduced, combined_W, u_input, proof);
+
+    // Verify: final_claim == claim_X * sum(alpha[i] * claim_Wi)
+    auto claim_X = X.multi_dim_me({u_batch, u_input}, {batchSize, inputSize});
+
+    vector<Claim> result;
+    Fr_t expected = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
+    for (uint i = 0; i < n; i++) {
+        auto claim_W = layers_and_Ys[i].first->weights.multi_dim_me(
+            {u_input, u_outputs[i]}, {inputSize, layers_and_Ys[i].first->outputSize});
+        expected = expected + alpha[i] * (claim_X * claim_W);
+        result.push_back({claim_W, {u_input, u_outputs[i]},
+                          {inputSize, layers_and_Ys[i].first->outputSize}});
+    }
+    if (final_claim != expected)
+        throw std::runtime_error("zkFC::prove_batch: consistency check failed");
+
+    return result;
+}
+
 // zk inner product
 const Fr_t TEMP_ZERO {0, 0, 0, 0, 0, 0, 0, 0};
 const Fr_t TEMP_ONE {1, 0, 0, 0, 0, 0, 0, 0};

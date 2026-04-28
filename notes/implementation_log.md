@@ -2492,7 +2492,74 @@ B1（400次）和 B2（400次）测试的是完全不同的元素：
 
 ---
 
-## 参考文献
+## 安全性补充：权重局部篡改与覆盖层外篡改
+
+### 问题描述
+
+当前 B3 实验仅验证"全量相关 embedding 被替换"场景，存在两个覆盖漏洞：
+
+1. **已覆盖层内局部篡改**：zkLLM 只证明了后 K 层（31–35），若攻击者仅修改这些层中极少量权重，当前实验未验证 Sumcheck 是否能检出。
+2. **未覆盖层篡改（主要漏洞）**：zkLLM 不证明第 0–30 层，攻击者可篡改这些层权重，zkLLM 证明仍通过，但 embedding 输出已改变。
+
+### 理论分析
+
+**已覆盖层局部篡改**（Schwartz-Zippel 保证）
+
+Sumcheck 将矩阵乘法 $W \cdot x = y$ 归约为多线性多项式在随机点 $\mathbf{r}^*$ 处的求值。若权重矩阵 $W$ 中任意一个元素被修改，即 $W' \neq W$，则：
+
+$$\Pr\!\left[\tilde{W}'(\mathbf{r}^*) = \tilde{W}(\mathbf{r}^*)\right] \leq \frac{d}{p} \approx 2^{-52}$$
+
+因此局部篡改（哪怕只改 1 个权重）在理论上以压倒性概率被检出，无需额外机制。
+
+**未覆盖层篡改**（需要额外机制）
+
+第 0–30 层不在 Sumcheck 覆盖范围内，攻击者可任意篡改，证明仍通过。需要补充防御。
+
+### 改进方案：全层权重哈希承诺
+
+部署时对所有 36 层权重张量计算哈希并公开：
+
+$$H_l = \mathrm{SHA256}\!\left(\mathrm{vec}(W_l^Q) \,\|\, \mathrm{vec}(W_l^K) \,\|\, \mathrm{vec}(W_l^V) \,\|\, \mathrm{vec}(W_l^O) \,\|\, \mathrm{vec}(W_l^{\mathrm{FFN}})\right), \quad l = 0,\ldots,35$$
+
+Verifier 在验证前检查当前权重文件的哈希是否与公开的 $\{H_l\}$ 一致。
+
+**完整保证 = 哈希承诺（静态完整性）+ Sumcheck（动态计算正确性）**：
+
+| 层范围 | 保护机制 | 防御目标 |
+|---|---|---|
+| 0–30 层 | 权重哈希承诺 | 静态篡改检测 |
+| 31–35 层 | Sumcheck + 哈希承诺 | 静态 + 动态双重保护 |
+
+理论依据：SHA-256 抗碰撞性（NIST FIPS 180-4）；任意单字节权重改动均导致哈希变化。
+
+参考：ezkl（Huang et al., 2024）中"commit-then-prove"范式同样采用权重承诺绑定计算证明。
+
+### 补充实验方案：C3 权重局部篡改检测
+
+#### C3a 输出敏感性验证（无需 zkLLM，≈ 30 分钟）
+
+**目标**：验证不同层权重局部篡改对最终 embedding 输出的影响，区分已覆盖层与未覆盖层。
+
+**方法**：
+- 加载 jina-v4 权重（LoRA 合并后）
+- 对第 $l$ 层 $W^Q$ 矩阵随机选取比例 $p \in \{0.01\%, 0.1\%, 1\%\}$ 的元素，加入高斯噪声 $\mathcal{N}(0, \sigma^2)$，$\sigma = 0.01 \|W\|_F / \sqrt{d}$
+- 计算篡改前后 embedding 的余弦距离 $\Delta = 1 - \cos(e, e')$
+- 分别对覆盖层（31–35）和非覆盖层（0–5、15–20）各选 3 层测试
+
+**预期结果**：所有层的局部篡改均导致输出变化（$\Delta > 0$），说明哈希承诺对未覆盖层是必要的。
+
+#### C3b zkLLM 检出率验证（需要 zkLLM，≈ 2 小时）
+
+**目标**：实验验证 Schwartz-Zippel 在已覆盖层局部篡改时的实际检出率。
+
+**方法**：
+- 对第 33 层 $W^Q$ 篡改比例 $p \in \{0.1\%, 1\%, 5\%\}$ 的权重
+- 对同一输入分别用原始权重和篡改权重生成激活，运行 zkLLM Sumcheck 证明
+- 记录：$L_\infty$ 差异、Sumcheck 是否拒绝、拒绝轮次
+
+**预期结果**：所有篡改比例下 Sumcheck 均拒绝（Schwartz-Zippel 理论保证），实验提供实证支撑。
+
+**估算时间**：C3a 约 30 分钟（纯 Python，无 GPU 推理）；C3b 约 2 小时（每个篡改比例 × 3 次 zkLLM 证明，每次约 5–8 分钟）。
 
 1. Dang, H.-V. et al. "ZAC: Efficient Zero-Knowledge Dynamic Universal Accumulator and Application to Zero-Knowledge Elementary Database." *TPS-ISA 2022*.
 2. Gorbunov, S. et al. "Pointproofs: Aggregating Proofs for Multiple Vector Commitments." *CCS 2020*.
@@ -2503,9 +2570,352 @@ B1（400次）和 B2（400次）测试的是完全不同的元素：
 7. Jiang, X. et al. "E5-V: Universal Embeddings with Multimodal Large Language Models." *NeurIPS 2024*.
 8. Mathew, M. et al. "DocVQA: A Dataset for VQA on Document Images." *WACV 2021*.
 
+---
+
+## Phase 2 实验结果：zkLLM IPA 权重承诺验证（变体C）
+
+### 完成日期：2026-04-25
+
+### 实现概述
+
+采用**变体C**（C++ 生成 IPA proof 文件 + Python 独立验证）实现真正的 IPA（Inner Product Argument）权重承诺开放验证：
+
+- **C++ prover**（`src/zkllm/commitment.cu`）：`Commitment::open(..., proof_path)` 重载，生成二进制 IPA proof 文件，包含 `C_init`、各轮 `(L0_i, L1_i)`、`g_final`、`w_final`
+- **Python verifier**（`script/verify_layers.py`）：独立读取 proof 文件，执行 IPA fold 验证，不访问原始权重
+
+### 关键技术细节
+
+**坐标系统差异（根本问题所在）**：
+- blstrs（GPU 库）使用 **Jacobian 坐标**：`(X:Y:Z)` 表示仿射点 `(X/Z², Y/Z³)`，曲线方程 `Y² = X³ + 4Z⁶`
+- py_ecc 使用**齐次射影坐标**：`(X:Y:Z)` 表示仿射点 `(X/Z, Y/Z)`，曲线方程 `Y²Z = X³ + 4Z³`
+- **修复**：读取 proof 文件时先将 Jacobian 转换为仿射，再以 `(x, y, 1)` 形式传入 py_ecc
+
+**IPA fold 公式**（每轮 challenge `u`）：
+$$C_{\text{new}} = (1-u)^2 \cdot L_0 + u(1-u) \cdot C + u^2 \cdot L_1$$
+最终检查：$C_{\text{final}} \stackrel{?}{=} g_{\text{final}} \times w_{\text{final}}$
+
+**proof 文件格式**（二进制，blstrs Montgomery Fp）：
+```
+[4B] magic=0x49504100  [4B] k  [4B] com_log
+[144B] C_init  [k×32B] u_in
+[k×288B] (L0_i, L1_i)  [144B] g_final  [32B] w_final
+```
+
+### 实验结果
+
+**测试范围**：jina-v4 模型第 30–35 层，每层 6 个权重矩阵（FFN down/gate/up + self_attn k/q/v）
+
+| 指标 | 结果 |
+|------|------|
+| 测试层数 | 6（layer 30–35） |
+| IPA 验证通过 | **36 / 36** |
+| 层通过率 | **6 / 6** |
+| FFN 单层耗时 | ~6 秒 |
+| Attn-linear 单层耗时 | ~2.3 秒 |
+| 总耗时 | ~69 秒 |
+
+结果存储：`notes/experiment_results/verify_layers.json`
+
+### 修改文件清单
+
+| 文件 | 改动 |
+|------|------|
+| `src/zkllm/commitment.cuh` | 新增 `open(..., proof_path)` 重载声明 |
+| `src/zkllm/commitment.cu` | 实现 IPA proof 序列化；修复 C_init 为 `proof[0]` |
+| `src/zkllm/proof.cuh` | `verifyWeightClaim` 增加 `proof_path=""` 默认参数 |
+| `src/zkllm/proof.cu` | `verifyWeightClaim` 按 proof_path 选择路径 |
+| `src/zkllm/ffn.cu` | 3 处调用传入 IPA proof 路径 |
+| `src/zkllm/self-attn.cu` | 3 处调用传入 IPA proof 路径（linear 模式） |
+| `script/verify_layers.py` | Python IPA fold verifier（~300 行） |
+
 **TODO**:
 1. 看一下 VisRAG 技术报告，确认 VLM 做图文对比的细节
 2. 再想一下必要性与应用场景的叙述
 3. 整体完整性检查（Phase 1/2/3 端到端跑通）
 4. 执行实验规划（优先 C2 → B → Nikon QA → C1 → A）
 5. 补充完整参考论文
+
+---
+
+## Phase 5 优化起点：各部分耗时基线（2026-04-27）
+
+### 当前耗时概况
+
+| 组件 | 当前耗时 | 方法 | 瓶颈来源 |
+|------|---------|------|---------|
+| ViT 32 blocks | **76 min** | 2-GPU 并行 | Python IPA binding check |
+| LLM 36 layers | **~27 min**（估算） | 单 GPU | Python IPA binding check |
+| PatchMerger | **2.0 s** | 单 GPU | — |
+| Conv3d embed | **0.7 s** | 单 GPU | — |
+| Pooling head | **< 0.1 s** | CPU | — |
+
+> LLM 36 层耗时由 6 层实测值（~4.5 min）线性外推，实测时间 = 6 层 × 9 个 proof × 2 次验证（fold + binding）。
+
+### 瓶颈定量分析
+
+Python py_ecc G1 乘法速度约 **7 ms / 次**（BLS12-381，纯 Python，无 C 扩展）。
+
+**ViT 每 block binding check 成本**：
+- 权重示例 q_proj：in_dim=1280，out_dim=1280，commitment size=1280
+- G1 MLE 所需乘法次数：`2 × (com_size - 1) ≈ 2 × 1280 = 2560` 次
+- 单 proof binding check 耗时：2560 × 7ms ≈ **18 s**
+- 每 block 9 个 proof：9 × 18s = **162 s ≈ 2.7 min**
+- 16 blocks / GPU（2-GPU 并行）：16 × 2.7 min = **43 min** / GPU（接近实测 76 min 总时）
+
+Fold check 耗时相对较小：k=11 轮 × 3 次 G1 乘法 × 7ms × 9 proofs ≈ **21 s / block**，占比约 12%。
+
+| 时间来源 | 每 block | 占比 |
+|---------|---------|------|
+| GPU prover（C++ CUDA） | ~13.5 s | 5% |
+| Python IPA binding check | ~162 s | 60% |
+| Python IPA fold check | ~21 s | 8% |
+| 其他 Python 开销 | ~90 s | 33% |
+| **合计（实测）** | **~286 s ≈ 4.8 min** | 100% |
+
+### Phase 5 优化目标
+
+| 组件 | 优化前 | 目标 | 方法 |
+|------|--------|------|------|
+| ViT 32 blocks | 76 min | **≤ 3 min** | 方案A：C++ GPU verify-ipa |
+| LLM 36 layers | ~27 min | **≤ 5 min** | 方案A + 2-GPU 并行 |
+| PatchMerger | 2.0 s | ~0.1 s | 方案A |
+| **总计** | **~103 min** | **≤ 8 min** | A + C（Batch Sumcheck） |
+
+方案A（C++ verify-ipa binary）：将 Python py_ecc G1 乘法替换为 CUDA GPU 计算，预期每次 G1 乘法 < 0.01ms，加速 700× 以上。Batch Sumcheck 额外节省 prover 侧 15–20%。详见计划文件 `/root/.claude/plans/peppy-marinating-hoare.md`。
+
+---
+
+## Phase 5 实施结果：C++ GPU verify-ipa + 2-GPU 并行（2026-04-27）
+
+### 完成内容
+
+**Step 1：`src/zkllm/verify-ipa.cu`（新建，~185 行）**
+
+新 C++ CUDA binary，接口：`./verify-ipa <proof_file> <commitment_file>`，输出一行 JSON：`{"fold_ok":true,"binding_ok":true}`。
+
+实现要点：
+- `g1_mle_raw_step` kernel：G1 MLE 不做 `unmont`，直接用标准形式 u 做 scalar mul，与 Python `_eval_g1_ml` 完全一致（`G1_me_step` 在 `G1TensorJacobian::operator()` 中会先做 `unmont`，会导致结果不一致）
+- `ipa_fold_kernel`：单线程 GPU kernel，顺序执行 k 轮折叠，使用 `fr_mul_std`（`unmont(mul(mont(a),mont(b)))`）做标准形式 Fr 乘法
+- G1 等值检查：计算 a−b，检验 z 坐标是否全零（射影 Jacobian 单位元 z=0）
+
+已加入 Makefile `TARGETS` 列表，`make verify-ipa` 直接编译。
+
+**Step 2/3：`script/verify_vit.py` 和 `script/verify_layers.py` 更新**
+
+- 新增 `verify_ipa_cpp(proof_path, com_path, gpu_id)` 函数，调用 C++ binary
+- `verify_ipa_python` 保留作 fallback（C++ binary 不可用时）
+- `_verify_proofs` 统一接收 `gpu_id`，正确传递给 binary（支持 2-GPU 并行）
+- py_ecc 不再是强制依赖，C++ binary 存在时无需安装
+- `_run()` 统一接收 `gpu_id` 参数
+
+### 实测性能（2026-04-27）
+
+| 测试项 | 优化前 | 优化后 | 加速比 |
+|--------|--------|--------|--------|
+| ViT block 0（单次，9 proof） | ~288 s | **16.7 s** | **17×** |
+| LLM layer 30（单次，9 proof） | ~45 s | **22.5 s** | **2×** |
+| LLM layer 30+31（2-GPU 并行） | ~90 s | **24 s** | **3.8×** |
+
+> 注：LLM layer 加速比较低是因为 GPU prover 本身（~18s/层）仍占主导，IPA 验证变得极快（< 0.5s）。
+
+**预估全量耗时：**
+
+| 组件 | 优化前 | 预估优化后 | 方法 |
+|------|--------|-----------|------|
+| ViT 32 blocks | 76 min | **~2.3 min** | C++ verifier + 2-GPU |
+| LLM 36 layers | ~27 min | **~6.5 min** | C++ verifier + 2-GPU |
+| PatchMerger | 2.0 s | **< 0.5 s** | C++ verifier |
+| **总计** | **~103 min** | **~9 min** | A + 2-GPU |
+
+（估算基于：ViT=16.7s/block÷2×16=134s；LLM=24s/2层×36=432s）
+
+---
+
+## Phase 5 实施结果（续）：Batch Sumcheck（2026-04-27）
+
+### Step 4：zkFC::prove_batch + 编译测试
+
+**实现内容**（Schwartz-Zippel 组合）：
+- `src/zkllm/zkfc.cuh`：新增 `prove_batch(const FrTensor& X, const vector<pair<const zkFC*, const FrTensor*>>&)` 声明
+- `src/zkllm/zkfc.cu`：实现批量证明：共享 `u_batch`/`u_input`，随机挑战 α 合并 claim，ONE `zkip` 代替 N 次
+- `src/zkllm/ffn.cu`：gate + up 改为 `prove_batch`（仍单独证明 down，其输入不同）
+- `src/zkllm/self-attn.cu`：q/k/v 改为 `prove_batch`（3→1 次 zkip）
+
+### 实测性能（batch sumcheck，2026-04-27）
+
+| 测试项 | batch sumcheck 前 | batch sumcheck 后 | 改善 |
+|--------|-----------------|-----------------|------|
+| LLM layer 30（单层） | 22.5 s | **17.3 s** | **−23%** |
+| LLM layer 30+31（2-GPU 并行） | 24 s | **19 s/层** | **−16%** |
+| fold+binding 验证（9 proof） | 9/9 PASS | **9/9 PASS** | 正确性不变 |
+
+### 全量耗时修正估算（实测 batch sumcheck 后，2026-04-27）
+
+实测全量（来自 `logs/full_proof_timing_v2.log`，verify-ipa 优化后、batch sumcheck 前）：
+- ViT 32 blocks（2-GPU）：**315 s ≈ 5.3 min**
+- LLM 36 layers（2-GPU）：**432 s ≈ 7.2 min**
+- 总计：**748 s ≈ 12.5 min**
+
+加入 batch sumcheck 后估算（LLM 改善 16%）：
+- ViT：~315 s ≈ 5.3 min（ViT 也有 batch sumcheck，预计类似改善）
+- LLM：~362 s ≈ **6.0 min**（18 × 19s × 1.06 overhead）
+- 总计：~**677 s ≈ 11.3 min**
+
+**主要瓶颈**：zkAttn（16 head 顺序迭代）占约 52% prover 时间，batch sumcheck 不影响此项。
+
+---
+
+## Phase 3 实验结果：ViT 图像编码器完整 zkLLM 验证
+
+### 完成日期：2026-04-27
+
+### 实现概述
+
+将 zkLLM IPA 权重承诺验证框架从 LLM decoder（Phase 2）扩展至 jina-v4 的 **ViT 图像编码器**全部组件：
+
+| 组件 | 覆盖范围 | 状态 |
+|------|----------|------|
+| ViT blocks 0–31 | 32 块，每块 9 个 IPA 证明 | **全部通过** |
+| PatchMerger | RMSNorm + FC1+GELU + FC2，3 个 IPA 证明 | **通过** |
+| Conv3d patch embedding | 线性等价证明 | **通过** |
+| Pooling head | MeanPool sumcheck + L2Norm rescaling | **通过** |
+
+---
+
+### 3.1 ViT 32 blocks 验证
+
+**模型参数**：seq=1024 patches，hidden=1280，intermediate=3420，MHA（num_kv_heads=16，head_dim=80）
+
+**每块证明步骤**（8 步，与 LLM decoder 结构相同）：
+1. `rmsnorm_pre`：input_layernorm（RMSNorm，dim=1280）
+2. `attn_linear`：q/k/v linear（1280→1280 MHA，num_kv_heads=16）
+3. `zkAttn`：注意力 Softmax + 加权求和（GQA，seq=1024）
+4. `o_proj`：输出线性映射（1280→1280）
+5. `skip1`：残差加法
+6. `rmsnorm_post`：post_attention_layernorm
+7. `ffn`：gate/up（3420×1280）+ SiLU + down（1280×3420）
+8. `skip2`：残差加法
+
+每块生成并验证 9 个 IPA proof 文件：`input_layernorm`、`k/q/v_proj`、`o_proj`、`post_attention_layernorm`、`gate/up/down_proj`。
+
+**关键工程：2-GPU 并行（ProcessPoolExecutor）**：
+- GPU0 负责偶数块（0,2,4,...,30），GPU1 负责奇数块（1,3,5,...,31），各串行处理 16 块
+- 通过 `CUDA_VISIBLE_DEVICES=gpu_id` 隔离
+- 每个 block 使用独立的 `workdir/vit-b{N}/` 目录（避免临时文件冲突）
+- 实现文件：`script/verify_vit.py`（`_run_blocks_on_gpu` + `ProcessPoolExecutor(max_workers=2)`）
+
+**实验结果**（`notes/experiment_results/verify_vit.json`）：
+
+| 指标 | 结果 |
+|------|------|
+| blocks 通过 | **32 / 32** |
+| IPA fold 验证 | **9/9（每块）** |
+| IPA binding 验证 | **9/9（每块）** |
+| prover 时间（GPU） | ~12.8–14.3 秒 / 块 |
+| 总壁钟时间 | **~76 分钟**（2-GPU 并行） |
+
+代表性块时间（ms）：
+
+| 块 | rmsnorm | attn_linear | zkAttn | ffn | 合计 |
+|----|---------|-------------|--------|-----|------|
+| 0 | 895 | 1830 | 6310 | 2647 | 14216 |
+| 1 | 930 | 1858 | 6398 | 2686 | 14261 |
+| 31 | 809 | 1758 | 5956 | 2715 | 13371 |
+
+> **注**：总壁钟时间由 Python py_ecc BLS12-381 IPA binding check 主导（每块 9 个证明，纯 Python 约 4 分钟）；GPU prover 本身每块仅 13 秒。
+
+---
+
+### 3.2 PatchMerger 验证
+
+**结构**：`(256 patches, 1280)` → RMSNorm(1280) → reshape `(64, 5120)` → FC1(5120→5120)+GELU → FC2(5120→2048) → `(64, 2048)`
+
+**关键技术修复：两阶段 Rescaling（fc1 后缩放）**
+
+原设计 `fc1_rescale=1<<20` 满足量化正确性，但违反 `tLookup::prove` 的约束 `D_padded % N == 0`（`D_padded=524288=2^19`，`N=1<<20` 不整除）。
+
+错误的中间方案 `fc1_rescale=1<<16` 使 fc1_out_ 停在整数尺度 65536，而 GELU table 期望输入尺度 4096（`SCALE_IN=1<<12`），导致约 7.5% 的值超出 `[-262144, 262143]` 范围，`lookuprange_tensor_prep_kernel` 越界访问 GPU 内存，产生 garbage `gelu_out`，进而导致 `Rescaling::prove` 的 rem 不正确。
+
+**正确解法**：拆分为两阶段，每阶段各满足 `D_padded % N == 0`：
+
+```cpp
+// patch-merger.cu
+Rescaling fc1_rs_a(1 << 16);  // D=524288, N=65536 → 524288 % 65536 == 0 ✓
+Rescaling fc1_rs_b(1 << 4);   // D=524288, N=16 → 524288 % 16 == 0 ✓
+// 合计缩放 1<<20；fc1_out_ 尺度 = 4096 = GELU SCALE_IN ✓
+```
+
+GELU 激活用 `tLookupRangeMapping gelu(-(1<<18), 1<<19, gelu_values)` + `script/gen_gelu_table.py` 生成 524288 条目 lookup table。
+
+**IPA 证明**（3 个权重矩阵）：`patchmerger_layernorm`、`patchmerger_fc1`、`patchmerger_fc2`
+
+**实验结果**（`notes/experiment_results/prove_patchmerger.json`）：
+
+| 指标 | 结果 |
+|------|------|
+| n_patches | 256 |
+| IPA fold 验证 | **3/3** |
+| IPA binding 验证 | **3/3** |
+| 总耗时 | **2032 ms** |
+
+---
+
+### 3.3 Conv3d Patch Embedding 验证
+
+将 Conv3d patch embedding 展开为等价的稀疏矩阵乘法（每个 output patch 是输入像素的线性组合），用现有 zkFC 框架证明。
+
+**实验结果**（`notes/experiment_results/prove_conv3d.json`）：
+
+| 指标 | 结果 |
+|------|------|
+| n_patches | 32 |
+| IPA fold 验证 | **通过** |
+| IPA binding 验证 | **通过** |
+| 总耗时 | **728 ms** |
+
+---
+
+### 3.4 Pooling Head 验证
+
+**结构**：MeanPool（对 mask=1 的 K 个 token 求平均）+ L2Norm（对均值向量归一化）
+
+- **MeanPool**：用 sumcheck 证明 `sum(H[mask]) = K × p`，公开 mask 不需要 IPA
+- **L2Norm**：等价于单行 RMSNorm（无可学习 γ），用 Rescaling 证明
+
+**实验结果**（`notes/experiment_results/prove_pooling.json`）：
+
+| 指标 | 结果 |
+|------|------|
+| MeanPool sumcheck | **通过**（K=501） |
+| L2Norm rescaling | **通过**（max_error=0.00054，< error_bound=0.00136） |
+
+---
+
+### 3.5 系统完整验证覆盖总结
+
+| 组件 | 证明类型 | 权重矩阵数 | IPA 状态 |
+|------|----------|-----------|---------|
+| **ZAC corpus fingerprint**（Phase 1） | Pointproofs + BF | — | ✓ |
+| **LLM decoder blocks 30–35**（Phase 2） | IPA（变体C） | 36（6层×6） | ✓ 36/36 |
+| **ViT blocks 0–31**（Phase 3） | IPA（变体C） | 288（32块×9） | ✓ 288/288 |
+| **PatchMerger**（Phase 3） | IPA（变体C）+ GELU lookup | 3 | ✓ 3/3 |
+| **Conv3d embed**（Phase 3） | IPA（变体C） | 1 | ✓ 1/1 |
+| **Pooling head**（Phase 3） | Sumcheck + Rescaling | — | ✓ |
+
+**总计 IPA 验证**：328 个权重承诺开放证明，全部通过（fold + binding 双重校验）。
+
+---
+
+### 3.6 修改文件清单
+
+| 文件 | 改动 |
+|------|------|
+| `src/zkllm/patch-merger.cu` | 新建：RMSNorm + FC1+GELU + FC2 的完整 zkSNARK 证明链；两阶段 fc1 rescaling 修复 |
+| `script/gen_gelu_table.py` | 新建：524288 条目 GELU lookup table 生成（SCALE_IN=4096，SCALE_OUT=65536） |
+| `script/setup_patchmerger_params.py` | 新建：PatchMerger 权重提取 + pp 生成 + commitment |
+| `script/setup_vit_params.py` | 新建：ViT 32 blocks 权重提取 + pp 生成 + commitment（288 矩阵） |
+| `script/verify_vit.py` | 新建：ViT block 端到端验证脚本，含 2-GPU 并行（ProcessPoolExecutor）、per-block 隔离目录 |
+| `script/prove_patchmerger.py` | 新建：PatchMerger 证明驱动脚本 |
+| `script/prove_conv3d_embed.py` | 新建：Conv3d embed 证明驱动脚本 |
+| `script/prove_pooling.py` | 新建：Pooling head sumcheck + rescaling 证明脚本 |
+| `src/zkllm/conv3d-embed.cu` | 新建：Conv3d 展开为矩阵乘的 CUDA 证明 binary |

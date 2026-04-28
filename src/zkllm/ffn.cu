@@ -81,16 +81,29 @@ int main(int argc, char *argv[])
     down_out.save_int(output_file_name);
 
     down_rescale.prove(down_out, down_out_);
-    verifyWeightClaim(down_proj, down_layer.prove(down_in_, down_out)[0]);
+    cerr << "DBG: verifying down_proj..." << endl;
+    verifyWeightClaim(down_proj, down_layer.prove(down_in_, down_out)[0],
+        workdir + "/" + layer_prefix + "-mlp.down_proj-ipa-proof.bin");
+    cerr << "DBG: down_proj OK" << endl;
 
     hidden_rescale.prove(down_in, down_in_);
     swiglu.prove(gate_out_, swiglu_out, swiglu_m, temp_rand[0], temp_rand[1], temp_rand[2], swiglu_u, swiglu_v, swiglu_proof);
     cout << "SwiGLU proof complete." << endl;
+    // Batch prove for gate+up: both share the same input, saving one X.partial_me + one zkip
+    cerr << "DBG: running prove_batch for gate+up..." << endl;
+    auto gate_up_claims = zkFC::prove_batch(input,
+        {{&gate_layer, &gate_out}, {&up_layer, &up_out}});
+    cerr << "DBG: prove_batch done, verifying gate_proj..." << endl;
     gate_rescale.prove(gate_out, gate_out_);
-    verifyWeightClaim(gate_proj, gate_layer.prove(input, gate_out)[0]);
+    verifyWeightClaim(gate_proj, gate_up_claims[0],
+        workdir + "/" + layer_prefix + "-mlp.gate_proj-ipa-proof.bin");
+    cerr << "DBG: gate_proj OK" << endl;
 
     up_rescale.prove(up_out, up_out_);
-    verifyWeightClaim(up_proj, up_layer.prove(input, up_out)[0]);
+    cerr << "DBG: verifying up_proj..." << endl;
+    verifyWeightClaim(up_proj, gate_up_claims[1],
+        workdir + "/" + layer_prefix + "-mlp.up_proj-ipa-proof.bin");
+    cerr << "DBG: up_proj OK" << endl;
 
     
 

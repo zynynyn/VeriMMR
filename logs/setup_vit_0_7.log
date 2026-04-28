@@ -1,0 +1,45 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading jina-v4 via SentenceTransformer ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.80it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.76it/s]
+/root/autodl-tmp/UltraRAG/script/setup_vit_params.py:79: RuntimeWarning: invalid value encountered in cast
+  np.round(b_np * SCALE * SCALE).astype(np.int32).tofile(str(path))
+  loaded.
+
+── 提取 ViT block 权重 (blocks [0, 7]) ──────────────────────────
+  Block 0: weights saved (q/k/v split from fused QKV)
+  Block 7: weights saved (q/k/v split from fused QKV)
+
+── 生成公共参数 (ppgen) ────────────────────────────────────────
+  ppgen vit_self_attn.q_proj.weight-pp.bin size=1280 ... OK
+  ppgen vit_self_attn.k_proj.weight-pp.bin size=1280 ... OK
+  ppgen vit_self_attn.v_proj.weight-pp.bin size=1280 ... OK
+  ppgen vit_self_attn.o_proj.weight-pp.bin size=1280 ... OK
+  ppgen vit_mlp.gate_proj.weight-pp.bin size=1280 ... OK
+  ppgen vit_mlp.up_proj.weight-pp.bin size=1280 ... OK
+  ppgen vit_mlp.down_proj.weight-pp.bin size=3420 ... OK
+  ppgen vit_input_layernorm.weight-pp.bin size=1280 ... OK
+  ppgen vit_post_attention_layernorm.weight-pp.bin size=1280 ... OK
+
+── 生成承诺 (commit-param) ──────────────────────────────────────
+  Block 0:
+    commit-param vit-block-0-self_attn.q_proj.weight-commitment.bin ... OK
+    commit-param vit-block-0-self_attn.k_proj.weight-commitment.bin ... OK
+    commit-param vit-block-0-self_attn.v_proj.weight-commitment.bin ... OK
+    commit-param vit-block-0-self_attn.o_proj.weight-commitment.bin ... OK
+    commit-param vit-block-0-mlp.gate_proj.weight-commitment.bin ... OK
+    commit-param vit-block-0-mlp.up_proj.weight-commitment.bin ... OK
+    commit-param vit-block-0-mlp.down_proj.weight-commitment.bin ... OK
+    commit-param vit-block-0-input_layernorm.weight-commitment.bin ... OK
+    commit-param vit-block-0-post_attention_layernorm.weight-commitment.bin ... OK
+  Block 7:
+    commit-param vit-block-7-self_attn.q_proj.weight-commitment.bin ... OK
+    commit-param vit-block-7-self_attn.k_proj.weight-commitment.bin ... OK
+    commit-param vit-block-7-self_attn.v_proj.weight-commitment.bin ... OK
+    commit-param vit-block-7-self_attn.o_proj.weight-commitment.bin ... OK
+    commit-param vit-block-7-mlp.gate_proj.weight-commitment.bin ... OK
+    commit-param vit-block-7-mlp.up_proj.weight-commitment.bin ... OK
+    commit-param vit-block-7-mlp.down_proj.weight-commitment.bin ... OK
+    commit-param vit-block-7-input_layernorm.weight-commitment.bin ... OK
+    commit-param vit-block-7-post_attention_layernorm.weight-commitment.bin ... OK
+
+完成。

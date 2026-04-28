@@ -18,7 +18,7 @@ struct Claim {
 
 struct Weight;
 
-void verifyWeightClaim(const Weight& w, const Claim& c);
+void verifyWeightClaim(const Weight& w, const Claim& c, const string& proof_path = "");
 
 // struct Weight {
 //     Commitment generator;

@@ -1,4 +1,5 @@
 #include "commitment.cuh"
+#include <fstream>
 
 Commitment Commitment::random(uint size)
 {
@@ -138,6 +139,40 @@ Fr_t Commitment::open(const FrTensor& t, const G1TensorJacobian& com, const vect
     // if (size != (1 << u_in.size())) throw std::runtime_error("Incompatible dimensions");
     vector<G1Jacobian_t> proof;
     return me_open(t.partial_me(u_out, t.size / com.size), *this, u_in.begin(), u_in.end(), proof);
+}
+
+Fr_t Commitment::open(const FrTensor& t, const G1TensorJacobian& com, const vector<Fr_t>& u, const string& proof_path) const
+{
+    uint com_log = ceilLog2(com.size);
+    const vector<Fr_t> u_out(u.end() - com_log, u.end());
+    const vector<Fr_t> u_in(u.begin(), u.end() - com_log);
+    uint k = (uint)u_in.size();
+
+    vector<G1Jacobian_t> proof;
+    Fr_t w_final = me_open(t.partial_me(u_out, t.size / com.size), *this, u_in.begin(), u_in.end(), proof);
+    G1Jacobian_t C_init = proof[0];
+
+    ofstream f(proof_path, ios::binary);
+    if (!f) throw std::runtime_error("Cannot open proof file: " + proof_path);
+    uint32_t magic = 0x49504100u;
+    uint32_t ku = k, cu = com_log;
+    f.write(reinterpret_cast<char*>(&magic), 4);
+    f.write(reinterpret_cast<char*>(&ku), 4);
+    f.write(reinterpret_cast<char*>(&cu), 4);
+    f.write(reinterpret_cast<const char*>(&C_init), sizeof(G1Jacobian_t));
+    for (const auto& x : u_out)
+        f.write(reinterpret_cast<const char*>(&x), sizeof(Fr_t));
+    for (const auto& x : u_in)
+        f.write(reinterpret_cast<const char*>(&x), sizeof(Fr_t));
+    for (uint i = 0; i < k; i++) {
+        f.write(reinterpret_cast<const char*>(&proof[3*i+1]), sizeof(G1Jacobian_t));  // L0
+        f.write(reinterpret_cast<const char*>(&proof[3*i+2]), sizeof(G1Jacobian_t));  // L1
+    }
+    f.write(reinterpret_cast<const char*>(&proof[3*k]), sizeof(G1Jacobian_t));  // g_final
+    f.write(reinterpret_cast<const char*>(&w_final), sizeof(Fr_t));
+    f.close();
+
+    return w_final;
 }
 
 Weight create_weight(string generator_filename, string weight_filename, string com_filename, uint in_dim, uint out_dim) {

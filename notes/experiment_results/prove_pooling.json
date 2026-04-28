@@ -1,0 +1,17 @@
+{
+  "meanpool_ok": true,
+  "l2norm_ok": "True",
+  "all_ok": "True",
+  "K": 501,
+  "meanpool": {
+    "ok": true,
+    "K": 501
+  },
+  "l2norm": {
+    "ok": "True",
+    "rms_inv_q": 64,
+    "norm": 1017.6470594005563,
+    "max_error": 0.0005417969310479859,
+    "error_bound": 0.0013560621510107518
+  }
+}

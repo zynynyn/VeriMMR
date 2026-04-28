@@ -104,21 +104,25 @@ class BloomFilter:
       q = ⌈-N·ln ε / ln²2⌉   (bit-vector length)
       k = ⌈(q/N)·ln 2⌉        (number of hash functions)
 
-    Implemented with MurmurHash3 (mmh3) with seeds 0, 1, ..., k-1.
+    Implemented with MurmurHash3 (mmh3) with seeds seed_offset, ..., seed_offset+k-1.
+    Different seed_offset values make BF layers independent (used in cascade mode).
     """
 
-    def __init__(self, q: int, k: int) -> None:
+    def __init__(self, q: int, k: int, seed_offset: int = 0) -> None:
         self.q = q
         self.k = k
+        self._seed_offset = seed_offset
 
     @classmethod
-    def optimal_params(cls, N: int, epsilon: float = 0.01) -> "BloomFilter":
+    def optimal_params(cls, N: int, epsilon: float = 0.01,
+                       seed_offset: int = 0) -> "BloomFilter":
         q = max(1, math.ceil(-N * math.log(epsilon) / (math.log(2) ** 2)))
         k = max(1, round((q / N) * math.log(2)))
-        return cls(q=q, k=k)
+        return cls(q=q, k=k, seed_offset=seed_offset)
 
     def _positions(self, element: bytes) -> List[int]:
-        return [mmh3.hash(element, seed=i, signed=False) % self.q for i in range(self.k)]
+        return [mmh3.hash(element, seed=self._seed_offset + i, signed=False)
+                % self.q for i in range(self.k)]
 
     def gen(self, S: Set[bytes]) -> List[int]:
         """BF.Gen(S) → binary vector v of length q."""
@@ -411,25 +415,44 @@ class ZACAccumulator:
         N_bound: Optional[int] = None,
         epsilon: float = 0.01,
         alpha: Optional[int] = None,
+        n_filters: int = 1,
     ) -> None:
         """
-        S       : set of elements to accumulate (bytes, e.g. SHA256 digests).
-        N_bound : upper bound on |S| for BF parameter choice (default: |S|).
-        epsilon : BF false-positive rate (default 1%).
-        alpha   : Pointproofs trapdoor. None → randomly generated.
+        S         : set of elements to accumulate (bytes, e.g. SHA256 digests).
+        N_bound   : upper bound on |S| for BF parameter choice (default: |S|).
+        epsilon   : per-layer BF false-positive rate (default 1%).
+        alpha     : Pointproofs trapdoor. None → randomly generated per layer.
+        n_filters : number of independent BF+PR layers in cascade.
+                    Compound FPR = epsilon^n_filters (e.g. n=2: 1%→0.01%).
+                    n_filters=1 is fully backward-compatible.
         """
         self._S = frozenset(S)
+        self._n_filters = n_filters
         N = max(N_bound or len(S), 1)
 
-        self._bf = BloomFilter.optimal_params(N, epsilon)
-        self._v: List[int] = self._bf.gen(set(S))
-        self._r: int = _random_zp()
+        # Compute k from the first layer to define seed spacing between layers.
+        _bf0 = BloomFilter.optimal_params(N, epsilon, seed_offset=0)
+        k = _bf0.k
 
-        # Pointproofs commits to a vector of length (q_pr - 1).
-        # BF generates a vector of length bf.q, so we set q_pr = bf.q + 1
-        # so that all BF positions [0, bf.q-1] stay in the valid message slots.
-        self._pr = Pointproofs(q=self._bf.q + 1, alpha=alpha)
-        self._cm = self._pr.commit(self._v, self._r)
+        # Build n_filters independent layers.
+        # Layer i uses mmh3 seeds [i*k, i*k+1, ..., i*k+k-1] so hash functions
+        # are disjoint across layers, making FP events statistically independent.
+        self._layers: List[dict] = []
+        for i in range(n_filters):
+            bf = BloomFilter.optimal_params(N, epsilon, seed_offset=i * k)
+            v  = bf.gen(set(S))
+            r  = _random_zp()
+            pr = Pointproofs(q=bf.q + 1, alpha=alpha)
+            cm = pr.commit(v, r)
+            self._layers.append({"bf": bf, "v": v, "r": r, "pr": pr, "cm": cm})
+
+        # Expose layer-0 attributes for backward compatibility.
+        L = self._layers[0]
+        self._bf: BloomFilter       = L["bf"]
+        self._v:  List[int]         = L["v"]
+        self._r:  int               = L["r"]
+        self._pr: Pointproofs       = L["pr"]
+        self._cm                    = L["cm"]
 
     # ------------------------------------------------------------------ #
     #  Public interface                                                    #
@@ -441,12 +464,17 @@ class ZACAccumulator:
         return self._cm
 
     def root_bytes(self) -> bytes:
-        """48-byte BLS12-381 G1 compressed point."""
+        """48-byte BLS12-381 G1 compressed point (layer 0)."""
         return _g1_compress(self._cm)
 
     def root_hex(self) -> str:
-        """96-character hex string of the 48-byte ZAC root."""
-        return self.root_bytes().hex()
+        """
+        Concatenation of all layer commitments as hex.
+        Single-filter (n=1): 96-char hex of the 48-byte G1 point (backward compat).
+        Cascade (n>1):       n×96 chars — one 48-byte G1 point per layer,
+                             concatenated in layer order.
+        """
+        return "".join(_g1_compress(L["cm"]).hex() for L in self._layers)
 
     @staticmethod
     def image_hash(image_path: str) -> bytes:
@@ -495,65 +523,102 @@ class ZACAccumulator:
     def prove_membership_batch(self, elements: List[bytes]) -> dict:
         """
         ZAC.ProveM for a subset Ŝ = {elements}.
-        Produces ONE aggregated 48-byte G1 proof covering all elements.
-        This is the Phase-2 call: called after top-k retrieval.
+
+        Single-filter (n_filters=1): produces ONE 48-byte G1 proof (old format).
+        Cascade (n_filters>1):       produces one 48-byte proof per layer;
+                                     compound FPR = epsilon^n_filters.
         """
         S_hat = set(elements)
-        I = self._bf.membership_indices(S_hat)
-        v_I = [self._v[i] for i in I]
+        layer_proofs = []
+        for L in self._layers:
+            I      = L["bf"].membership_indices(S_hat)
+            v_I    = [L["v"][i] for i in I]
+            indiv  = [L["pr"].prove(i, L["v"], L["r"]) for i in I]
+            pi_hat = L["pr"].aggregate(L["cm"], I, v_I, indiv)
+            layer_proofs.append({
+                "I":         I,
+                "v_I":       v_I,
+                "proof_hex": _g1_compress(pi_hat).hex(),
+                "cm_hex":    _g1_compress(L["cm"]).hex(),
+            })
 
-        individual = [self._pr.prove(i, self._v, self._r) for i in I]
-        pi_hat = self._pr.aggregate(self._cm, I, v_I, individual)
-
-        return {
+        base = {
             "elements_hex": sorted(e.hex() for e in elements),
-            "I": I,
-            "v_I": v_I,
-            "proof_hex": _g1_compress(pi_hat).hex(),
-            "cm_hex": self.root_hex(),
-            "bf_q": self._bf.q,
-            "bf_k": self._bf.k,
+            "cm_hex":       self.root_hex(),
+            "bf_q":         self._bf.q,
+            "bf_k":         self._bf.k,
         }
+        if self._n_filters == 1:
+            # Backward-compatible single-layer format.
+            lp = layer_proofs[0]
+            return {**base, "I": lp["I"], "v_I": lp["v_I"],
+                    "proof_hex": lp["proof_hex"]}
+        # Cascade format.
+        return {**base, "n_filters": self._n_filters,
+                "layer_proofs": layer_proofs}
 
     def verify_membership_batch(self, elements: List[bytes], proof: dict) -> bool:
         """
-        ZAC.VerifyM for a batch of elements against an aggregated proof.
-        The verifier reconstructs I from the elements (public computation),
-        then checks the single pairing equation.
+        ZAC.VerifyM for a batch of elements.
+        Accepts both single-filter (old) and cascade (new) proof formats.
         """
         if proof.get("cm_hex") != self.root_hex():
             return False
 
         S_hat = set(elements)
-        I = self._bf.membership_indices(S_hat)
-        v_I = [1] * len(I)   # all BF positions must be 1 for membership
 
-        pi_bytes = bytes.fromhex(proof["proof_hex"])
-        pi_hat = _g1_decompress(pi_bytes)
-        if pi_hat is None:
+        if self._n_filters == 1:
+            # Backward-compatible path.
+            I      = self._bf.membership_indices(S_hat)
+            v_I    = [1] * len(I)
+            pi_hat = _g1_decompress(bytes.fromhex(proof["proof_hex"]))
+            if pi_hat is None:
+                return False
+            return self._pr.verify(self._cm, I, v_I, pi_hat)
+
+        # Cascade: ALL layers must pass.
+        layer_proofs = proof.get("layer_proofs", [])
+        if len(layer_proofs) != self._n_filters:
             return False
-
-        return self._pr.verify(self._cm, I, v_I, pi_hat)
+        for L, lp in zip(self._layers, layer_proofs):
+            I      = L["bf"].membership_indices(S_hat)
+            v_I    = [1] * len(I)
+            pi_hat = _g1_decompress(bytes.fromhex(lp["proof_hex"]))
+            if pi_hat is None:
+                return False
+            if not L["pr"].verify(L["cm"], I, v_I, pi_hat):
+                return False
+        return True
 
     def verify_membership(self, element: bytes, proof: dict) -> bool:
         """
-        ZAC.VerifyM — the verifier only needs the element, the proof dict,
-        and the public commitment (stored in proof["cm_hex"]).
-        No access to the original set or BF vector needed.
+        ZAC.VerifyM for a single element.
         """
         if proof.get("cm_hex") != self.root_hex():
-            return False  # proof is for a different commitment
-
-        S_hat = {element}
-        I = self._bf.membership_indices(S_hat)
-        v_I = [1] * len(I)   # all positions must be 1 (membership condition)
-
-        pi_bytes = bytes.fromhex(proof["proof_hex"])
-        pi_hat = _g1_decompress(pi_bytes)
-        if pi_hat is None:
             return False
 
-        return self._pr.verify(self._cm, I, v_I, pi_hat)
+        S_hat = {element}
+
+        if self._n_filters == 1:
+            I      = self._bf.membership_indices(S_hat)
+            v_I    = [1] * len(I)
+            pi_hat = _g1_decompress(bytes.fromhex(proof["proof_hex"]))
+            if pi_hat is None:
+                return False
+            return self._pr.verify(self._cm, I, v_I, pi_hat)
+
+        layer_proofs = proof.get("layer_proofs", [])
+        if len(layer_proofs) != self._n_filters:
+            return False
+        for L, lp in zip(self._layers, layer_proofs):
+            I      = L["bf"].membership_indices(S_hat)
+            v_I    = [1] * len(I)
+            pi_hat = _g1_decompress(bytes.fromhex(lp["proof_hex"]))
+            if pi_hat is None:
+                return False
+            if not L["pr"].verify(L["cm"], I, v_I, pi_hat):
+                return False
+        return True
 
     # ------------------------------------------------------------------ #
     #  Persistence                                                         #
@@ -566,7 +631,8 @@ class ZACAccumulator:
             "scheme": "ZAC (Bloom Filter + Pointproofs / BLS12-381)",
             "reference": "Dang et al., TPS-ISA 2022",
             "commitment_hex": self.root_hex(),
-            "commitment_size_bytes": 48,
+            "commitment_size_bytes": 48 * self._n_filters,
+            "n_filters": self._n_filters,
             "bf_q": self._bf.q,
             "bf_k": self._bf.k,
             "num_elements": len(self._S),
@@ -578,63 +644,97 @@ class ZACAccumulator:
 
     def save_prover_state(self, path: str) -> None:
         """
-        Persist full prover state (trapdoor α, blinding r, BF vector v).
-        Also writes a companion .crs binary file so future loads skip the
-        expensive CRS rebuild (~170 s → ~5 s).
+        Persist full prover state (trapdoor α, blinding r, BF vector v) for all layers.
+        Each layer gets a companion .crs binary so future loads skip the CRS rebuild.
         NOTE: α is a secret — protect this file appropriately.
         """
-        crs_path = str(Path(path).with_suffix(".crs"))
-        state = {
-            "scheme": "ZAC-prover-state-v2",
-            "bf_q": self._bf.q,
-            "bf_k": self._bf.k,
-            "v": self._v,
-            "r_hex": hex(self._r),
-            "alpha_hex": hex(self._pr._alpha),
-            "cm_hex": self.root_hex(),
-            "elements_hex": sorted(e.hex() for e in self._S),
-            "crs_cache": crs_path,
-        }
+        base = Path(path).with_suffix("")
+        layers_state = []
         Path(path).parent.mkdir(parents=True, exist_ok=True)
+        for i, L in enumerate(self._layers):
+            crs_path = str(base) + f"_layer{i}.crs"
+            layers_state.append({
+                "bf_q":        L["bf"].q,
+                "bf_k":        L["bf"].k,
+                "seed_offset": L["bf"]._seed_offset,
+                "v":           L["v"],
+                "r_hex":       hex(L["r"]),
+                "alpha_hex":   hex(L["pr"]._alpha),
+                "cm_hex":      _g1_compress(L["cm"]).hex(),
+                "crs_cache":   crs_path,
+            })
+            L["pr"].save_crs(crs_path)
+
+        state = {
+            "scheme":       "ZAC-prover-state-v3",
+            "n_filters":    self._n_filters,
+            "layers":       layers_state,
+            "cm_hex":       self.root_hex(),
+            "elements_hex": sorted(e.hex() for e in self._S),
+        }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
-        self._pr.save_crs(crs_path)
 
     @classmethod
     def load_prover_state(cls, path: str) -> "ZACAccumulator":
         """
         Restore a ZACAccumulator from a file saved by save_prover_state().
 
-        If a companion .crs binary file exists, loads the precomputed CRS
-        directly (~5 s: point reconstruction + 1 pairing).
-        Otherwise falls back to recomputing from α (~170 s).
+        Supports v2 (single-layer) and v3 (multi-layer / cascade) state files.
+        If companion .crs files exist, loads them directly (~5 s per layer).
         """
         with open(path, encoding="utf-8") as f:
             state = json.load(f)
 
-        S = {bytes.fromhex(h) for h in state["elements_hex"]}
-        alpha = int(state["alpha_hex"], 16)
-        r = int(state["r_hex"], 16)
-        q_pr = state["bf_q"] + 1
-
         obj = cls.__new__(cls)
-        obj._S = frozenset(S)
-        obj._bf = BloomFilter(q=state["bf_q"], k=state["bf_k"])
-        obj._v = state["v"]
-        obj._r = r
+        obj._S = frozenset(bytes.fromhex(h) for h in state["elements_hex"])
 
-        # Try loading CRS from cache to skip EC multiply rebuilding
-        crs_path = state.get("crs_cache") or str(Path(path).with_suffix(".crs"))
-        pr = Pointproofs.__new__(Pointproofs)
-        pr.q = q_pr
-        pr._alpha = alpha
-        if Path(crs_path).exists():
-            pr._setup_from_cache(crs_path)
+        scheme = state.get("scheme", "ZAC-prover-state-v2")
+
+        if scheme == "ZAC-prover-state-v2":
+            # Legacy single-layer format — upgrade to v3 in memory.
+            layers_raw = [{
+                "bf_q":        state["bf_q"],
+                "bf_k":        state["bf_k"],
+                "seed_offset": 0,
+                "v":           state["v"],
+                "r_hex":       state["r_hex"],
+                "alpha_hex":   state["alpha_hex"],
+                "crs_cache":   state.get("crs_cache",
+                                         str(Path(path).with_suffix(".crs"))),
+            }]
+            n_filters = 1
         else:
-            pr._setup(alpha)   # fallback: full rebuild
+            layers_raw = state["layers"]
+            n_filters  = state.get("n_filters", len(layers_raw))
 
-        obj._pr = pr
-        obj._cm = obj._pr.commit(obj._v, obj._r)
+        obj._n_filters = n_filters
+        obj._layers    = []
+
+        for lr in layers_raw:
+            bf = BloomFilter(q=lr["bf_q"], k=lr["bf_k"],
+                             seed_offset=lr.get("seed_offset", 0))
+            v  = lr["v"]
+            r  = int(lr["r_hex"], 16)
+            q_pr = lr["bf_q"] + 1
+
+            pr = Pointproofs.__new__(Pointproofs)
+            pr.q      = q_pr
+            pr._alpha = int(lr["alpha_hex"], 16)
+            crs_path  = lr.get("crs_cache", "")
+            if crs_path and Path(crs_path).exists():
+                pr._setup_from_cache(crs_path)
+            else:
+                pr._setup(pr._alpha)
+
+            cm = pr.commit(v, r)
+            obj._layers.append({"bf": bf, "v": v, "r": r, "pr": pr, "cm": cm})
+
+        # Backward-compat aliases pointing to layer 0.
+        L = obj._layers[0]
+        obj._bf, obj._v, obj._r, obj._pr, obj._cm = (
+            L["bf"], L["v"], L["r"], L["pr"], L["cm"]
+        )
         return obj
 
     # ------------------------------------------------------------------ #

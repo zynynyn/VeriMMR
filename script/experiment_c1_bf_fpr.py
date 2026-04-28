@@ -42,21 +42,29 @@ import argparse
 _ap = argparse.ArgumentParser()
 _ap.add_argument("--seed", type=int, default=42,
                  help="随机种子（不同种子→不同随机 embedding 序列，结果独立）")
+_ap.add_argument("--n-filters", type=int, default=1,
+                 help="串联 BF 层数，复合 FPR = ε^n（默认 1，即单层原始行为）")
 _args = _ap.parse_args()
-SEED = _args.seed
+SEED      = _args.seed
+N_FILTERS = _args.n_filters
 
 def ts():
     return time.strftime("%H:%M:%S")
 
+EPS = 0.01
+EPS_COMPOUND = EPS ** N_FILTERS
+
 print(f"\n{'='*64}")
 print(f"实验 C1 补充：Bloom Filter 误报率统计验证")
 print(f"{'='*64}")
-print(f"  数据集   : {HF_NAME}")
-print(f"  ZAC 大小 : {N_ZAC}")
-print(f"  试验次数 : {N_TRIALS} × 2 = {N_TRIALS*2} 次")
-print(f"  随机种子 : {SEED}")
-print(f"  理论 ε   : 0.01")
-print(f"  开始     : {time.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"  数据集      : {HF_NAME}")
+print(f"  ZAC 大小    : {N_ZAC}")
+print(f"  试验次数    : {N_TRIALS} × 2 = {N_TRIALS*2} 次")
+print(f"  随机种子    : {SEED}")
+print(f"  串联层数    : {N_FILTERS}")
+print(f"  单层 ε      : {EPS}")
+print(f"  理论复合 FPR: ε^{N_FILTERS} = {EPS_COMPOUND:.6f}")
+print(f"  开始        : {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ── 加载模型 ─────────────────────────────────────────────────────────────────
 print(f"\n[{ts()}] 加载 jina-v4 ...")
@@ -138,7 +146,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
         S.add(ZACAccumulator.image_embedding_hash(path, emb))
 
     t0 = time.time()
-    acc = ZACAccumulator(S)
+    acc = ZACAccumulator(S, n_filters=N_FILTERS)
     print(f"  ZAC Root: {acc.root_hex()[:32]}…  ({time.time()-t0:.1f}s)")
 
     # ── 零假阴性验证：所有合法成员必须通过 ────────────────────────────────────
@@ -216,22 +224,25 @@ def wilson_ci(k, n, z=1.96):
 b1_lo, b1_hi = wilson_ci(fp_b1, N_TRIALS)
 b2_lo, b2_hi = wilson_ci(fp_b2, N_TRIALS)
 
-EPS = 0.01   # 理论误报率
 print(f"\n{'='*64}")
 print(f"Bloom Filter 误报率统计验证结果")
 print(f"{'='*64}")
+print(f"  串联层数    : {N_FILTERS}")
+print(f"  单层 ε      : {EPS}")
+print(f"  理论复合 FPR: ε^{N_FILTERS} = {EPS_COMPOUND:.6f}")
+print(f"")
 print(f"  合法成员假阴性（漏报）")
 print(f"    {fn_count}/{N_ZAC}  {'✅ 零漏报' if fn_count==0 else '❌ 存在漏报'}")
 print(f"")
 print(f"  B1（图像替换，图像字节变/embedding 不变）")
-print(f"    误报：{fp_b1}/{N_TRIALS}  FPR={fpr_b1*100:.2f}%")
-print(f"    95% Wilson CI：[{b1_lo*100:.2f}%, {b1_hi*100:.2f}%]")
-print(f"    理论 ε=0.01 {'✅ 在 CI 内' if b1_lo <= EPS <= b1_hi else '❌ 不在 CI 内'}")
+print(f"    误报：{fp_b1}/{N_TRIALS}  FPR={fpr_b1*100:.4f}%")
+print(f"    95% Wilson CI：[{b1_lo*100:.4f}%, {b1_hi*100:.4f}%]")
+print(f"    理论复合 FPR {'✅ 在 CI 内' if b1_lo <= EPS_COMPOUND <= b1_hi else f'理论={EPS_COMPOUND:.4%}，CI=[{b1_lo:.4%},{b1_hi:.4%}]'}")
 print(f"")
 print(f"  B2（Embedding 替换，图像字节不变/embedding 变）")
-print(f"    误报：{fp_b2}/{N_TRIALS}  FPR={fpr_b2*100:.2f}%")
-print(f"    95% Wilson CI：[{b2_lo*100:.2f}%, {b2_hi*100:.2f}%]")
-print(f"    理论 ε=0.01 {'✅ 在 CI 内' if b2_lo <= EPS <= b2_hi else '❌ 不在 CI 内'}")
+print(f"    误报：{fp_b2}/{N_TRIALS}  FPR={fpr_b2*100:.4f}%")
+print(f"    95% Wilson CI：[{b2_lo*100:.4f}%, {b2_hi*100:.4f}%]")
+print(f"    理论复合 FPR {'✅ 在 CI 内' if b2_lo <= EPS_COMPOUND <= b2_hi else f'理论={EPS_COMPOUND:.4%}，CI=[{b2_lo:.4%},{b2_hi:.4%}]'}")
 
 # ── 保存 ──────────────────────────────────────────────────────────────────────
 import shutil
@@ -242,7 +253,9 @@ result = {
     "config": {
         "n_zac": N_ZAC,
         "n_trials_per_type": N_TRIALS,
-        "theoretical_epsilon": EPS,
+        "n_filters": N_FILTERS,
+        "per_layer_epsilon": EPS,
+        "theoretical_compound_fpr": EPS_COMPOUND,
         "seed": SEED,
     },
     "results": {
@@ -252,18 +265,19 @@ result = {
             "fpr": round(fpr_b1, 6),
             "ci_95_lo": round(b1_lo, 6),
             "ci_95_hi": round(b1_hi, 6),
-            "epsilon_in_ci": bool(b1_lo <= EPS <= b1_hi),
+            "compound_fpr_in_ci": bool(b1_lo <= EPS_COMPOUND <= b1_hi),
         },
         "B2_embedding_replace": {
             "fp": fp_b2, "n": N_TRIALS,
             "fpr": round(fpr_b2, 6),
             "ci_95_lo": round(b2_lo, 6),
             "ci_95_hi": round(b2_hi, 6),
-            "epsilon_in_ci": bool(b2_lo <= EPS <= b2_hi),
+            "compound_fpr_in_ci": bool(b2_lo <= EPS_COMPOUND <= b2_hi),
         },
     },
 }
-out_path = NOTES_DIR / "experiment_c1_bf_fpr.json"
+out_path = NOTES_DIR / f"experiment_results/experiment_c1_bf_fpr_n{N_FILTERS}_seed{SEED}.json"
+out_path.parent.mkdir(parents=True, exist_ok=True)
 out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
 print(f"\n结果已保存：{out_path}")
 

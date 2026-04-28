@@ -1,0 +1,2 @@
+Conv3d embed proof: ✓ PASS  (728ms  fold=✓  binding=✓)
+Results: /root/autodl-tmp/UltraRAG/notes/experiment_results/prove_conv3d.json

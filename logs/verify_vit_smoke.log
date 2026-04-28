@@ -1,0 +1,24 @@
+zkLLM ViT 验证 — blocks [0]
+  seq=1024, hidden=1280, inter=3420
+  MHA: num_kv_heads=16, head_dim=80
+
+[Block 0] running 8-step proof ...
+  Block 0: ✓ PASS  (12809ms  fold=9/9  binding=9/9)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Blocks passed:  1/1
+Total time:     285299ms
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Results: /root/autodl-tmp/UltraRAG/notes/experiment_results/verify_vit.json
+zkLLM ViT 验证 — blocks [7]
+  seq=1024, hidden=1280, inter=3420
+  MHA: num_kv_heads=16, head_dim=80
+
+[Block 7] running 8-step proof ...
+  Block 7: ✓ PASS  (12685ms  fold=9/9  binding=9/9)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Blocks passed:  1/1
+Total time:     284548ms
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Results: /root/autodl-tmp/UltraRAG/notes/experiment_results/verify_vit.json

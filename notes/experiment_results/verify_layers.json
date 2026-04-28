@@ -1,0 +1,74 @@
+{
+  "layers": [
+    30
+  ],
+  "layers_pass": 1,
+  "elapsed_ms": 28330,
+  "results": [
+    {
+      "layer": 30,
+      "all_pass": true,
+      "prover_ok": true,
+      "step_rc": {
+        "rmsnorm_pre": 0,
+        "attn_linear": 0,
+        "zkAttn": 0,
+        "o_proj": 0,
+        "skip1": 0,
+        "rmsnorm_post": 0,
+        "ffn": 0,
+        "skip2": 0
+      },
+      "step_ms": {
+        "rmsnorm_pre": 1265,
+        "attn_linear": 4111,
+        "zkAttn": 6244,
+        "o_proj": 1693,
+        "skip1": 307,
+        "rmsnorm_post": 1208,
+        "ffn": 8425,
+        "skip2": 316
+      },
+      "ipa": {
+        "input_layernorm": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.k_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.q_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.v_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.o_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "post_attention_layernorm": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "mlp.gate_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "mlp.up_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "mlp.down_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        }
+      },
+      "fold_pass": 9,
+      "bind_pass": 9
+    }
+  ]
+}

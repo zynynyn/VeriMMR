@@ -64,13 +64,20 @@ int main(int argc, char *argv[])
         k_rescale.prove(K, K_);
         v_rescale.prove(V, V_);
 
-        verifyWeightClaim(k_proj, k_layer.prove(input, K)[0]);
-        verifyWeightClaim(q_proj, q_layer.prove(input, Q)[0]);
-        verifyWeightClaim(v_proj, v_layer.prove(input, V)[0]);
+        // Batch prove for k/q/v: all three share the same input
+        auto kqv_claims = zkFC::prove_batch(input,
+            {{&k_layer, &K}, {&q_layer, &Q}, {&v_layer, &V}});
+        verifyWeightClaim(k_proj, kqv_claims[0],
+            workdir + "/" + layer_prefix + "-self_attn.k_proj-ipa-proof.bin");
+        verifyWeightClaim(q_proj, kqv_claims[1],
+            workdir + "/" + layer_prefix + "-self_attn.q_proj-ipa-proof.bin");
+        verifyWeightClaim(v_proj, kqv_claims[2],
+            workdir + "/" + layer_prefix + "-self_attn.v_proj-ipa-proof.bin");
 
-        Q_.save_int("temp_Q.bin");
-        K_.save_int("temp_K.bin");
-        V_.save_int("temp_V.bin");
+        string tp = workdir + "/" + layer_prefix + "-";
+        Q_.save_int(tp + "temp_Q.bin");
+        K_.save_int(tp + "temp_K.bin");
+        V_.save_int(tp + "temp_V.bin");
 
         cout << "QKV linear proof successfully verified!" << endl;
 
@@ -87,10 +94,14 @@ int main(int argc, char *argv[])
         uint head_dim     = kv_dim / num_kv_heads;
         uint num_q_heads  = embed_dim / head_dim;
         uint group_size   = num_q_heads / num_kv_heads;
+        // argv[10]/[11]: optional KV-group range [g_start, g_end) for parallel head splitting
+        uint g_start = (argc > 10) ? std::stoi(argv[10]) : 0;
+        uint g_end   = (argc > 11) ? std::stoi(argv[11]) : num_kv_heads;
 
-        auto Q_full = FrTensor::from_int_bin("temp_Q.bin");   // (seq_len * embed_dim)
-        auto K_full = FrTensor::from_int_bin("temp_K.bin");   // (seq_len * kv_dim)
-        auto V_full = FrTensor::from_int_bin("temp_V.bin");   // (seq_len * kv_dim)
+        string tp = workdir + "/" + layer_prefix + "-";
+        auto Q_full = FrTensor::from_int_bin(tp + "temp_Q.bin");   // (seq_len * embed_dim)
+        auto K_full = FrTensor::from_int_bin(tp + "temp_K.bin");   // (seq_len * kv_dim)
+        auto V_full = FrTensor::from_int_bin(tp + "temp_V.bin");   // (seq_len * kv_dim)
 
         // Transpose to (dim, seq_len) layout so each head occupies a contiguous
         // memory region and can be extracted with trunc() without a new CUDA kernel.
@@ -105,17 +116,14 @@ int main(int argc, char *argv[])
         // MHA where out.size = seq_len*embed_dim >= 1<<20.  For per-head output
         // (seq_len * head_dim = 1024*128 = 2^17) we use sf = 1<<(ceilLog2(seq_len*head_dim)/2).
         // Using sf = 1<<16 gives table_size = 65536 which divides 131072 evenly.
-        uint head_out_size = seq_len * head_dim;   // 131072 = 2^17
+        uint head_out_size = seq_len * head_dim;
+        // Largest power-of-2 that DIVIDES head_out_size
+        // (correct for both power-of-2 and non-power-of-2 head_dim)
         uint rs_sf = 1;
-        while (rs_sf * rs_sf < head_out_size) rs_sf <<= 1;  // largest power-of-2 whose square <= head_out_size
-        // For head_out_size=131072=2^17: rs_sf=2^9=512 (512^2=262144>131072), back off to 256?
-        // Safer: just pick largest power-of-2 that divides head_out_size
-        rs_sf = 1;
-        { uint tmp = head_out_size; while (tmp > 1) { tmp >>= 1; rs_sf <<= 1; } }
-        // rs_sf = head_out_size (2^17=131072). That makes table=131072 entries which is fine.
+        { uint tmp = head_out_size; while (tmp % 2 == 0) { tmp >>= 1; rs_sf <<= 1; } }
         Rescaling rs1(rs_sf), rs2(rs_sf);
 
-        for (uint g = 0; g < num_kv_heads; g++) {
+        for (uint g = g_start; g < g_end; g++) {
             // Extract KV head g: trunc gives (head_dim * seq_len) contiguous elements,
             // then transpose back to (seq_len, head_dim) for matmul.
             auto K_g = K_T.trunc(g * head_dim * seq_len,
@@ -183,8 +191,37 @@ int main(int argc, char *argv[])
 
         cout << "GQA zkAttn proof complete. ("
              << num_q_heads << " Q-heads, " << num_kv_heads
-             << " KV-heads, head_dim=" << head_dim << ")" << endl;
+             << " KV-heads, head_dim=" << head_dim
+             << ", g=" << g_start << ".." << g_end << ")" << endl;
         return 0;
     }
+
+    else if (mode == "o_proj")
+    {
+        // 证明 output projection: attn_out × W_o -> proj_out
+        // argv[2]=input_file, argv[3]=seq_len, argv[4]=embed_dim,
+        // argv[5]=workdir, argv[6]=layer_prefix, argv[7]=output_file
+        auto o_proj = create_weight(
+            workdir + "/self_attn.o_proj.weight-pp.bin",
+            workdir + "/" + layer_prefix + "-self_attn.o_proj.weight-int.bin",
+            workdir + "/" + layer_prefix + "-self_attn.o_proj.weight-commitment.bin",
+            embed_dim, embed_dim
+        );
+        zkFC o_layer(embed_dim, embed_dim, o_proj.weight);
+        Rescaling o_rescale(1 << 16);
+
+        FrTensor input = FrTensor::from_int_bin(input_file_name);
+        auto O  = o_layer(input);
+        auto O_ = o_rescale(O);
+
+        o_rescale.prove(O, O_);
+        verifyWeightClaim(o_proj, o_layer.prove(input, O)[0],
+            workdir + "/" + layer_prefix + "-self_attn.o_proj-ipa-proof.bin");
+
+        O_.save_int(output_file_name);
+        cout << "o_proj proof complete." << endl;
+        return 0;
+    }
+
     return 0;
 }

@@ -1,0 +1,23 @@
+zkLLM 完整层验证（8步）— layers [30, 31, 32, 33, 34, 35]
+  步骤: input_layernorm → q/k/v linear → zkAttn → o_proj → skip1
+        → post_attn_layernorm → FFN → skip2
+
+[Layer 30] running 8-step proof pipeline ...
+  Layer 30: ✓ PASS  (17579ms  fold=9/9  binding=9/9)
+[Layer 31] running 8-step proof pipeline ...
+  Layer 31: ✓ PASS  (17822ms  fold=9/9  binding=9/9)
+[Layer 32] running 8-step proof pipeline ...
+  Layer 32: ✓ PASS  (17854ms  fold=9/9  binding=9/9)
+[Layer 33] running 8-step proof pipeline ...
+  Layer 33: ✓ PASS  (18025ms  fold=9/9  binding=9/9)
+[Layer 34] running 8-step proof pipeline ...
+  Layer 34: ✓ PASS  (17673ms  fold=9/9  binding=9/9)
+[Layer 35] running 8-step proof pipeline ...
+  Layer 35: ✓ PASS  (17768ms  fold=9/9  binding=9/9)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Layers passed:  6/6
+Total time:     272558ms
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Results: /root/autodl-tmp/UltraRAG/notes/experiment_results/verify_layers.json
+

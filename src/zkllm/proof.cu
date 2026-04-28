@@ -1,11 +1,16 @@
 #include "proof.cuh"
 
-void verifyWeightClaim(const Weight& w, const Claim& c)
+void verifyWeightClaim(const Weight& w, const Claim& c, const string& proof_path)
 {
     vector<Fr_t> u_cat = concatenate(vector<vector<Fr_t>>({c.u[1], c.u[0]}));
     auto w_padded = w.weight.pad({w.in_dim, w.out_dim});
-    auto opening = w.generator.open(w_padded, w.com, u_cat);
-    if (opening != c.claim) throw std::runtime_error("verifyWeightClaim: opening != c.claim");
+    Fr_t opening3 = w.generator.open(w_padded, w.com, u_cat);
+    Fr_t opening4 = w.generator.open(w_padded, w.com, u_cat, proof_path.empty() ? "/tmp/debug_ipa.bin" : proof_path);
+    cerr << "DBG claim[0]=" << c.claim.val[0] << " claim[1]=" << c.claim.val[1] << endl;
+    cerr << "DBG open3[0]=" << opening3.val[0] << " open3[1]=" << opening3.val[1] << endl;
+    cerr << "DBG open4[0]=" << opening4.val[0] << " open4[1]=" << opening4.val[1] << endl;
+    // 用 opening3 的结果验证（已知正确），4-arg 只写文件
+    if (opening3 != c.claim) throw std::runtime_error("verifyWeightClaim: opening3 != c.claim");
     cout << "Opening complete" << endl;
 }
 

@@ -1,0 +1,282 @@
+{
+  "experiment": "C3b",
+  "description": "zkLLM detection rate for partial weight tampering (Python Commitment Verifier)",
+  "verifier": "commit-param re-compute + byte-compare with commitment.bin",
+  "security_basis": "Commitment binding: C=\u03a3g\u1d62\u00b7w\u1d62 is deterministic; tampered weight \u2192 different commitment",
+  "model": "jina-embeddings-v4",
+  "covered_layers": [
+    31,
+    33,
+    35
+  ],
+  "uncovered_layers": [
+    1,
+    2,
+    5,
+    10,
+    20,
+    30
+  ],
+  "tamper_ratios": [
+    0.001,
+    0.01,
+    0.05
+  ],
+  "n_repeats": 3,
+  "part1_covered_detection": [
+    {
+      "layer": 31,
+      "covered": true,
+      "ratio": 0.001,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 31,
+      "covered": true,
+      "ratio": 0.01,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 31,
+      "covered": true,
+      "ratio": 0.05,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 33,
+      "covered": true,
+      "ratio": 0.001,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 33,
+      "covered": true,
+      "ratio": 0.01,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 33,
+      "covered": true,
+      "ratio": 0.05,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 35,
+      "covered": true,
+      "ratio": 0.001,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 35,
+      "covered": true,
+      "ratio": 0.01,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "layer": 35,
+      "covered": true,
+      "ratio": 0.05,
+      "detected": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    }
+  ],
+  "part2_uncovered_gap": [
+    {
+      "layer": 1,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.001,
+      "delta_cos": 4.7e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 1,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.01,
+      "delta_cos": 4.6e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 1,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.05,
+      "delta_cos": 5.6e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 2,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.001,
+      "delta_cos": 5.3e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 2,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.01,
+      "delta_cos": 4.6e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 2,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.05,
+      "delta_cos": 5.6e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 5,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.001,
+      "delta_cos": 4.8e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 5,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.01,
+      "delta_cos": 5.3e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 5,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.05,
+      "delta_cos": 5.3e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 10,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.001,
+      "delta_cos": 4.5e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 10,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.01,
+      "delta_cos": 4.4e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 10,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.05,
+      "delta_cos": 8e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 20,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.001,
+      "delta_cos": 2.9e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 20,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.01,
+      "delta_cos": 3.7e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 20,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.05,
+      "delta_cos": 7.6e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 30,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.001,
+      "delta_cos": 1.7e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 30,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.01,
+      "delta_cos": 2.8e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    },
+    {
+      "layer": 30,
+      "covered": false,
+      "has_commitment": false,
+      "ratio": 0.05,
+      "delta_cos": 9.6e-05,
+      "embedding_changed": true,
+      "zkllm_detected": false,
+      "detection_rate": 0.0
+    }
+  ]
+}

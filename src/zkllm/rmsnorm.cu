@@ -23,8 +23,11 @@ int main(int argc, char *argv[])
         1, embed_dim
     );
 
+    // argv[8] (optional): rms_inv path; default "rms_inv_temp.bin" for backward compat
+    string rms_inv_path = (argc > 8) ? string(argv[8]) : "rms_inv_temp.bin";
+
     FrTensor X = FrTensor::from_int_bin(input_file_name);
-    FrTensor rms_inv_temp = FrTensor::from_int_bin("rms_inv_temp.bin");
+    FrTensor rms_inv_temp = FrTensor::from_int_bin(rms_inv_path);
 
     // create an all 1 tensor with size embed_dim * embed_dim
     FrTensor all_one(seq_len);
@@ -46,7 +49,8 @@ int main(int argc, char *argv[])
     Y_.save_int(output_file_name);
     hadamard_product_sumcheck(g_inv_rms_, X, random_vec(ceilLog2(Y.size)), random_vec(ceilLog2(Y.size)));
     rs1.prove(g_inv_rms, g_inv_rms_);
-    verifyWeightClaim(rmsnorm_weight, g.prove(rms_inv_temp, g_inv_rms)[0]);
+    verifyWeightClaim(rmsnorm_weight, g.prove(rms_inv_temp, g_inv_rms)[0],
+        workdir + "/" + layer_prefix + "-" + which + "_layernorm-ipa-proof.bin");
     return 0;
     
 }

@@ -1,0 +1,195 @@
+nohup: ignoring input
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading jina-v4 via SentenceTransformer ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  3.91it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  7.13it/s]
+  loaded.
+
+── 提取 RMSNorm 权重 ──────────────────────────────────────
+  Layer 0:
+    layer-0-input_layernorm.weight-int.bin  std=10428.3
+    layer-0-post_attention_layernorm.weight-int.bin  std=9181.9
+  Layer 1:
+    layer-1-input_layernorm.weight-int.bin  std=17149.5
+    layer-1-post_attention_layernorm.weight-int.bin  std=60838.3
+  Layer 2:
+    layer-2-input_layernorm.weight-int.bin  std=23210.6
+    layer-2-post_attention_layernorm.weight-int.bin  std=33654.5
+  Layer 3:
+    layer-3-input_layernorm.weight-int.bin  std=24534.1
+    layer-3-post_attention_layernorm.weight-int.bin  std=28665.7
+  Layer 4:
+    layer-4-input_layernorm.weight-int.bin  std=13922.3
+    layer-4-post_attention_layernorm.weight-int.bin  std=22456.9
+  Layer 5:
+    layer-5-input_layernorm.weight-int.bin  std=25100.6
+    layer-5-post_attention_layernorm.weight-int.bin  std=16950.5
+  Layer 6:
+    layer-6-input_layernorm.weight-int.bin  std=11849.7
+    layer-6-post_attention_layernorm.weight-int.bin  std=15428.7
+  Layer 7:
+    layer-7-input_layernorm.weight-int.bin  std=14745.7
+    layer-7-post_attention_layernorm.weight-int.bin  std=15451.7
+  Layer 8:
+    layer-8-input_layernorm.weight-int.bin  std=11182.6
+    layer-8-post_attention_layernorm.weight-int.bin  std=15983.0
+  Layer 9:
+    layer-9-input_layernorm.weight-int.bin  std=10539.0
+    layer-9-post_attention_layernorm.weight-int.bin  std=14519.4
+  Layer 10:
+    layer-10-input_layernorm.weight-int.bin  std=10903.3
+    layer-10-post_attention_layernorm.weight-int.bin  std=14043.5
+  Layer 11:
+    layer-11-input_layernorm.weight-int.bin  std=14658.4
+    layer-11-post_attention_layernorm.weight-int.bin  std=11438.7
+  Layer 12:
+    layer-12-input_layernorm.weight-int.bin  std=15138.6
+    layer-12-post_attention_layernorm.weight-int.bin  std=14462.4
+  Layer 13:
+    layer-13-input_layernorm.weight-int.bin  std=10506.1
+    layer-13-post_attention_layernorm.weight-int.bin  std=13004.5
+  Layer 14:
+    layer-14-input_layernorm.weight-int.bin  std=12307.3
+    layer-14-post_attention_layernorm.weight-int.bin  std=14475.7
+  Layer 15:
+    layer-15-input_layernorm.weight-int.bin  std=13878.2
+    layer-15-post_attention_layernorm.weight-int.bin  std=16119.5
+  Layer 16:
+    layer-16-input_layernorm.weight-int.bin  std=17661.0
+    layer-16-post_attention_layernorm.weight-int.bin  std=17939.3
+  Layer 17:
+    layer-17-input_layernorm.weight-int.bin  std=21521.8
+    layer-17-post_attention_layernorm.weight-int.bin  std=19471.8
+  Layer 18:
+    layer-18-input_layernorm.weight-int.bin  std=25470.1
+    layer-18-post_attention_layernorm.weight-int.bin  std=20850.3
+  Layer 19:
+    layer-19-input_layernorm.weight-int.bin  std=28968.8
+    layer-19-post_attention_layernorm.weight-int.bin  std=22447.8
+  Layer 20:
+    layer-20-input_layernorm.weight-int.bin  std=40928.4
+    layer-20-post_attention_layernorm.weight-int.bin  std=21643.0
+  Layer 21:
+    layer-21-input_layernorm.weight-int.bin  std=35777.5
+    layer-21-post_attention_layernorm.weight-int.bin  std=20954.3
+  Layer 22:
+    layer-22-input_layernorm.weight-int.bin  std=26079.0
+    layer-22-post_attention_layernorm.weight-int.bin  std=20897.8
+  Layer 23:
+    layer-23-input_layernorm.weight-int.bin  std=25100.5
+    layer-23-post_attention_layernorm.weight-int.bin  std=20120.5
+  Layer 24:
+    layer-24-input_layernorm.weight-int.bin  std=24108.7
+    layer-24-post_attention_layernorm.weight-int.bin  std=18928.9
+  Layer 25:
+    layer-25-input_layernorm.weight-int.bin  std=25448.5
+    layer-25-post_attention_layernorm.weight-int.bin  std=17606.0
+  Layer 26:
+    layer-26-input_layernorm.weight-int.bin  std=22354.9
+    layer-26-post_attention_layernorm.weight-int.bin  std=15593.9
+  Layer 27:
+    layer-27-input_layernorm.weight-int.bin  std=17442.5
+    layer-27-post_attention_layernorm.weight-int.bin  std=14345.2
+  Layer 28:
+    layer-28-input_layernorm.weight-int.bin  std=14749.0
+    layer-28-post_attention_layernorm.weight-int.bin  std=13844.7
+  Layer 29:
+    layer-29-input_layernorm.weight-int.bin  std=15031.8
+    layer-29-post_attention_layernorm.weight-int.bin  std=13719.0
+
+── 生成公共参数 (ppgen) ────────────────────────────────────
+  pp exists: input_layernorm.weight-pp.bin
+  pp exists: post_attention_layernorm.weight-pp.bin
+
+── 生成承诺 (commit-param) ──────────────────────────────────
+  Layer 0:
+    commit-param layer-0-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-0-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 1:
+    commit-param layer-1-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-1-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 2:
+    commit-param layer-2-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-2-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 3:
+    commit-param layer-3-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-3-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 4:
+    commit-param layer-4-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-4-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 5:
+    commit-param layer-5-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-5-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 6:
+    commit-param layer-6-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-6-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 7:
+    commit-param layer-7-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-7-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 8:
+    commit-param layer-8-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-8-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 9:
+    commit-param layer-9-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-9-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 10:
+    commit-param layer-10-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-10-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 11:
+    commit-param layer-11-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-11-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 12:
+    commit-param layer-12-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-12-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 13:
+    commit-param layer-13-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-13-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 14:
+    commit-param layer-14-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-14-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 15:
+    commit-param layer-15-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-15-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 16:
+    commit-param layer-16-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-16-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 17:
+    commit-param layer-17-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-17-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 18:
+    commit-param layer-18-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-18-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 19:
+    commit-param layer-19-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-19-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 20:
+    commit-param layer-20-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-20-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 21:
+    commit-param layer-21-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-21-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 22:
+    commit-param layer-22-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-22-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 23:
+    commit-param layer-23-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-23-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 24:
+    commit-param layer-24-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-24-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 25:
+    commit-param layer-25-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-25-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 26:
+    commit-param layer-26-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-26-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 27:
+    commit-param layer-27-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-27-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 28:
+    commit-param layer-28-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-28-post_attention_layernorm.weight-commitment.bin ... OK
+  Layer 29:
+    commit-param layer-29-input_layernorm.weight-commitment.bin ... OK
+    commit-param layer-29-post_attention_layernorm.weight-commitment.bin ... OK
+
+完成。

@@ -1,0 +1,73 @@
+nohup: ignoring input
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+=================================================================
+实验 C3a：权重局部篡改输出敏感性验证
+=================================================================
+
+[1/4] 加载 jina-v4 模型...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.46it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.42it/s]
+  完成，设备=cuda:0，耗时 14.1s
+  总层数：36
+
+[2/4] 计算基线 embedding...
+  embedding shape: (5, 2048)
+  embedding norm (均值): 1.0000
+
+[3/4] 运行局部篡改实验...
+  层：[31, 33, 35, 0, 5, 15, 20]
+  比例：['0.1%', '1.0%', '5.0%']
+  重复：3 次
+
+  Layer 31 [covered]
+    ratio=0.1%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=1.0%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=5.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+  Layer 33 [covered]
+    ratio=0.1%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=1.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+    ratio=5.0%  Δcos=0.0005±0.0000  Δnorm=0.0000
+  Layer 35 [covered]
+    ratio=0.1%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=1.0%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=5.0%  Δcos=0.0000±0.0000  Δnorm=0.0000
+  Layer  0 [uncovered]
+    ratio=0.1%  Δcos=0.0001±0.0000  Δnorm=0.0000
+    ratio=1.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+    ratio=5.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+  Layer  5 [uncovered]
+    ratio=0.1%  Δcos=0.0001±0.0000  Δnorm=0.0000
+    ratio=1.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+    ratio=5.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+  Layer 15 [uncovered]
+    ratio=0.1%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=1.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+    ratio=5.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+  Layer 20 [uncovered]
+    ratio=0.1%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=1.0%  Δcos=0.0000±0.0000  Δnorm=0.0000
+    ratio=5.0%  Δcos=0.0001±0.0000  Δnorm=0.0000
+
+[4/4] 保存结果...
+  保存至 /root/autodl-tmp/UltraRAG/notes/experiment_results/c3a_weight_tamper.json
+
+=================================================================
+汇总：Δcos（余弦距离，越大说明输出改变越显著）
+=================================================================
+     层          类型          p=1‰       p=10‰       p=50‰
+-----------------------------------------------------------------
+   0     uncovered    0.0001±0.0000  0.0001±0.0000  0.0001±0.0000
+   5     uncovered    0.0001±0.0000  0.0001±0.0000  0.0001±0.0000
+  15     uncovered    0.0000±0.0000  0.0001±0.0000  0.0001±0.0000
+  20     uncovered    0.0000±0.0000  0.0000±0.0000  0.0001±0.0000
+  31     covered ✓    0.0000±0.0000  0.0000±0.0000  0.0001±0.0000
+  33     covered ✓    0.0000±0.0000  0.0001±0.0000  0.0005±0.0000
+  35     covered ✓    0.0000±0.0000  0.0000±0.0000  0.0000±0.0000
+
+结论：
+  覆盖层    Δcos 均值：0.0001
+  非覆盖层  Δcos 均值：0.0001
+  → 两类层的输出均受局部篡改影响，非覆盖层同样需要哈希承诺保护。

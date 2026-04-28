@@ -1,0 +1,15 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading jina-v4 via SentenceTransformer ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.94it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.90it/s]
+  loaded.
+
+── 提取 Conv3d 权重 ─────────────────────────────────────────────
+  weight saved: conv3d-conv3d_embed.weight-int.bin  shape=(1176, 1280)  mean_abs=0.01068
+
+── 生成公共参数 (ppgen) ─────────────────────────────────────────
+  ppgen size=1176 ... OK
+
+── 生成承诺 (commit-param) ──────────────────────────────────────
+  commit-param conv3d-conv3d_embed.weight-commitment.bin ... OK
+
+完成。

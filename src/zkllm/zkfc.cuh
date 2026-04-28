@@ -31,6 +31,13 @@ public:
 
     vector<Claim> prove(const FrTensor& X, const FrTensor& Y) const;
 
+    // Batch prove: multiple layers share the same X, reducing X.partial_me + zkip to one call each.
+    // layers_and_Ys: vector of (layer*, Y*) pairs; all layers must have the same inputSize as *this.
+    // Returns one Claim per layer (in the same order), suitable for verifyWeightClaim.
+    static vector<Claim> prove_batch(
+        const FrTensor& X,
+        const vector<pair<const zkFC*, const FrTensor*>>& layers_and_Ys);
+
     static zkFC from_float_gpu_ptr (uint input_size, uint output_size, unsigned long scaling_factor, float* weight_ptr, float* bias_ptr);
     static zkFC from_float_gpu_ptr (uint input_size, uint output_size, unsigned long scaling_factor, float* weight_ptr);
     static FrTensor load_float_gpu_input(uint batch_size, uint input_size, unsigned long scaling_factor, float* input_ptr);

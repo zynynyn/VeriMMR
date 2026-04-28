@@ -1,0 +1,21 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading jina-v4 via SentenceTransformer ...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.72it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.68it/s]
+  loaded.
+
+── 提取 PatchMerger 权重 ───────────────────────────────────────
+    patchmerger-patchmerger_layernorm.weight-int.bin  std=1.5156
+    patchmerger-patchmerger_fc1.weight-int.bin  shape=(5120, 5120)  std=0.0207
+    patchmerger-patchmerger_fc2.weight-int.bin  shape=(2048, 5120)  std=0.0188
+
+── 生成公共参数 (ppgen) ────────────────────────────────────────
+  ppgen patchmerger_layernorm.weight-pp.bin size=1280 ... OK
+  ppgen patchmerger_fc1.weight-pp.bin size=5120 ... OK
+  ppgen patchmerger_fc2.weight-pp.bin size=5120 ... OK
+
+── 生成承诺 (commit-param) ──────────────────────────────────────
+    commit-param patchmerger-patchmerger_layernorm.weight-commitment.bin ... OK
+    commit-param patchmerger-patchmerger_fc1.weight-commitment.bin ... OK
+    commit-param patchmerger-patchmerger_fc2.weight-commitment.bin ... OK
+
+完成。

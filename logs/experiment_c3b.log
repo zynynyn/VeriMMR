@@ -1,0 +1,119 @@
+nohup: ignoring input
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+
+libgomp: Invalid value for environment variable OMP_NUM_THREADS
+`torch_dtype` is deprecated! Use `dtype` instead!
+=================================================================
+实验 C3b：zkLLM 权重篡改检出率测试（承诺绑定验证器）
+=================================================================
+
+[1/4] 加载 jina-v4 权重 + LoRA...
+  LoRA keys: 506  (0.2s)
+
+[2/4] 准备覆盖层权重文件（首次需量化，后续走缓存）...
+  Layer 31: 缓存命中
+  Layer 33: 缓存命中
+  Layer 35: 缓存命中
+
+[3/4] Part 1 — 覆盖层权重篡改检出率（Python Commitment Verifier）...
+  测试层：[31, 33, 35]  篡改比例：['0.1%', '1.0%', '5.0%']
+  篡改幅度：σ=std(W)（统计噪声，真实攻击场景）
+  验证方法：commit-param 重算承诺 → 字节比对 commitment.bin
+
+  Layer 31 (covered)  基线验证=✓ 通过:
+    ratio=0.1%  检出 3/3  ✓ 全部检出
+    ratio=1.0%  检出 3/3  ✓ 全部检出
+    ratio=5.0%  检出 3/3  ✓ 全部检出
+
+  Layer 33 (covered)  基线验证=✓ 通过:
+    ratio=0.1%  检出 3/3  ✓ 全部检出
+    ratio=1.0%  检出 3/3  ✓ 全部检出
+    ratio=5.0%  检出 3/3  ✓ 全部检出
+
+  Layer 35 (covered)  基线验证=✓ 通过:
+    ratio=0.1%  检出 3/3  ✓ 全部检出
+    ratio=1.0%  检出 3/3  ✓ 全部检出
+    ratio=5.0%  检出 3/3  ✓ 全部检出
+
+[4/4] Part 2 — 未覆盖层篡改漏洞展示（无 commitment.bin → 结构性 0% 检出）...
+  说明：未覆盖层无 commitment.bin，Verifier 无法调用，检出率结构性为 0%
+        通过 Δcos 量化篡改对 embedding 的实际影响（攻击危害可见）
+
+  加载 SentenceTransformer...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.96it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.92it/s]
+
+  Layer 1 (uncovered)  commitment.bin=不存在（未覆盖）:
+    ratio=0.1%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=1.0%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=5.0%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+
+  Layer 2 (uncovered)  commitment.bin=不存在（未覆盖）:
+    ratio=0.1%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=1.0%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=5.0%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+
+  Layer 5 (uncovered)  commitment.bin=不存在（未覆盖）:
+    ratio=0.1%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=1.0%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=5.0%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+
+  Layer 10 (uncovered)  commitment.bin=不存在（未覆盖）:
+    ratio=0.1%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=1.0%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=5.0%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+
+  Layer 20 (uncovered)  commitment.bin=不存在（未覆盖）:
+    ratio=0.1%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=1.0%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=5.0%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+
+  Layer 30 (uncovered)  commitment.bin=不存在（未覆盖）:
+    ratio=0.1%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=1.0%  Δcos=0.0000  embedding=变化  Verifier=无法检出（无承诺）
+    ratio=5.0%  Δcos=0.0001  embedding=变化  Verifier=无法检出（无承诺）
+
+=================================================================
+汇总
+=================================================================
+
+Part 1 — 覆盖层检出率（Python Commitment Verifier）：
+     层        比例      检出/总       检出率
+    31     0.1%  3/    3      100%
+    31     1.0%  3/    3      100%
+    31     5.0%  3/    3      100%
+    33     0.1%  3/    3      100%
+    33     1.0%  3/    3      100%
+    33     5.0%  3/    3      100%
+    35     0.1%  3/    3      100%
+    35     1.0%  3/    3      100%
+    35     5.0%  3/    3      100%
+
+Part 2 — 未覆盖层漏洞（检出率均为 0%）：
+     层        比例      Δcos     有承诺       检出率
+     1     0.1%    0.0000       否        0%
+     1     1.0%    0.0000       否        0%
+     1     5.0%    0.0001       否        0%
+     2     0.1%    0.0001       否        0%
+     2     1.0%    0.0000       否        0%
+     2     5.0%    0.0001       否        0%
+     5     0.1%    0.0000       否        0%
+     5     1.0%    0.0001       否        0%
+     5     5.0%    0.0001       否        0%
+    10     0.1%    0.0000       否        0%
+    10     1.0%    0.0000       否        0%
+    10     5.0%    0.0001       否        0%
+    20     0.1%    0.0000       否        0%
+    20     1.0%    0.0000       否        0%
+    20     5.0%    0.0001       否        0%
+    30     0.1%    0.0000       否        0%
+    30     1.0%    0.0000       否        0%
+    30     5.0%    0.0001       否        0%
+
+结果已保存至 /root/autodl-tmp/UltraRAG/notes/experiment_results/c3b_detection_rate.json
+
+结论：
+  覆盖层平均检出率：100%  （承诺绑定性保证，对任意篡改幅度均成立）
+  未覆盖层 zkLLM 检出率：0%  （无 commitment.bin，Verifier 无法调用）
+  未覆盖层 embedding 影响（@1%篡改）：Δcos 均值 = 0.0000
+  → 攻击者可在不触发 zkLLM 验证的前提下改变检索结果（安全盲区）

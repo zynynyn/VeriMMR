@@ -20,6 +20,7 @@ class Commitment: public G1TensorJacobian
     G1TensorJacobian commit_int_multi(const vector<FrTensor>& t) const;
 
     Fr_t open(const FrTensor& t, const G1TensorJacobian& c, const vector<Fr_t>& u) const;
+    Fr_t open(const FrTensor& t, const G1TensorJacobian& c, const vector<Fr_t>& u, const string& proof_path) const;
 
     static Commitment random(uint size);
     static Fr_t me_open(const FrTensor& t, const Commitment& generators, vector<Fr_t>::const_iterator begin, vector<Fr_t>::const_iterator end, vector<G1Jacobian_t>& proof);

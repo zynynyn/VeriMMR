@@ -286,10 +286,18 @@ def run_zac(paths: List, emb_ids: List[int] = None) -> Dict:
         ok = _zac_acc.verify_membership_batch(elements, proof)
         verify_ms = round((time.perf_counter() - t0) * 1000, 1)
         cm_hex = proof.get("cm_hex", "")
-        print(f"[Step 5] 完成  verified={ok}  prove={prove_ms}ms  verify={verify_ms}ms  root={cm_hex[:16]}…")
+        # Single-filter: proof_hex at top level. Cascade: inside layer_proofs[0].
+        n_f = proof.get("n_filters", 1)
+        if n_f == 1:
+            proof_hex = proof.get("proof_hex", "")
+        else:
+            lps = proof.get("layer_proofs", [{}])
+            proof_hex = lps[0].get("proof_hex", "") if lps else ""
+        print(f"[Step 5] 完成  verified={ok}  prove={prove_ms}ms  verify={verify_ms}ms  "
+              f"n_filters={n_f}  root={cm_hex[:16]}…")
         return {
             "verified": ok, "num_images": len(elements),
-            "cm_hex": cm_hex, "proof_hex": proof.get("proof_hex", ""),
+            "cm_hex": cm_hex, "proof_hex": proof_hex, "n_filters": n_f,
             "prove_ms": prove_ms, "verify_ms": verify_ms,
         }
     except Exception as e:
@@ -681,10 +689,12 @@ def _build_proofs_dict(zac: Dict, sc: Dict, corpus_proofs: List, proof_id: str,
     if zac and not zac.get("disabled") and not zac.get("error"):
         cm = zac.get("cm_hex", "")
         ph = zac.get("proof_hex", "")
+        n_f = zac.get("n_filters", 1)
         proofs["zac"]["data"] = (
             f"verified={zac.get('verified')}\n"
+            f"n_filters={n_f}  proof_size={n_f*48}B\n"
             f"cm_hex={cm[:32]}…\n"
-            f"proof_hex={ph[:32]}…\n"
+            f"proof_hex(layer0)={ph[:32]}…\n"
             f"prove_ms={zac.get('prove_ms')}  verify_ms={zac.get('verify_ms')}"
         )
     if corpus_proofs:
