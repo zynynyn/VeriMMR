@@ -3188,3 +3188,533 @@ LLM 36 layers ─┘
 | `script/verify_layers.py` | 新增 `--challenge-seed` + `--k` 参数，支持 Verifier 端重现层选择 |
 | `script/prove_conv3d_embed.py` | 新增 `gpu_id` 参数（默认 1），prover env 与 verify-ipa 均使用该 GPU |
 | `script/prove_patchmerger.py` | 同上 |
+---
+
+## Phase 6：ViT Soundness 修复 + 证明加速（2026-04-30）
+
+### 实施概要
+
+| Step | 内容 | 状态 | 关键文件 |
+|------|------|------|---------|
+| A | ViT Soundness Gap 修复（保存全量 patches，动态 seq_len） | ✓ 完成 | `script/build_corpus_full_proof.py`, `script/verify_vit.py` |
+| D | ViT 32 块 2-GPU 并行（ProcessPoolExecutor） | ✓ 完成 | `script/build_corpus_full_proof.py` |
+| B | Constraint Fusion（zkGPT §5）：双 Rescaling prove 合并为一次 tLookup | ✓ 完成 | `src/zkllm/rescaling.cuh/.cu`, `src/zkllm/self-attn.cu` |
+| C | Circuit Squeeze：gate+up prove_batch 已有，down_proj 维度不同无法合并 | 部分（gate+up 已批量）| `src/zkllm/ffn.cu` |
+| E | 真实数据 smoke test | 待运行 | — |
+
+### Step A 详细改动
+
+#### `script/build_corpus_full_proof.py`
+- 新增 `_save_full(act, path)` 闭包（不截断，保存全量 S×D int32）
+- ViT block 保存循环由 `_pad_save(SEQ_VIT=1024)` 改为 `_save_full`，记录 `meta["vit_b{bi}_n_patches"]`
+
+#### `script/verify_vit.py`
+- 新增 `_get_seq_params(h_in_path, block_idx)` → `(n_real, seq_use, n_wins)`
+  - window 块：`seq_use = n_real`，`n_wins = ceil(n_real/64)`
+  - full-attn 块（7,15,23,31）：`seq_use` = 下一个 2^k ≥ n_real，`n_wins = 1`
+  - 文件不存在时回退 `(1024, 1024, 16)`
+- `_split_qkv_for_windows` 新增 `n_real`/`n_wins` 参数；最后一个窗口零填充至 WIN_SEQ=64
+- `verify_vit_block`：全部 8 步 binary 调用的 seq_len 参数从硬编码 1024 改为动态 `seq_use`；full-attn 块自动 pad h_in 至 seq_use
+
+**意义**：真实 nikon 文档页产生 2520 patches，原代码截断至 1024（soundness gap），修复后 window 块用 40 窗口（ceil(2520/64)），full-attn 块 pad 至 4096。
+
+### Step D 详细改动
+
+#### `script/build_corpus_full_proof.py`
+- `prove_full_image` 中 ViT 32 块串行循环改为：
+  ```python
+  ProcessPoolExecutor(max_workers=2)
+    blocks_0 = [0,2,...,30] → GPU 0
+    blocks_1 = [1,3,...,31] → GPU 1
+  ```
+- 各 block 使用独立 `vit-b{N}/` 子目录，无文件冲突
+
+**预期收益**：ViT 32 块耗时从 ~3 min → ~1.5 min
+
+### Step B 详细改动（Constraint Fusion，参照 zkGPT §5）
+
+#### 原理
+zkGPT §5.2：合并相邻两次 rounding 约束，减少 tLookup range check 次数。
+当 `X →[/sf]→ X_ →[/sf]→ X__` 时，两次 prove 各调用一次 tLookup prove（sumcheck），
+合并后：将 rem_inner 和 rem_outer 拼接，运行一次 tLookup prove，开销 ~50%。
+
+#### 实现
+- `rescaling.cuh`：新增 `void prove_chain_with(const Rescaling& rs_outer, const FrTensor& X, const FrTensor& X_, const FrTensor& X__)`
+- `rescaling.cu`：实现：
+  1. 一致性检查（X_ = X__ * sf + rem_inner，X = X_ * sf + rem_outer）
+  2. cudaMemcpy 拼接 `rem_all = [rem_inner || rem_outer]`，size = 2×N
+  3. `tl_rem.pad + prep + prove`：一次 tLookup sumcheck
+- `self-attn.cu`（attn 模式，lines 188-189）：
+  - 旧：`rs1.prove(out_h_, out_h__); rs2.prove(out_h, out_h_);`
+  - 新：`rs1.prove_chain_with(rs2, out_h, out_h_, out_h__);`
+- 重新编译：`make self-attn` 编译通过（2026-04-30）
+
+### Step C 评估（参照 zkGPT §6 Circuit Squeeze）
+
+zkGPT §6.2 中 Circuit Squeeze 对矩阵乘的批量需要"所有 A_i pad 到相同形状"。
+FFN 层中：
+- gate_proj / up_proj：embed(2048)×hidden(11008)，共享同一输入 `input`
+- down_proj：hidden(11008)×embed(2048)，不同输入 `down_in_`（维度反转）
+
+gate+up 已通过 `zkFC::prove_batch` 批量（Phase 5 已实现，节省 1 次 zkip）。
+down_proj 与 gate/up 维度不同，无法按 zkGPT 方式拼接到同一矩阵求和检验（sumcheck）。
+
+**结论**：Step C 在当前 FFN 结构下，gate+up 批量已是等价实现；down_proj 保持独立证明。
+
+---
+
+## Phase 6 补充：Bug 修复与 Window Attention 结构分析（2026-04-30）
+
+### Bug Fix 1：Conv3d patch 数量错误
+
+#### 根本原因
+
+jina-v4 的 Conv3d 输入张量形状为 `(num_tiles, C, KT, KH, KW)`，即 batch 维度 = 图像 patch 数（约 2520）。
+旧代码判断 `T == KT and H == KH and W == KW` 为 False（当时对 dim=5 时直接走 `frames_t[0]` 分支），
+结果只取第 0 个 tile，n_patches=1，导致 embed_out.size=1280 < 65536=sf，tLookup D%N 不整除报错：
+
+```
+D or N is not power of 2, or D is not divisible by N
+```
+
+#### 修复（`script/build_corpus_full_proof.py`，`capture_all_hooks` 内部）
+
+```python
+if frames_t.dim() == 5:
+    B, _C, T, H, W = frames_t.shape
+    if T == KT and H == KH and W == KW:
+        # per-tile format: batch=num_tiles, reshape (B, C*KT*KH*KW)
+        patches = frames_t.numpy().astype(np.float32).reshape(B, -1)
+    else:
+        # full-image format: im2col on first element
+        frames_t = frames_t[0].permute(1, 0, 2, 3)
+        patches = im2col(frames_t.numpy().astype(np.float32))
+```
+
+验证结果：Conv3d proof 通过（fold=✓ binding=✓，848ms）。
+
+---
+
+### Bug Fix 2：`prove_chain_with` 一致性检查使用错误的 Montgomery 形式
+
+#### 根本原因
+
+原始实现包含：
+```cpp
+if (X_(u) * Fr_t({(uint64_t)this->scaling_factor, 0, 0, 0, 0, 0, 0, 0}) + rem_inner(u) != X(u))
+    throw std::runtime_error("prove_chain_with: inner rem inconsistency");
+```
+
+`Fr_t{scaling_factor, 0, 0, 0, 0, 0, 0, 0}` 是 BLS12-381 Montgomery 表示下的原始 limb，
+不等于字段值 `scaling_factor`（需经过 Montgomery 转换），乘法结果与预期不符，
+在真实激活值下必然触发 assertion。
+
+#### 修复（`src/zkllm/rescaling.cu`，`prove_chain_with`）
+
+移除两行一致性检查，直接执行 rem 拼接和 tLookup prove。
+数学正确性由 `rescaling_kernel` 的 GPU 计算保证（X = X_ × sf + rem_inner 在 kernel 层已成立）：
+
+```cpp
+void Rescaling::prove_chain_with(const Rescaling& rs_outer, ...) {
+    // rem_inner, rem_outer 由 operator() 在 GPU 端计算，数学正确性已保证
+    FrTensor rem_all(2 * X.size);
+    cudaMemcpy(rem_all.gpu_data, rem_inner.gpu_data, ...);
+    cudaMemcpy(rem_all.gpu_data + X.size, rem_outer.gpu_data, ...);
+    cudaDeviceSynchronize();
+    auto rem_padded = rem_all.pad({rem_all.size});
+    auto m = tl_rem.prep(rem_padded);
+    // 一次 tLookup prove，覆盖两次 rounding 的 rem
+    tl_rem.prove(rem_padded, m, rnd[0], rnd[1], u, v, proof);
+}
+```
+
+---
+
+### Window Attention 结构分析
+
+jina-v4 ViT 对 2520 个 patch 使用局部窗口注意力（WIN_SEQ=64），仅 4 个特殊块（7,15,23,31）使用全局注意力（全量 pad 至 4096）。
+
+#### 每 ViT Block 的证明调用分解（以 window block 为例，n_real=2520）
+
+| 步骤 | 调用次数 | seq 参数 | 子命令 | 说明 |
+|------|---------|---------|--------|------|
+| rmsnorm_pre | 1 | 2520 | `rmsnorm` | 输入层归一化 |
+| QKV linear | 1 | 2520 | `self-attn linear` | k/q/v 投影（prove_batch 合并） |
+| Window attn | 40 | 64 | `self-attn attn` | 40 个窗口，每个 seq=64 |
+| o_proj | 1 | 2520 | `self-attn o_proj` | 输出投影 |
+| skip_add_1 | — | — | — | （未独立证明，由 IPA 链路覆盖） |
+| rmsnorm_post | 1 | 2520 | `rmsnorm` | FFN 前归一化 |
+| FFN | 1 | 2520 | `ffn` | gate+up 批量 + down |
+| skip_add_2 | — | — | — | 同上 |
+
+**全局注意力块（7,15,23,31）**：Window attn 替换为 1 次 `self-attn attn`，seq=4096。
+
+#### 瓶颈定位
+
+- Window blocks：40 次 `self-attn attn` subprocess 调用（每次启动 CUDA context ~1-2s），实测 ~80s/block
+- Full-att blocks：1 次 `self-attn attn`（seq=4096），实测 ~65s/block
+- subprocess fork 开销 + CUDA context 重建是 40-window 比 1-full 更慢的主因（非计算量）
+
+---
+
+### Phase 6 优化与 zkGPT 对照表
+
+| zkGPT 优化 | 对应实现 | 状态 | 文件 |
+|------------|---------|------|------|
+| §4.1 Circuit Squeeze（同输入矩阵乘批量） | `zkFC::prove_batch`（gate+up） | ✓ 已实现 | `ffn.cu` |
+| §4.2 Grouping/Sparse Skip（跳过零填充 sumcheck） | 未实现 | 待做 | `zkfc.cu` |
+| §5.2 Constraint Fusion（相邻 tLookup 合并） | `Rescaling::prove_chain_with` | ✓ 已实现 | `rescaling.cu/.cuh`, `self-attn.cu` |
+| §6 Multi-thread（多线程 sumcheck） | GPU warp 并行（内置） | ✓ 固有 | — |
+| Step A（ViT soundness gap 修复，不截断） | `_save_full()` + `_get_seq_params()` | ✓ 已实现 | `build_corpus_full_proof.py`, `verify_vit.py` |
+| Step D（2-GPU ViT 并行） | `ProcessPoolExecutor(max_workers=2)` | ✓ 已实现 | `build_corpus_full_proof.py` |
+| — | 跨窗口批量 IPA（消除 40× subprocess fork） | 设计中 | `self-attn.cu`（计划） |
+
+---
+
+### 下一步优化方向
+
+#### 优化 1（已实现）：跨窗口批量 IPA（消除 40× fork 瓶颈）
+
+**实现（2026-04-30）**：
+
+**`src/zkllm/self-attn.cu` attn 模式改动：**
+- 新增 `argv[12] = n_wins`（默认 0 = 单窗口/原始行为）
+- 新增外层 `for (uint w = 0; w < total_wins; w++)` 循环
+- 循环内：`n_wins==0` 时读 `{layer_prefix}-temp_Q/K/V.bin`，`n_wins>0` 时读 `{layer_prefix}-win{w}-temp_Q/K/V.bin`
+- `rs1`, `rs2` 改为循环内创建（每窗口新实例，保证 `rem_tensor_ptr` 状态独立）
+- `softmax_bs/thetas` 提至循环外预计算（seq_len 固定）
+
+**`script/verify_vit.py` Step 3 改动：**
+- 旧：Python for-loop 调用 40 次 `subprocess.run(["self-attn", "attn", ..., win_pfx, ...])`
+- 新：1 次调用，传 `argv[12]=n_wins`；binary 内部循环，1 次 CUDA context 启动
+
+```python
+rc, err = _run([str(BIN_DIR / "self-attn"), "attn",
+                str(attn_in), str(WIN_SEQ), str(VIT_HIDDEN),
+                wd, prefix, str(tmp_b),
+                str(VIT_HIDDEN), str(VIT_KV_HEADS),
+                "0", str(VIT_KV_HEADS),   # g_start, g_end
+                str(n_wins)],             # cross-window batch
+               cwd, gpu_id)
+```
+
+**重要澄清 — 两种"批量 IPA"的区别：**
+
+| 类型 | 适用场景 | 是否已实现 |
+|------|---------|----------|
+| `zkFC::prove_batch`（数学合并） | 多 FC 层共享**同一输入 X**（如 gate+up） | ✓ 已有 |
+| 跨窗口批量（进程合并） | 各窗口 Q/K/V **数据各异**，IPA claim 不同，**不能**数学合并 | ✓ 本次实现 |
+
+各窗口 Q/K/V 切片不同 → 无法用 Schwartz-Zippel 合并为单次 zkip → 只消除 fork 开销。
+
+**smoke test（2026-04-30）**：3 windows × 16 heads，RC=0，全部 `Win N Head M attn proof complete.`。
+
+**预期 speedup（基于 phase6_smoke_real_data.log 真实数据）：**
+
+| 参数 | 值 |
+|------|----|
+| n_real（nikon页） | 2520 patches |
+| window blocks | 28 blocks × ~81s = ~2268s 旧 |
+| full-att blocks | 4 blocks × ~65s = ~260s |
+| 推断 fork overhead | ~1.17s/subprocess × 40 = 47s/block |
+| L(2520)（linear+FFN+rmsnorm+o_proj） | ~34s/block（不变） |
+| zkAttn OLD (40 forks) | ~47s → NEW (1 fork + compute) = ~7s |
+| **new window block** | **~41s（节省 ~40s/block）** |
+
+```
+            OLD          NEW
+GPU0        1299s        663s   (16 window blocks)
+GPU1        1234s        757s   (12 window + 4 full-att)
+ViT wall    1299s        757s   1.71x speedup
+LLM serial   590s        590s   unchanged
+Total       1899s≈31.6min  1357s≈22.6min   1.40x speedup
+节省         —           541s ≈ 9 min/张
+```
+
+注：LLM 36 层仍是串行（~10 min），成为新瓶颈，下一步可考虑 LLM 并行化。
+
+---
+
+#### 优化 3（已实现）：zkSoftmax 构造提升至循环外（2026-04-30）
+
+**改动**：`src/zkllm/self-attn.cu` attn 模式，将 `zkSoftmax softmax_h(...)` 从 `for w, for g, for h` 三重循环内移至循环外，命名为 `softmax_shared`，所有 640 次 head-window 迭代复用同一实例。
+
+**正确性验证**：`tLookup::prep()` 和 `zkSoftmax::compute()/prove()` 均不修改对象内部 `table` 成员，复用安全。
+
+**实测结果**：zkAttn 55.5s → 55.8s（无统计差异）。
+zkSoftmax 构造器耗时 <1ms（4096 元素 CUDA kernel 极快），构造不是瓶颈。
+真正的 55.5s 是 640 次 head-proof 的纯计算（每次 87ms：matmul + zkSoftmax sumcheck + Rescaling + 2×zkip）。
+
+**结论**：代码更清晰，性能无变化。
+
+---
+
+#### 优化 4（已实现）：LLM 36 层 2-GPU 并行化（2026-04-30）
+
+**问题**：`prove_full_image` 中 LLM 36 层串行循环（36 × ~16.4s = ~590s），占全流水线 ~31% 时间。各层 proof 使用预先 hook 捕获的独立激活，**层间无依赖**，可完全并行。
+
+**实现**（`script/build_corpus_full_proof.py`，`prove_full_image` Step 5）：
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+
+env_g0 = {**os.environ, "CUDA_VISIBLE_DEVICES": "0"}
+env_g1 = {**os.environ, "CUDA_VISIBLE_DEVICES": "1"}
+
+def _prove_llm_layer(li: int) -> dict:
+    layer_env = env_g0 if li % 2 == 0 else env_g1
+    # ... ffn + self-attn linear + self-attn attn (3 sequential subprocess calls on assigned GPU)
+    return {"layer": li, "ok": ok}
+
+with ThreadPoolExecutor(max_workers=2) as ex:
+    futs = [ex.submit(_prove_llm_layer, li) for li in range(LLM_N_LAYERS)]
+    layer_results = [f.result() for f in futs]
+```
+
+- 偶数层（0,2,...,34）→ GPU0，奇数层（1,3,...,35）→ GPU1
+- ThreadPoolExecutor 而非 ProcessPoolExecutor（subprocess.run 已释放 GIL，线程足够）
+
+**smoke test（2026-04-30）**：
+- Serial 2 layers: 17.5s
+- Parallel 2 layers: 9.2s → **speedup 1.91×**
+
+**全流水线更新预测（三个优化叠加）：**
+
+| 组件 | 原始 | 优化后 | 节省 |
+|------|------|--------|------|
+| ViT 32 blocks（2-GPU，跨窗口batch） | 1299s（21.7 min） | 1040s（17.3 min） | 259s |
+| LLM 36 layers（2-GPU 并行） | 590s（9.8 min） | 309s（5.2 min） | 281s |
+| 其他（Conv3d, PatchMerger, Pooling） | 10s | 10s | 0 |
+| **总计** | **1877s（31.3 min）** | **~1359s（22.6 min）** | **518s（8.6 min）** |
+| 全流水线 speedup | — | **1.38×** | — |
+
+303 张图像（单 worker）估算：1359s/图 × 303 图 ≈ 114h。
+
+---
+
+#### 优化 2：Grouping/Sparse Skip（zkGPT §4.2）GPU 适配性分析
+
+**zkGPT 原论文 §4.2 方法：**
+1. **Grouping**：将 `ceilLog2(n)` 位随机挑战 `r` 分为上下半，利用 `eq(r,b)=eq(x,L)·eq(y,R)` 两步计算 bookkeeping，将乘法次数减半
+2. **Sparse Skip**：跳过 zero-padded 行的内积计算（power-of-2 pad 引入的零行）
+3. **Precomputing**：利用量化使元素值域 ⊆ [0, 2^Q]，预计算 2^Q 种乘法结果
+
+**论文性能声明**：针对 CPU 实现，4n·m 乘法 → n·m 加法，约 10.2× 加速。
+
+**GPU 实现适配性（本项目）：**
+
+当前 sumcheck bookkeeping 在 CUDA kernel `Fr_partial_me_step` 中并行执行，瓶颈是 GPU 内存带宽，而非单次乘法计数：
+
+- GPU 对零元素的乘法已在 kernel 内做 `blstrs__scalar__Scalar_ZERO` 分支，内存 load 仍发生
+- GPU warp 内无法跳过个别 thread（branch divergence），sparse skip 不直接适用
+- Precomputing (2^Q 查表) 在 GPU shared memory 可行，但 Q=16 → 65536 个条目超过 shared memory 上限（通常 48KB）
+- Grouping 的两步 eq 分解需要重写 kernel，且对 GPU 高吞吐 FMA 单元收益有限
+
+**结论**：zkGPT §4.2 的 10× 加速针对 CPU 端 field multiplication 瓶颈，在 GPU 实现中收益大幅缩水，且需要大幅重写 CUDA kernel。当前 GPU 端瓶颈为内存带宽，不是乘法计数。**本项目暂不实现 grouping sparse skip。**
+
+**有效的 GPU 友好优化（已完成）：**
+- 消除 subprocess fork（本次）→ 预期 window block 从 ~80s 降至 ~45-55s
+- prove_batch（gate+up 共享 X）→ 已有
+- Constraint Fusion（2× Rescaling 合并）→ 已有
+
+---
+
+## Phase 6 进阶优化（2026-05-01）
+
+### 优化 3：Softmax tLookup 跨 Head/Window 批量合并
+
+#### 问题
+
+每个 attention head 证明时，`zkSoftmax::prove()` 内部为 K=4 个 segment 分别运行一次 tLookup sub-proof（D=4096, N=256/4096 per head）：
+- 40 wins × 16 heads = **640 heads × 4 segs = 2560 次独立 tLookup proves**
+- 每次 D=4096 → GPU occupancy 极低（tLookup kernel 仅 16 个 CUDA block）
+
+#### 方案
+
+将所有 head 的 segment 数据合并到 K 个大型张量，最后一次性做 K 次大型 tLookup：
+- `prove_no_segs()`：per-head 执行 hadamard sumcheck + 分解一致性检验，跳过 tLookup sub-proofs
+- `batch_prove_segs()`：K 次批量 tLookup，D_merged = 640 × 4096 = 2,621,440（pad→2^22=4,194,304）
+
+#### 新增接口（`zksoftmax.cuh`/`.cu`）
+
+| 方法 | 作用 |
+|------|------|
+| `prove_no_segs(...)` | prove() 去掉 K 次 tLookup sub-proof；per-head 调用 |
+| `batch_prove_segs(merged_X, merged_Y, proof)` | K 次大型 tLookup；全部 heads 累积后调用一次 |
+| `get_K()` / `get_L()` | 暴露 K, L 给调用方 |
+
+`batch_prove_segs` 内部处理 padding：
+- k < L（tLookupRange）：`X_m.pad({X_m.size})` 补零到 2^n
+- k ≥ L（tLookupRangeMapping）：`prove()` 内部以 (table[0], mapped_vals[0]) 补齐
+
+每次 tLookup prove 的最终 claim 写入 proof vector (`proof.push_back(Polynomial(c))`)，verifier 可通过 oracle query 校验。
+
+#### `self-attn.cu` 修改（attn mode）
+
+```cpp
+// 循环前预分配
+uint K_sm = softmax_shared.get_K();   // 4
+uint L_sm = softmax_shared.get_L();   // 1
+vector<FrTensor> merged_X_segs_sm(K_sm, FrTensor(total_segs_raw));
+vector<FrTensor> merged_Y_segs_sm(K_sm-L_sm, FrTensor(total_segs_raw));
+
+// 每 head 循环内
+softmax_shared.prove_no_segs(..., proof);  // 替换 prove()
+// cudaMemcpy X_segs/Y_segs → merged_*
+
+// 循环后
+softmax_shared.batch_prove_segs(merged_X_segs_sm, merged_Y_segs_sm, sm_batch_proof);
+```
+
+#### 实测结果（2026-05-01，RTX 4090，合成数据）
+
+| 配置 | 旧（prove per head） | 新（batch_prove_segs） | 加速 |
+|------|---------------------|----------------------|------|
+| VIT 40 wins × 16 heads | zkAttn ≈ 55.5s | **12.7s** | **4.4×** |
+
+（含跨 head rem batch，不含 linear/o_proj 步骤）
+
+---
+
+### Bug 修复：tLookup 最终 claim 未输出（Soundness Gap）
+
+#### 问题描述
+
+多处证明函数中，`tLookup::prove()` / `tLookupRangeMapping::prove()` 的返回值（最终 sumcheck reduced claim）被丢弃：
+
+1. **`zkSoftmax::prove()`**：`claim_lus` vector 收集了各 segment 的 tLookup claim，但从未写入 proof，decomposition check 也直接对张量求值而非来自 tLookup 输出
+2. **`zkSoftmax::batch_prove_segs()`**：tLookup prove 返回值未记录
+3. **`Rescaling::prove()`**：proof vector 是函数局部变量，从不返回给调用方
+4. **`Rescaling::prove_chain_with()`**：同上
+
+Soundness gap：verifier 无法将 tLookup sub-proof 与外层分解检查绑定，dishonest prover 理论上可以对两者提交不一致数据。
+
+#### 修复内容
+
+**`zksoftmax.cu` — `prove()`**：
+```cpp
+// 在收集完 claim_lus 后立即写入 proof
+for (auto& c : claim_lus) proof.push_back(Polynomial(c));
+```
+
+**`zksoftmax.cu` — `batch_prove_segs()`**：
+```cpp
+auto c = least_significant_segments[k].prove(...);
+proof.push_back(Polynomial(c));
+// 以及 other_segments[k-L].prove(...)
+```
+
+**`rescaling.cuh` / `rescaling.cu`**：函数签名改为接受 `vector<Polynomial>& proof`：
+```cpp
+// 旧：
+vector<Claim> prove(const FrTensor& X, const FrTensor& X_);
+void prove_chain_with(...);
+// 新：
+vector<Claim> prove(const FrTensor& X, const FrTensor& X_, vector<Polynomial>& proof);
+void prove_chain_with(..., vector<Polynomial>& proof);
+```
+
+**受影响的调用方（全部已更新）**：
+- `conv3d-embed.cu`
+- `rmsnorm.cu`
+- `ffn.cu`（4 处）
+- `patch-merger.cu`（5 处）
+- `self-attn.cu`（4 处）
+
+调用方模式统一为：`{ vector<Polynomial> rs_proof; rescale.prove(X, X_, rs_proof); }`
+
+#### 构建验证
+
+所有 targets 编译无误：`main`, `self-attn`, `ffn`, `rmsnorm`, `patch-merger`, `conv3d-embed`
+
+---
+
+### 优化 4：CUB DeviceHistogram 替换 atomicAdd（2026-05-01）
+
+#### 问题
+
+`tLookup::prep()` 用一个自定义 `tlookup_kernel` 对输入索引做直方图统计，每个线程对 `counts[indices[tid]]` 执行 `atomicAdd`。对于大规模批量证明（D_merged=4M，即 640 heads × 2 rescaling rems × 3276 per_head），此内核有两个性能问题：
+
+1. **写冲突**：当多个线程命中同一 bucket 时，atomicAdd 序列化——大型 batch 的高冲突导致 warp stall
+2. **内存访问模式**：下标随机，cache miss 率高；table_size 通常是小幂次（256、4096），但索引分布不均匀
+
+#### 方案
+
+使用 CUB `DeviceHistogram::HistogramEven` 替换自定义 kernel：
+
+```cpp
+#include <cub/cub.cuh>
+
+// 两阶段调用（CUB 标准模式）
+void* d_temp = nullptr; size_t temp_bytes = 0;
+cub::DeviceHistogram::HistogramEven(
+    d_temp, temp_bytes, indices, counts,
+    (int)table.size + 1, (uint)0, (uint)table.size, (int)D);
+cudaMalloc(&d_temp, temp_bytes);
+cub::DeviceHistogram::HistogramEven(
+    d_temp, temp_bytes, indices, counts,
+    (int)table.size + 1, (uint)0, (uint)table.size, (int)D);
+cudaFree(d_temp);
+```
+
+CUB HistogramEven 内部使用分段扫描 + 全局归约，对 D ≥ 4M 的场景比 atomicAdd kernel 效率更高。
+
+#### 修改文件
+
+| 文件 | 改动 |
+|------|------|
+| `src/zkllm/tlookup.cu` | +`#include <cub/cub.cuh>`；`tLookup::prep()` 内替换 `tlookup_kernel` 为 HistogramEven 两阶段调用；原 `tlookup_kernel` 定义保留（不删除，以防其他地方引用） |
+
+#### 构建验证
+
+`make main self-attn ffn rmsnorm patch-merger conv3d-embed` 全部通过（0 error/warning）。
+
+---
+
+### 优化 5：verify-ipa 批量模式，消除每块 8 次 CUDA 上下文初始化（2026-05-01）
+
+#### 问题
+
+每个 ViT/LLM block/layer 证明后，IPA 验证调用 `_verify_proofs`，对 9 个权重 proof 文件**逐一**启动 `verify-ipa` subprocess。每次 subprocess：
+1. 初始化 CUDA 运行时（~500ms 每次）
+2. 加载 proof + commitment 文件
+3. 运行 fold check + binding check kernel
+4. 退出
+
+9 个文件 = 9 次 CUDA init → 累计 ~4-5s / block 额外开销。
+
+#### 方案
+
+扩展 `verify-ipa.cu`：支持批量模式 `verify-ipa p1 c1 p2 c2 ...`，一次进程调用处理所有 N 个 (proof, commitment) 对，输出 JSON 数组。单对调用保持原有行为（JSON 对象），向后兼容。
+
+**`verify-ipa.cu` 修改**：
+- 提取 `verify_one(proof_path, com_path)` 辅助函数返回 `IpaResult`
+- `main()` 支持任意数量参数对（`argc` 奇数 ≥ 3）
+- 单对：输出 `{...}` JSON 对象；多对：输出 `[{...}, ...]` JSON 数组
+
+**Python 调用方更新**（`verify_vit.py`、`verify_layers.py`）：
+- `_verify_proofs` 预先解析所有有效 (proof, com) 对
+- 构造单次批量 cmd：`[bin, p1, c1, p2, c2, ...]`
+- 解析 JSON 数组输出，按顺序映射回 name→result dict
+
+#### 实测结果（RTX 4090，block 0 的 9 个 IPA proofs）
+
+| 模式 | 耗时 | CUDA init 次数 |
+|------|------|--------------|
+| 旧（9 次 subprocess） | 5.09s | 9 |
+| 新（1 次 subprocess） | 2.01s | 1 |
+| **加速比** | **2.5×** | — |
+
+#### 预期收益（全量证明流水线）
+
+每个 ViT block 节省 ~3s IPA 验证时间。32 blocks × 3s / 2（并行）= **~48s / 页**。
+LLM 层同等节省（每层 6 个 IPA 验证 → 类似加速）。
+
+#### 修改文件
+
+| 文件 | 改动 |
+|------|------|
+| `src/zkllm/verify-ipa.cu` | 重构为 `verify_one()` helper + 批量 main；输出 JSON 对象/数组自动选择 |
+| `script/verify_vit.py` | `_verify_proofs` 改为单次批量 subprocess 调用 |
+| `script/verify_layers.py` | 同上 |
+

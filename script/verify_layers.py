@@ -190,7 +190,8 @@ def _run(cmd: list, cwd: str, gpu_id: int = 0) -> tuple:
 
 
 def _verify_proofs(proof_paths: list, gpu_id: int = 0) -> dict:
-    """对一组 proof 文件执行 IPA 验证（C++ GPU binary），返回 {name: {fold_ok, binding_ok}}。"""
+    """对一组 proof 文件执行批量 IPA 验证（一次 subprocess 调用）。"""
+    valid   = []   # [(name, proof_path, com_path)]
     results = {}
     for name, path in proof_paths:
         if not Path(path).exists():
@@ -201,10 +202,39 @@ def _verify_proofs(proof_paths: list, gpu_id: int = 0) -> dict:
             results[name] = {"fold_ok": None, "binding_ok": None,
                              "error": "commitment not found"}
             continue
-        try:
-            results[name] = verify_ipa_cpp(path, com_path, gpu_id=gpu_id)
-        except Exception as e:
-            results[name] = {"fold_ok": False, "binding_ok": False, "error": str(e)}
+        valid.append((name, path, com_path))
+
+    if not valid:
+        return results
+
+    bin_path = BIN_DIR / "verify-ipa"
+    if not bin_path.exists():
+        for name, path, com_path in valid:
+            try:
+                results[name] = verify_ipa_python(path, com_path)
+            except Exception as e:
+                results[name] = {"fold_ok": False, "binding_ok": False, "error": str(e)}
+        return results
+
+    # Batch: one subprocess → one CUDA context for all N proofs.
+    cmd = [str(bin_path)]
+    for _, path, com_path in valid:
+        cmd += [path, com_path]
+    try:
+        r = subprocess.run(cmd, capture_output=True,
+                           env={**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)})
+        out = r.stdout.decode().strip()
+        parsed = json.loads(out)
+        if len(valid) == 1:
+            for name, _, _ in valid:
+                results[name] = parsed
+        else:
+            for (name, _, _), item in zip(valid, parsed):
+                results[name] = item
+    except Exception as e:
+        err = str(e)
+        for name, _, _ in valid:
+            results[name] = {"fold_ok": False, "binding_ok": False, "error": err}
     return results
 
 

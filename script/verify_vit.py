@@ -63,23 +63,49 @@ _P_FR    = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
 
 # ── Window Attention 拆分工具 ────────────────────────────────────────────────
 
-def _split_qkv_for_windows(vit_wd: Path, prefix: str) -> bool:
-    """把 linear 步骤写出的全序列 temp_Q/K/V (1024×dim) 拆成 16 个 64×dim 窗口文件。
-    每个窗口写到 {prefix}-win{w}-temp_Q/K/V.bin，供 attn 模式按 win_prefix 读取。
+def _split_qkv_for_windows(vit_wd: Path, prefix: str,
+                            n_real: int = SEQ_LEN, n_wins: int = NUM_WINS) -> bool:
+    """把 linear 步骤写出的全序列 temp_Q/K/V 拆成 n_wins 个 WIN_SEQ×dim 窗口文件。
+    最后一个窗口如不足 WIN_SEQ 则零填充，保证每窗口文件大小一致（64²=2^12 满足 NTT）。
     """
     q_src = vit_wd / f"{prefix}-temp_Q.bin"
     if not q_src.exists():
         return False
-    Q = np.fromfile(str(q_src),               dtype=np.int32).reshape(SEQ_LEN, VIT_HIDDEN)
-    K = np.fromfile(str(vit_wd/f"{prefix}-temp_K.bin"), dtype=np.int32).reshape(SEQ_LEN, VIT_HIDDEN)
-    V = np.fromfile(str(vit_wd/f"{prefix}-temp_V.bin"), dtype=np.int32).reshape(SEQ_LEN, VIT_HIDDEN)
-    for w in range(NUM_WINS):
-        sl = slice(w * WIN_SEQ, (w + 1) * WIN_SEQ)
+    Q = np.fromfile(str(q_src),               dtype=np.int32).reshape(n_real, VIT_HIDDEN)
+    K = np.fromfile(str(vit_wd/f"{prefix}-temp_K.bin"), dtype=np.int32).reshape(n_real, VIT_HIDDEN)
+    V = np.fromfile(str(vit_wd/f"{prefix}-temp_V.bin"), dtype=np.int32).reshape(n_real, VIT_HIDDEN)
+    for w in range(n_wins):
+        sl = slice(w * WIN_SEQ, min((w + 1) * WIN_SEQ, n_real))
+        chunk_q, chunk_k, chunk_v = Q[sl], K[sl], V[sl]
+        if chunk_q.shape[0] < WIN_SEQ:
+            pad = WIN_SEQ - chunk_q.shape[0]
+            chunk_q = np.vstack([chunk_q, np.zeros((pad, VIT_HIDDEN), np.int32)])
+            chunk_k = np.vstack([chunk_k, np.zeros((pad, VIT_HIDDEN), np.int32)])
+            chunk_v = np.vstack([chunk_v, np.zeros((pad, VIT_HIDDEN), np.int32)])
         wp = f"{prefix}-win{w}"
-        Q[sl].tofile(str(vit_wd / f"{wp}-temp_Q.bin"))
-        K[sl].tofile(str(vit_wd / f"{wp}-temp_K.bin"))
-        V[sl].tofile(str(vit_wd / f"{wp}-temp_V.bin"))
+        chunk_q.tofile(str(vit_wd / f"{wp}-temp_Q.bin"))
+        chunk_k.tofile(str(vit_wd / f"{wp}-temp_K.bin"))
+        chunk_v.tofile(str(vit_wd / f"{wp}-temp_V.bin"))
     return True
+
+
+def _get_seq_params(h_in_path: Path, block_idx: int):
+    """h_in 文件大小 → (n_real, seq_use, n_wins)。
+
+    window 块：seq_use = n_real，n_wins = ceil(n_real / WIN_SEQ)
+    full-attn 块：seq_use = 下一个 2^k ≥ n_real（供 zkAttn NTT），n_wins = 1
+    文件不存在时（随机数模式）回退到 (SEQ_LEN, SEQ_LEN, NUM_WINS)。
+    """
+    if not h_in_path.exists() or h_in_path.stat().st_size == 0:
+        return SEQ_LEN, SEQ_LEN, NUM_WINS
+    n_real = h_in_path.stat().st_size // 4 // VIT_HIDDEN
+    if block_idx in FULL_ATT_BLOCKS:
+        pad = 1
+        while pad < n_real:
+            pad <<= 1
+        return n_real, pad, 1
+    n_wins = (n_real + WIN_SEQ - 1) // WIN_SEQ
+    return n_real, n_real, n_wins
 
 
 # ── IPA 验证工具 ──────────────────────────────────────────────────────────────
@@ -189,6 +215,8 @@ def _run(cmd, cwd, gpu_id=0, env=None):
 
 
 def _verify_proofs(proof_specs, workdir: Path, gpu_id: int = 0):
+    # Resolve commitment paths and separate out missing files up front.
+    valid   = []   # [(name, proof_path, com_path)]
     results = {}
     for name, path in proof_specs:
         if not Path(path).exists():
@@ -202,10 +230,42 @@ def _verify_proofs(proof_specs, workdir: Path, gpu_id: int = 0):
             results[name] = {"fold_ok": None, "binding_ok": None,
                              "error": "commitment not found"}
             continue
-        try:
-            results[name] = verify_ipa_cpp(path, com_path, gpu_id=gpu_id)
-        except Exception as e:
-            results[name] = {"fold_ok": False, "binding_ok": False, "error": str(e)}
+        valid.append((name, path, com_path))
+
+    if not valid:
+        return results
+
+    bin_path = BIN_DIR / "verify-ipa"
+    if not bin_path.exists():
+        # Fallback: individual Python verification
+        for name, path, com_path in valid:
+            try:
+                results[name] = verify_ipa_python(path, com_path)
+            except Exception as e:
+                results[name] = {"fold_ok": False, "binding_ok": False, "error": str(e)}
+        return results
+
+    # Batch call: verify-ipa proof1 com1 proof2 com2 ...
+    # One subprocess → one CUDA context init for all N proofs.
+    cmd = [str(bin_path)]
+    for _, path, com_path in valid:
+        cmd += [path, com_path]
+    try:
+        r = subprocess.run(cmd, capture_output=True,
+                           env={**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)})
+        out = r.stdout.decode().strip()
+        if len(valid) == 1:
+            parsed = json.loads(out)           # single object
+            for name, _, _ in valid:
+                results[name] = parsed
+        else:
+            parsed = json.loads(out)           # JSON array
+            for (name, _, _), item in zip(valid, parsed):
+                results[name] = item
+    except Exception as e:
+        err = str(e)
+        for name, _, _ in valid:
+            results[name] = {"fold_ok": False, "binding_ok": False, "error": err}
     return results
 
 
@@ -259,20 +319,29 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
     wd = str(vit_wd)
 
     # 激活文件放在 vit_wd 中（有 prefix，不与 LLM 冲突）
-    h_in  = vit_wd / f"{prefix}-h_in.bin"
-    h_mid = vit_wd / f"{prefix}-h_mid.bin"
-    h_out = vit_wd / f"{prefix}-h_out.bin"
-    tmp_a = vit_wd / f"{prefix}-tmp_a.bin"
-    tmp_b = vit_wd / f"{prefix}-tmp_b.bin"
+    h_in_raw = vit_wd / f"{prefix}-h_in.bin"
+    h_mid    = vit_wd / f"{prefix}-h_mid.bin"
+    h_out    = vit_wd / f"{prefix}-h_out.bin"
+    tmp_a    = vit_wd / f"{prefix}-tmp_a.bin"
+    tmp_b    = vit_wd / f"{prefix}-tmp_b.bin"
 
-    _make_input(h_in, SEQ_LEN, VIT_HIDDEN)
+    _make_input(h_in_raw, SEQ_LEN, VIT_HIDDEN)  # 仅在文件缺失时写入（随机数模式）
+    n_real, seq_use, n_wins = _get_seq_params(h_in_raw, block_idx)
+
+    # full-attn 块：将 h_in 零填充至 seq_use（下一个 2^k），满足 zkAttn NTT 约束
+    if block_idx in FULL_ATT_BLOCKS and seq_use > n_real:
+        _X = np.fromfile(str(h_in_raw), dtype=np.int32).reshape(n_real, VIT_HIDDEN)
+        h_in = vit_wd / f"{prefix}-h_in_padded.bin"
+        np.vstack([_X, np.zeros((seq_use - n_real, VIT_HIDDEN), np.int32)]).tofile(str(h_in))
+    else:
+        h_in = h_in_raw
 
     # Step 1: input_layernorm (norm1)
     rms_inv_pre = vit_wd / f"{prefix}-rms_inv_pre.bin"
-    _rms_inv(h_in, rms_inv_pre, SEQ_LEN, VIT_HIDDEN)
+    _rms_inv(h_in, rms_inv_pre, seq_use, VIT_HIDDEN)
     t0 = time.perf_counter()
     rc, err = _run([str(BIN_DIR / "rmsnorm"), "input",
-                    str(h_in), str(SEQ_LEN), str(VIT_HIDDEN),
+                    str(h_in), str(seq_use), str(VIT_HIDDEN),
                     wd, prefix, str(tmp_a), str(rms_inv_pre)], cwd, gpu_id)
     step_ms["rmsnorm_pre"] = round((time.perf_counter()-t0)*1000)
     step_rc["rmsnorm_pre"] = rc
@@ -283,7 +352,7 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
     # Step 2: self-attn linear (MHA: kv_dim=1280, num_kv_heads=16)
     t0 = time.perf_counter()
     rc, err = _run([str(BIN_DIR / "self-attn"), "linear",
-                    str(attn_in), str(SEQ_LEN), str(VIT_HIDDEN),
+                    str(attn_in), str(seq_use), str(VIT_HIDDEN),
                     wd, prefix, str(tmp_b), str(VIT_HIDDEN)], cwd, gpu_id)
     step_ms["attn_linear"] = round((time.perf_counter()-t0)*1000)
     step_rc["attn_linear"] = rc
@@ -291,27 +360,25 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
         print(f"    [Step2 FAIL] {err[-300:]}", file=sys.stderr)
 
     # Step 3: zkAttn
-    # Window blocks (not in FULL_ATT_BLOCKS): tokens already in window order after
-    # jina-v4's get_window_index reordering → split Q/K/V into 16×seq=64 windows,
-    # run attn binary 16 times.  Full Attention blocks: single seq=1024 call.
+    # Window 块：cross-window batch — split Q/K/V into n_wins window files, then call
+    # self-attn attn ONCE with n_wins arg; binary loops internally, eliminating
+    # per-window subprocess fork / CUDA context re-init overhead.
+    # Full-attn 块：single call, seq = seq_use (padded to next power-of-2).
     t0 = time.perf_counter()
     if block_idx not in FULL_ATT_BLOCKS:
-        _split_qkv_for_windows(vit_wd, prefix)
-        rcs_win = []
-        for w in range(NUM_WINS):
-            win_pfx = f"{prefix}-win{w}"
-            rc_w, err_w = _run([str(BIN_DIR / "self-attn"), "attn",
-                                str(attn_in), str(WIN_SEQ), str(VIT_HIDDEN),
-                                wd, win_pfx, str(tmp_b),
-                                str(VIT_HIDDEN), str(VIT_KV_HEADS)], cwd, gpu_id)
-            rcs_win.append(rc_w)
-            if rc_w != 0:
-                print(f"    [Step3 win{w} FAIL] {err_w[-200:]}", file=sys.stderr)
-                break  # 一旦失败立即停止，避免浪费时间
-        rc = 0 if all(r == 0 for r in rcs_win) else 1
+        _split_qkv_for_windows(vit_wd, prefix, n_real, n_wins)
+        rc, err = _run([str(BIN_DIR / "self-attn"), "attn",
+                        str(attn_in), str(WIN_SEQ), str(VIT_HIDDEN),
+                        wd, prefix, str(tmp_b),
+                        str(VIT_HIDDEN), str(VIT_KV_HEADS),
+                        "0", str(VIT_KV_HEADS),   # g_start, g_end (all heads)
+                        str(n_wins)],              # cross-window batch
+                       cwd, gpu_id)
+        if rc != 0:
+            print(f"    [Step3 win-batch FAIL] {err[-300:]}", file=sys.stderr)
     else:
         rc, err = _run([str(BIN_DIR / "self-attn"), "attn",
-                        str(attn_in), str(SEQ_LEN), str(VIT_HIDDEN),
+                        str(attn_in), str(seq_use), str(VIT_HIDDEN),
                         wd, prefix, str(tmp_b),
                         str(VIT_HIDDEN), str(VIT_KV_HEADS)], cwd, gpu_id)
         if rc != 0:
@@ -322,7 +389,7 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
     # Step 4: o_proj
     t0 = time.perf_counter()
     rc, err = _run([str(BIN_DIR / "self-attn"), "o_proj",
-                    str(attn_in), str(SEQ_LEN), str(VIT_HIDDEN),
+                    str(attn_in), str(seq_use), str(VIT_HIDDEN),
                     wd, prefix, str(tmp_b)], cwd, gpu_id)
     step_ms["o_proj"] = round((time.perf_counter()-t0)*1000)
     step_rc["o_proj"] = rc
@@ -338,10 +405,10 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
 
     # Step 6: post_attention_layernorm (norm2)
     rms_inv_post = vit_wd / f"{prefix}-rms_inv_post.bin"
-    _rms_inv(h_mid, rms_inv_post, SEQ_LEN, VIT_HIDDEN)
+    _rms_inv(h_mid, rms_inv_post, seq_use, VIT_HIDDEN)
     t0 = time.perf_counter()
     rc, err = _run([str(BIN_DIR / "rmsnorm"), "post_attention",
-                    str(h_mid), str(SEQ_LEN), str(VIT_HIDDEN),
+                    str(h_mid), str(seq_use), str(VIT_HIDDEN),
                     wd, prefix, str(tmp_a), str(rms_inv_post)], cwd, gpu_id)
     step_ms["rmsnorm_post"] = round((time.perf_counter()-t0)*1000)
     step_rc["rmsnorm_post"] = rc
@@ -351,7 +418,7 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
     # Step 7: FFN (SwiGLU，复用 swiglu-table.bin from CWD)
     t0 = time.perf_counter()
     rc, err = _run([str(BIN_DIR / "ffn"),
-                    str(tmp_a), str(SEQ_LEN), str(VIT_HIDDEN), str(VIT_INTER),
+                    str(tmp_a), str(seq_use), str(VIT_HIDDEN), str(VIT_INTER),
                     wd, prefix, str(tmp_b)], cwd, gpu_id)
     step_ms["ffn"] = round((time.perf_counter()-t0)*1000)
     step_rc["ffn"] = rc
@@ -383,13 +450,15 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
         ], workdir=workdir, gpu_id=gpu_id)
 
     # 清理激活和临时文件（不删 symlinks/proof files）
-    for p in [h_in, h_mid, h_out, tmp_a, tmp_b, rms_inv_pre, rms_inv_post]:
+    for p in [h_in_raw, h_mid, h_out, tmp_a, tmp_b, rms_inv_pre, rms_inv_post]:
         p.unlink(missing_ok=True)
+    if h_in != h_in_raw:          # full-attn 时创建的 h_in_padded
+        h_in.unlink(missing_ok=True)
     for suf in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
         (vit_wd / f"{prefix}-{suf}").unlink(missing_ok=True)
-    # 清理 window 临时 Q/K/V 文件
+    # 清理 window 临时 Q/K/V 文件（n_wins 个，动态，不再硬编码 16）
     if block_idx not in FULL_ATT_BLOCKS:
-        for w in range(NUM_WINS):
+        for w in range(n_wins):
             for suf in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
                 (vit_wd / f"{prefix}-win{w}-{suf}").unlink(missing_ok=True)
 

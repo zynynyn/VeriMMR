@@ -121,21 +121,19 @@ KERNEL void ipa_fold_kernel(G1Jacobian_t C_init,
     *result = z_zero;
 }
 
-// ── main ─────────────────────────────────────────────────────────────────────
-int main(int argc, char* argv[])
-{
-    if (argc < 3) {
-        cerr << "Usage: verify-ipa <proof_file> <commitment_file>" << endl;
-        return 2;
-    }
+// ── Single-proof verify helper ───────────────────────────────────────────────
+struct IpaResult { bool fold_ok; bool binding_ok; bool parse_err; };
 
-    // ── Read proof file ──────────────────────────────────────────────────────
-    ifstream f(argv[1], ios::binary);
-    if (!f) { cerr << "Cannot open: " << argv[1] << endl; return 2; }
+IpaResult verify_one(const char* proof_path, const char* com_path_str)
+{
+    IpaResult res{false, false, false};
+
+    ifstream f(proof_path, ios::binary);
+    if (!f) { res.parse_err = true; return res; }
 
     uint32_t magic, k, com_log;
     f.read(reinterpret_cast<char*>(&magic), 4);
-    if (magic != 0x49504100u) { cerr << "Bad magic in " << argv[1] << endl; return 2; }
+    if (magic != 0x49504100u) { res.parse_err = true; return res; }
     f.read(reinterpret_cast<char*>(&k), 4);
     f.read(reinterpret_cast<char*>(&com_log), 4);
 
@@ -157,14 +155,13 @@ int main(int argc, char* argv[])
     f.read(reinterpret_cast<char*>(&w_final), sizeof(Fr_t));
     f.close();
 
-    // ── Binding check ────────────────────────────────────────────────────────
-    // Evaluate the commitment's G1 MLE at u_out using raw bits (matches Python).
-    string com_path(argv[2]);
-    G1TensorJacobian com(com_path);
+    // Binding check
+    string com_str(com_path_str);
+    G1TensorJacobian com(com_str);
     G1Jacobian_t C_expected = (com_log == 0) ? com(0u) : g1_mle_raw(com, u_out);
-    bool binding_ok = h_g1_eq(C_init, C_expected);
+    res.binding_ok = h_g1_eq(C_init, C_expected);
 
-    // ── Fold check ───────────────────────────────────────────────────────────
+    // Fold check
     G1Jacobian_t *d_L0s, *d_L1s;
     Fr_t *d_u_in;
     bool *d_fold_ok;
@@ -179,14 +176,42 @@ int main(int argc, char* argv[])
     ipa_fold_kernel<<<1, 1>>>(C_init, d_L0s, d_L1s, d_u_in, g_final, w_final, d_fold_ok, k);
     cudaDeviceSynchronize();
 
-    bool fold_ok;
-    cudaMemcpy(&fold_ok, d_fold_ok, sizeof(bool), cudaMemcpyDeviceToHost);
-
+    cudaMemcpy(&res.fold_ok, d_fold_ok, sizeof(bool), cudaMemcpyDeviceToHost);
     cudaFree(d_L0s); cudaFree(d_L1s); cudaFree(d_u_in); cudaFree(d_fold_ok);
+    return res;
+}
 
-    // ── Output ───────────────────────────────────────────────────────────────
-    cout << "{\"fold_ok\":" << (fold_ok ? "true" : "false")
-         << ",\"binding_ok\":" << (binding_ok ? "true" : "false") << "}" << endl;
+// ── main ─────────────────────────────────────────────────────────────────────
+// Single mode:  verify-ipa <proof> <com>
+// Batch mode:   verify-ipa <proof1> <com1> <proof2> <com2> ...
+//   Batch outputs a JSON array; single outputs a JSON object.
+//   Batch exit code: 0 if ALL pass, 1 if any fail, 2 on usage error.
+int main(int argc, char* argv[])
+{
+    if (argc < 3 || (argc % 2) == 0) {
+        cerr << "Usage: verify-ipa <proof> <com> [<proof2> <com2> ...]" << endl;
+        return 2;
+    }
 
-    return (fold_ok && binding_ok) ? 0 : 1;
+    int n_pairs = (argc - 1) / 2;
+    bool batch  = (n_pairs > 1);
+    bool all_ok = true;
+
+    if (batch) cout << "[";
+    for (int i = 0; i < n_pairs; ++i) {
+        auto r = verify_one(argv[1 + 2*i], argv[2 + 2*i]);
+        if (batch && i > 0) cout << ",";
+        if (r.parse_err) {
+            cout << "{\"fold_ok\":false,\"binding_ok\":false,\"error\":\"parse\"}";
+            all_ok = false;
+        } else {
+            cout << "{\"fold_ok\":" << (r.fold_ok ? "true" : "false")
+                 << ",\"binding_ok\":" << (r.binding_ok ? "true" : "false") << "}";
+            if (!r.fold_ok || !r.binding_ok) all_ok = false;
+        }
+    }
+    if (batch) cout << "]";
+    cout << endl;
+
+    return all_ok ? 0 : 1;
 }

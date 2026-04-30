@@ -1,5 +1,6 @@
 #include "tlookup.cuh"
 #include "proof.cuh"
+#include <cub/cub.cuh>
 
 // Some utils
 
@@ -32,7 +33,18 @@ FrTensor tLookup::prep(const uint* indices, const uint D){
     cudaMalloc((void **)&counts, sizeof(uint) * table.size);
     cudaMemset(counts, 0, sizeof(uint) * table.size); // cnm
 
-    tlookup_kernel<<<(D+FrNumThread-1)/FrNumThread,FrNumThread>>>(indices, D, counts);
+    {
+        void*  d_temp      = nullptr;
+        size_t temp_bytes  = 0;
+        cub::DeviceHistogram::HistogramEven(
+            d_temp, temp_bytes, indices, counts,
+            (int)table.size + 1, (uint)0, (uint)table.size, (int)D);
+        cudaMalloc(&d_temp, temp_bytes);
+        cub::DeviceHistogram::HistogramEven(
+            d_temp, temp_bytes, indices, counts,
+            (int)table.size + 1, (uint)0, (uint)table.size, (int)D);
+        cudaFree(d_temp);
+    }
     cudaDeviceSynchronize();
     
     // //copy counts to cpu_counts
