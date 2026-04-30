@@ -177,7 +177,8 @@ def run_incremental(args):
              "--zac-only",
              "--corpus-jsonl",  args.corpus,
              "--embedding-npy", args.embedding,
-             "--output",        args.zac_output],
+             "--output",        args.zac_output,
+             "--n-filters",     str(args.n_filters)],
             "ZAC 承诺全量重建（集合 S 已扩展）")
         print(f"[ZAC] ⚠️  cm_hex 已更新！请重新通过可信渠道发布新的 ZAC Root！")
     else:
@@ -270,7 +271,8 @@ def run_full(args):
              "--zac-only",
              "--corpus-jsonl",  args.corpus,
              "--embedding-npy", args.embedding,
-             "--output",        args.zac_output],
+             "--output",        args.zac_output,
+             "--n-filters",     str(args.n_filters)],
             "生成 ZAC 语料库承诺（Phase 1）")
         print(f"\n[ZAC] ⚠️  请将 ZAC Root (cm_hex) 通过可信渠道发布")
 
@@ -299,10 +301,12 @@ def main():
     parser.add_argument("--zkllm-workdir", default="zkllm-workdir/jina-v4")
     parser.add_argument("--model-path",    default=DEFAULT_MODEL,
                         help="jina-v4 模型路径（增量模式下用于计算新 embedding）")
-    parser.add_argument("--k-layers",      type=int, default=5,
-                        help="语料库侧证明层数（图像模态推荐 K=5，即层31-35）")
+    parser.add_argument("--k-layers",      type=int, default=36,
+                        help="语料库侧证明层数（全量=36，即全部 LLM decoder 层）")
     parser.add_argument("--incremental",   action="store_true",
                         help="增量模式：仅处理新 PDF，不重算已有部分")
+    parser.add_argument("--n-filters",     type=int, default=1,
+                        help="ZAC 串联 BF 层数（复合 FPR = ε^n，默认 1）")
     parser.add_argument("--skip-corpus",   action="store_true")
     parser.add_argument("--skip-embed",    action="store_true")
     parser.add_argument("--skip-zac",      action="store_true")

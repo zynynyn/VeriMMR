@@ -1,0 +1,13 @@
+开始测试
+zkLLM 完整层验证（8步）— layers [30]
+  步骤: input_layernorm → q/k/v linear → zkAttn → o_proj → skip1
+        → post_attn_layernorm → FFN → skip2
+
+[Layer 30] running 8-step proof pipeline ...
+  Layer 30: ✓ PASS  (17932ms  fold=9/9  binding=9/9)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Layers passed:  1/1
+Total time:     22657ms
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Results: /root/autodl-tmp/UltraRAG/notes/experiment_results/verify_layers.json

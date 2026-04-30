@@ -1,0 +1,158 @@
+============================================================
+C3b 全组件篡改检测率实验
+  组件数  : 23
+  篡改比例: [0.001, 0.01, 0.05]
+  重复次数: 3
+============================================================
+
+[conv3d_embed]  (image)
+  clean     ✓  (748ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b0_mlp.gate_proj]  (image)
+  clean     ✓  (2583ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b0_self_attn.q_proj]  (image)
+  clean     ✓  (1815ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b7_mlp.gate_proj]  (image)
+  clean     ✓  (2615ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b7_self_attn.q_proj]  (image)
+  clean     ✓  (1770ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b15_mlp.gate_proj]  (image)
+  clean     ✓  (2572ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b15_self_attn.q_proj]  (image)
+  clean     ✓  (1802ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b31_mlp.gate_proj]  (image)
+  clean     ✓  (2575ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[vit_b31_self_attn.q_proj]  (image)
+  clean     ✓  (1798ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[patchmerger_fc1]  (image)
+  clean     ✓  (2131ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[patchmerger_fc2]  (image)
+  clean     ✓  (2107ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l0_mlp.gate_proj]  (text)
+  clean     ✓  (4859ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l0_self_attn.q_proj]  (text)
+  clean     ✓  (2308ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l7_mlp.gate_proj]  (text)
+  clean     ✓  (4870ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l7_self_attn.q_proj]  (text)
+  clean     ✓  (2305ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l14_mlp.gate_proj]  (text)
+  clean     ✓  (4839ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l14_self_attn.q_proj]  (text)
+  clean     ✓  (2319ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l21_mlp.gate_proj]  (text)
+  clean     ✓  (4934ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l21_self_attn.q_proj]  (text)
+  clean     ✓  (2294ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l28_mlp.gate_proj]  (text)
+  clean     ✓  (4907ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l28_self_attn.q_proj]  (text)
+  clean     ✓  (2346ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l35_mlp.gate_proj]  (text)
+  clean     ✓  (4860ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+[llm_l35_self_attn.q_proj]  (text)
+  clean     ✓  (2318ms)
+  ratio=0.001   detected=3/3  (100%)
+  ratio=0.01    detected=3/3  (100%)
+  ratio=0.05    detected=3/3  (100%)
+
+============================================================
+汇总
+  正常权重通过率: 23/23
+  篡改总检出率:   207/207  (100.0%)
+  image 检出率:  99/99  (100.0%)
+  text 检出率:  108/108  (100.0%)
+  ratio=0.001  69/69  (100.0%)
+  ratio=0.01  69/69  (100.0%)
+  ratio=0.05  69/69  (100.0%)
+
+总耗时: 828s
+============================================================
+结果已保存: /root/autodl-tmp/UltraRAG/notes/experiment_results/c3b_detection_rate.json

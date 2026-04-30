@@ -1,0 +1,16 @@
+
+[ZAC] Building accumulator ...
+      embeddings : embedding/embedding.npy
+      corpus     : corpora/image.jsonl
+      base_dir   : corpora
+
+[ZAC] Done in 362.81s
+      items      : 303
+      n_filters  : 2
+      ZAC root   : 937b500e02972360a7480114d4850f3227a4fc62f7b410639468d5b6818bcc975eef2c39e34980de1cdc269e14af3b70ac1b19af2f9368393bb726711a98282908c316e0dc38e5212bdef99660929782083c6a7da36c0695733d608b7b54d076  (96 bytes)
+      BF params  : q=2905, k=7
+
+[ZAC] Fingerprint saved    → output/phase1/fingerprint.json
+[ZAC] Prover state saved   → output/phase1/prover_state.json
+[ZAC] Sample membership proof → output/phase1/proof_sample_0.json
+[ZAC] Self-verify proof[0]: FAIL

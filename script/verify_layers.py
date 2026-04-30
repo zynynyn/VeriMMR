@@ -20,11 +20,15 @@ IPA 验证：
 用法：
   cd /root/autodl-tmp/UltraRAG
   python script/verify_layers.py [--layers 30 31 32] [--workdir zkllm-workdir/jina-v4]
+  # Fiat-Shamir 模式（verifier 端重现层选择）：
+  python script/verify_layers.py --challenge-seed <hex64> [--k 6]
 """
 
 import argparse
+import hashlib
 import json
 import os
+import random as _random
 import struct
 import subprocess
 import sys
@@ -49,6 +53,13 @@ _R_FP = pow(2, 384, _P_FP)
 _R_FP_INV = pow(_R_FP, -1, _P_FP)
 _P_FR = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
 RMS_EPS = 1e-6
+
+
+def _fiat_shamir_layers(challenge_hex: str, K: int = 6, total: int = 36) -> list:
+    """从 challenge_hex（SHA256 hex）派生 K 个层索引，与 interactive_demo.py 逻辑一致。"""
+    seed = bytes.fromhex(challenge_hex)
+    rng  = _random.Random(seed)
+    return sorted(rng.sample(range(total), K))
 
 
 # ── IPA proof 解码 ──────────────────────────────────────────────────────────
@@ -359,12 +370,28 @@ def _run_batch(layer_list: list, workdir_str: str, gpu_id: int) -> list:
 def main():
     print("开始测试")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--layers",   nargs="+", type=int, default=[30])
+    parser.add_argument("--layers",         nargs="+", type=int, default=None)
+    parser.add_argument("--challenge-seed", default=None,
+                        help="Fiat-Shamir challenge（SHA256 hex，64字符）；与 --layers 互斥")
+    parser.add_argument("--k",              type=int, default=6,
+                        help="Fiat-Shamir 模式下选取的层数（默认 6）")
     parser.add_argument("--workdir",  default="zkllm-workdir/jina-v4")
     parser.add_argument("--out",      default="notes/experiment_results/verify_layers.json")
     parser.add_argument("--parallel", action="store_true",
                         help="2-GPU 并行：偶数层 GPU0，奇数层 GPU1")
     args = parser.parse_args()
+
+    # 层选择：--challenge-seed 优先，否则 --layers，否则默认 [30]
+    if args.challenge_seed is not None:
+        if len(args.challenge_seed) != 64:
+            print("ERROR: --challenge-seed 须为 64 字符 hex（SHA256 输出）", file=sys.stderr)
+            sys.exit(1)
+        layer_list = _fiat_shamir_layers(args.challenge_seed, K=args.k)
+        print(f"Fiat-Shamir 层选择: {layer_list}  (K={args.k}, seed={args.challenge_seed[:16]}…)")
+    elif args.layers is not None:
+        layer_list = args.layers
+    else:
+        layer_list = [30]
 
     workdir = (ROOT / args.workdir).resolve()
     if not workdir.exists():
@@ -378,7 +405,7 @@ def main():
             print("ERROR: verify-ipa binary not found and py_ecc not installed.", file=sys.stderr)
             sys.exit(1)
 
-    print(f"zkLLM 完整层验证（8步）— layers {args.layers}")
+    print(f"zkLLM 完整层验证（8步）— layers {layer_list}")
     print(f"  步骤: input_layernorm → q/k/v linear → zkAttn → o_proj → skip1")
     print(f"        → post_attn_layernorm → FFN → skip2")
     if args.parallel:
@@ -388,9 +415,9 @@ def main():
     t0 = time.perf_counter()
     results = []
 
-    if args.parallel and len(args.layers) > 1:
-        layers_gpu0 = [li for li in args.layers if li % 2 == 0]
-        layers_gpu1 = [li for li in args.layers if li % 2 == 1]
+    if args.parallel and len(layer_list) > 1:
+        layers_gpu0 = [li for li in layer_list if li % 2 == 0]
+        layers_gpu1 = [li for li in layer_list if li % 2 == 1]
         with ProcessPoolExecutor(max_workers=2) as ex:
             futures = {}
             if layers_gpu0:
@@ -402,12 +429,12 @@ def main():
                 batch_results[id(futures[fut])] = (futures[fut], fut.result())
         # 按原始层顺序合并结果
         result_map = {}
-        for _, (layer_list, res_list) in batch_results.items():
-            for li, r in zip(layer_list, res_list):
+        for _, (bl, res_list) in batch_results.items():
+            for li, r in zip(bl, res_list):
                 result_map[li] = r
-        results = [result_map[li] for li in args.layers]
+        results = [result_map[li] for li in layer_list]
     else:
-        for li in args.layers:
+        for li in layer_list:
             print(f"[Layer {li}] running 8-step proof pipeline ...")
             results.append(verify_layer(li, workdir))
 
@@ -421,7 +448,8 @@ def main():
     print("━" * 56)
 
     summary = {
-        "layers": args.layers,
+        "layers": layer_list,
+        "challenge_seed": args.challenge_seed,
         "layers_pass": n_pass,
         "elapsed_ms": elapsed,
         "results": results,

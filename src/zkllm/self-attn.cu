@@ -144,9 +144,36 @@ int main(int argc, char *argv[])
                                             K_g.transpose(seq_len, head_dim),
                                             seq_len, head_dim, seq_len);
 
-                // zkSoftmax proof for this head
-                zkSoftmax softmax_h({1<<8, 1<<20, 1<<20}, 1, 0, 1UL<<32,
-                                    {1<<18, 1<<22}, seq_len, seq_len, head_dim, 1);
+                // zkSoftmax proof for this head.
+                //
+                // Two constraints must hold simultaneously:
+                //   (A) tlookup domain: D (= seq²) must be divisible by each base Bi
+                //   (B) range:          B0×B1×…×Bk must exceed max |attention score spread|
+                //
+                // Full attention (seq=1024): seq²=2^20.  K=3, bs={256,2^20,2^20}.
+                //   range = 256×(2^20)² = 2^48 — far exceeds real-activation spread ~3×10^12. ✓
+                //
+                // Window attention (seq=64): seq²=2^12=4096.  D%N=0 requires Bi≤4096.
+                //   K=3 would give range 256×4096²=2^32=4.3×10^9 — too small for ~3×10^12.
+                //   K=4 gives range 256×4096³=2^44=1.76×10^13 — sufficient for real activations. ✓
+                //   (Random test inputs with unrealistic scale will still overflow — expected.)
+                //
+                // Note: Bs[2]=B0×B1=256×4096=2^20 is identical in both cases, so
+                //       theta_1 and theta_2 are reused from the K=3 calibration.
+                uint seq_sq = seq_len * seq_len;
+                vector<uint>   softmax_bs;
+                vector<double> softmax_thetas;
+                if (seq_sq == (1U << 20)) {
+                    // Full attention: original K=3 calibrated for seq=1024
+                    softmax_bs     = {1U<<8, 1U<<20, 1U<<20};
+                    softmax_thetas = {double(1<<18), double(1<<22)};
+                } else {
+                    // Window attention: K=4 to cover real-activation score range
+                    softmax_bs     = {256U, seq_sq, seq_sq, seq_sq};
+                    softmax_thetas = {double(1<<18), double(1<<22), double(1<<22)};
+                }
+                zkSoftmax softmax_h(softmax_bs, 1, 0, 1UL<<32,
+                                    softmax_thetas, seq_len, seq_len, head_dim, 1);
 
                 FrTensor shift(seq_len), X_shifted(seq_len * seq_len);
                 vector<FrTensor> X_segs, Y_segs, m_segs;

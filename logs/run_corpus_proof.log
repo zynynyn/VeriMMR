@@ -1,0 +1,3970 @@
+nohup: ignoring input
+========================================================
+  语料库完整证明流水线
+  2026-04-29 21:52:47
+========================================================
+
+[Step 1] ZAC 串联证明（n=2 filters）
+  输出: output/phase1/fingerprint.json
+  日志: logs/zac_cascade.log
+
+[ZAC] Building accumulator ...
+      embeddings : embedding/embedding.npy
+      corpus     : corpora/image.jsonl
+      base_dir   : corpora
+
+[ZAC] Done in 362.81s
+      items      : 303
+      n_filters  : 2
+      ZAC root   : 937b500e02972360a7480114d4850f3227a4fc62f7b410639468d5b6818bcc975eef2c39e34980de1cdc269e14af3b70ac1b19af2f9368393bb726711a98282908c316e0dc38e5212bdef99660929782083c6a7da36c0695733d608b7b54d076  (96 bytes)
+      BF params  : q=2905, k=7
+
+[ZAC] Fingerprint saved    → output/phase1/fingerprint.json
+[ZAC] Prover state saved   → output/phase1/prover_state.json
+[ZAC] Sample membership proof → output/phase1/proof_sample_0.json
+[ZAC] Self-verify proof[0]: FAIL
+[Step 1] ✓ ZAC 证明完成  21:58:50
+
+[Step 2] zkLLM 全量证明（Conv3d + ViT 32blocks + PatchMerger + Pooling + LLM 36层）
+  GPU0 → worker 0（偶数图）: logs/corpus_full_gpu0.log
+  GPU1 → worker 1（奇数图）: logs/corpus_full_gpu1.log
+  预计耗时：~56 h
+  worker 0 PID=505358,  worker 1 PID=505360
+  等待两个 worker 完成...
+
+语料库全量证明  worker=1/2  gpu=1
+  workdir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+  out_dir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+
+加载 jina-v4 模型...
+
+语料库全量证明  worker=0/2  gpu=0
+  workdir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+  out_dir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+
+加载 jina-v4 模型...
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.74it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.70it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.96it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.93it/s]
+Traceback (most recent call last):
+  File "/root/autodl-tmp/UltraRAG/script/build_corpus_full_proof.py", line 442, in <module>
+    main()
+  File "/root/autodl-tmp/UltraRAG/script/build_corpus_full_proof.py", line 385, in main
+    model = SentenceTransformer(args.model_path, trust_remote_code=True, device=f"cuda:{gpu_id}")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/sentence_transformers/SentenceTransformer.py", line 348, in __init__
+    self.to(device)
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1371, in to
+    return self._apply(convert)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    module._apply(fn)
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    module._apply(fn)
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    module._apply(fn)
+  [Previous line repeated 5 more times]
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 957, in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1357, in convert
+    return t.to(
+           ^^^^^
+torch.AcceleratorError: CUDA error: invalid device ordinal
+GPU device may be out of range, do you have enough GPUs?
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+  ✓ 模型加载完成
+
+本 worker 处理 152 张图像
+[1/152] 跳过（已存在）: nikon_page_0.jpg
+
+[nikon_page_2.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2633ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (483ms  fold=✗  binding=—)
+  [conv3d] ✗  483ms
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 0: ✓ PASS  (32686ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (33074ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (30316ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (30166ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (33074ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (29745ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30606ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30426ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30992ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30684ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (31000ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30941ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30614ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30512ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30450ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30860ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30521ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30606ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30479ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (29907ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (31036ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (33050ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30471ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30414ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (29744ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30719ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30563ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (33193ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30253ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30651ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30170ms  fold=9/9  binding=9/9)
+  Block 31: ✗ FAIL  (26632ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 31/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (4074ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  4074ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_2.jpg] ✗ FAIL  总耗时 2077239ms
+  进度: 2/152  通过: 1  均值: 1038s/图  预计剩余: 43h16m
+
+[nikon_page_4.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1936ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (440ms  fold=✗  binding=—)
+  [conv3d] ✗  440ms
+    [Step4 FAIL] 
+[3/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 3/152  通过: 1  均值: 702s/图  预计剩余: 29h2m
+
+[nikon_page_6.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1779ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (395ms  fold=✗  binding=—)
+  [conv3d] ✗  395ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (30098ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30905ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (30731ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (32080ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (30939ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30729ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30791ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (31082ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30928ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30550ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30799ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30515ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (32549ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30909ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30705ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30628ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30535ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30525ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30846ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30876ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30986ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30787ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (32962ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30794ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30464ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30743ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30822ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (31173ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30855ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30950ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30250ms  fold=9/9  binding=9/9)
+  Block 31: ✗ FAIL  (13928ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 31/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1277ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1277ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_6.jpg] ✗ FAIL  总耗时 2037123ms
+  进度: 4/152  通过: 1  均值: 1036s/图  预计剩余: 42h34m
+
+[nikon_page_8.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  3118ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (472ms  fold=✗  binding=—)
+  [conv3d] ✗  472ms
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 0: ✗ FAIL  (30328ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 0] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 1: ✗ FAIL  (26818ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 1] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 2: ✗ FAIL  (26473ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 2] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 3: ✗ FAIL  (26508ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 3] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (27032ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 4] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 5: ✗ FAIL  (26930ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 5] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 6: ✗ FAIL  (26512ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 6] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (26458ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 7] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (27376ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 8] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 9: ✗ FAIL  (27091ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 9] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 10: ✗ FAIL  (26731ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 10] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 11: ✗ FAIL  (26818ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 11] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 12: ✗ FAIL  (26795ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 12] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 13: ✗ FAIL  (26770ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 13] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 14: ✗ FAIL  (26826ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 15: ✗ FAIL  (26034ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 15] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 16: ✗ FAIL  (27232ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 16] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 17: ✗ FAIL  (26847ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 17] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 18: ✗ FAIL  (26716ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 18] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 19: ✗ FAIL  (26784ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 19] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 20: ✗ FAIL  (26804ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 20] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 21: ✗ FAIL  (26526ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 21] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 22: ✗ FAIL  (26815ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 22] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 23: ✗ FAIL  (27224ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 23] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 24: ✗ FAIL  (27648ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 24] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 25: ✗ FAIL  (26513ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 25] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 26: ✗ FAIL  (26944ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 26] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 27: ✗ FAIL  (26668ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 27] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 28: ✗ FAIL  (26492ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 28] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 29: ✗ FAIL  (26689ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 29] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 30: ✗ FAIL  (26962ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (26458ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 0/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+PatchMerger proof: ✗ FAIL  (1384ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1384ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_8.jpg] ✗ FAIL  总耗时 1833648ms
+  进度: 5/152  通过: 1  均值: 1195s/图  预计剩余: 48h47m
+
+[nikon_page_10.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  3024ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (411ms  fold=✗  binding=—)
+  [conv3d] ✗  411ms
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 0: ✗ FAIL  (26349ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 0] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 1: ✗ FAIL  (26348ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 1] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 2: ✗ FAIL  (27160ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 2] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 3: ✗ FAIL  (26407ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 3] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (26151ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 4] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 5: ✗ FAIL  (26503ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 5] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 6: ✗ FAIL  (26411ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 6] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (26302ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 7] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (26371ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 8] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 9: ✗ FAIL  (26424ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 9] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 10: ✗ FAIL  (26399ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 10] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 11: ✗ FAIL  (26319ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 11] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 12: ✗ FAIL  (26495ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 12] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 13: ✗ FAIL  (26475ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 13] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 14: ✗ FAIL  (26288ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 15: ✗ FAIL  (27086ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 15] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 16: ✗ FAIL  (26354ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 16] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 17: ✗ FAIL  (26340ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 17] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 18: ✗ FAIL  (27113ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 18] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 19: ✗ FAIL  (26133ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 19] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 20: ✗ FAIL  (26023ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 20] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 21: ✗ FAIL  (26198ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 21] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 22: ✗ FAIL  (26233ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 22] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 23: ✗ FAIL  (26769ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 23] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 24: ✗ FAIL  (26268ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 24] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 25: ✗ FAIL  (26426ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 25] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 26: ✗ FAIL  (26433ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 26] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 27: ✗ FAIL  (26547ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 27] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 28: ✗ FAIL  (26316ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 28] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 29: ✗ FAIL  (26520ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 29] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 30: ✗ FAIL  (26192ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (26281ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 0/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+PatchMerger proof: ✗ FAIL  (1355ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1355ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_10.jpg] ✗ FAIL  总耗时 1840316ms
+  进度: 6/152  通过: 1  均值: 1303s/图  预计剩余: 52h49m
+
+[nikon_page_12.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  3022ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (393ms  fold=✗  binding=—)
+  [conv3d] ✗  393ms
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 0: ✗ FAIL  (26449ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 0] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 1: ✗ FAIL  (26633ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 1] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 2: ✗ FAIL  (26221ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 2] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 3: ✗ FAIL  (26444ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 3] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 4: ✗ FAIL  (32615ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 4] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 5: ✗ FAIL  (26461ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 5] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 6: ✗ FAIL  (26675ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 6] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (26563ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 7] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (26299ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 8] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 9: ✗ FAIL  (26439ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 9] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 10: ✗ FAIL  (26461ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 10] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 11: ✗ FAIL  (26500ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 11] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 12: ✗ FAIL  (26536ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 12] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 13: ✗ FAIL  (26668ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 13] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 14: ✗ FAIL  (26538ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 15: ✗ FAIL  (26339ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 15] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 16: ✗ FAIL  (27118ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 16] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 17: ✗ FAIL  (26371ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 17] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 18: ✗ FAIL  (32173ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 18] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 19: ✗ FAIL  (26454ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 19] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 20: ✗ FAIL  (26575ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 20] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 21: ✗ FAIL  (26433ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 21] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 22: ✗ FAIL  (26676ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 22] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 23: ✗ FAIL  (26575ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 23] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 24: ✗ FAIL  (32758ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 24] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 25: ✗ FAIL  (26450ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 25] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 26: ✗ FAIL  (26674ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 26] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 27: ✗ FAIL  (26360ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 27] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 28: ✗ FAIL  (31543ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 28] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+DBG: gate_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 29: ✗ FAIL  (29311ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 29] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 30: ✗ FAIL  (27237ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 31: ✗ FAIL  (31789ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 0/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+PatchMerger proof: ✗ FAIL  (1429ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1429ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_12.jpg] ✗ FAIL  总耗时 1877043ms
+  进度: 7/152  通过: 1  均值: 1385s/图  预计剩余: 55h46m
+
+[nikon_page_14.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2076ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (404ms  fold=✗  binding=—)
+  [conv3d] ✗  404ms
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+DBG: gate_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 0: ✗ FAIL  (31574ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 0] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 1: ✗ FAIL  (26395ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 1] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 2: ✗ FAIL  (31537ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 2] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 3: ✗ FAIL  (26724ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 3] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (27120ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 4] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 5: ✗ FAIL  (27582ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 5] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 6: ✗ FAIL  (26616ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 6] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (26609ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 7] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 8: ✗ FAIL  (32018ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 8] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 9: ✗ FAIL  (29537ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 9] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 10: ✗ FAIL  (36387ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 10] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 11: ✗ FAIL  (27214ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 11] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 12: ✗ FAIL  (26224ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 12] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 13: ✗ FAIL  (27181ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 13] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 14: ✗ FAIL  (26384ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 15: ✗ FAIL  (26775ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 15] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 16: ✗ FAIL  (26881ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 16] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 17: ✗ FAIL  (35487ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 17] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 18: ✗ FAIL  (35287ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 18] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 19: ✗ FAIL  (38039ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 19] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 20: ✗ FAIL  (39635ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 20] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 21: ✗ FAIL  (34959ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 21] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 22: ✗ FAIL  (30327ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 22] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 23: ✗ FAIL  (26121ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 23] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 24: ✗ FAIL  (26432ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 24] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 25: ✗ FAIL  (27514ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 25] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 26: ✗ FAIL  (31199ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 26] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 27: ✗ FAIL  (33189ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 27] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 28: ✗ FAIL  (32229ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 28] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 29: ✗ FAIL  (32311ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 29] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 30: ✗ FAIL  (25955ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 31: ✗ FAIL  (26335ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 0/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+PatchMerger proof: ✗ FAIL  (1016ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1016ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_14.jpg] ✗ FAIL  总耗时 1977923ms
+  进度: 8/152  通过: 1  均值: 1459s/图  预计剩余: 58h21m
+
+[nikon_page_16.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2012ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (372ms  fold=✗  binding=—)
+  [conv3d] ✗  372ms
+  Block 0: ✗ FAIL  (28273ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 0] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 1: ✗ FAIL  (25691ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 1] ✗
+  Block 2: ✗ FAIL  (29117ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 2] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 3: ✗ FAIL  (26576ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 3] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (26935ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 4] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 5: ✗ FAIL  (26175ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 5] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+DBG: gate_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 6: ✗ FAIL  (29233ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 6] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 7: ✗ FAIL  (27051ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 7] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 8: ✗ FAIL  (31717ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 8] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 9: ✗ FAIL  (26737ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 9] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 10: ✗ FAIL  (26137ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 10] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 11: ✗ FAIL  (26748ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 11] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 12: ✗ FAIL  (26630ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 12] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 13: ✗ FAIL  (26953ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 13] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 14: ✗ FAIL  (26255ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+  Block 15: ✗ FAIL  (28832ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 15] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 16: ✗ FAIL  (25800ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 16] ✗
+  Block 17: ✗ FAIL  (29132ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 17] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 18: ✗ FAIL  (26521ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 18] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 19: ✗ FAIL  (26527ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 19] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 20: ✗ FAIL  (26101ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 20] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 21: ✗ FAIL  (26545ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 21] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 22: ✗ FAIL  (26179ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 22] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 23: ✗ FAIL  (26447ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 23] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 24: ✗ FAIL  (26775ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 24] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 25: ✗ FAIL  (27261ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 25] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 26: ✗ FAIL  (26697ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 26] ✗
+  Block 27: ✗ FAIL  (29109ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 27] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 28: ✗ FAIL  (25995ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 28] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 29: ✗ FAIL  (26658ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 29] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 30: ✗ FAIL  (26090ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (26811ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 0/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1357ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1357ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_16.jpg] ✗ FAIL  总耗时 1893532ms
+  进度: 9/152  通过: 1  均值: 1507s/图  预计剩余: 59h51m
+
+[nikon_page_18.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  3123ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (481ms  fold=✗  binding=—)
+  [conv3d] ✗  481ms
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 0: ✗ FAIL  (29778ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 0] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 1: ✗ FAIL  (32274ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 1] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 2: ✗ FAIL  (26636ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 2] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 3: ✗ FAIL  (26161ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 3] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 4: ✗ FAIL  (26583ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 4] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 5: ✗ FAIL  (26608ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 5] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 6: ✗ FAIL  (26191ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 6] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (26418ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 7] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 8: ✗ FAIL  (26164ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 8] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+DBG: gate_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 9: ✗ FAIL  (28854ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 9] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 10: ✗ FAIL  (26504ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 10] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 11: ✗ FAIL  (26868ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 11] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 12: ✗ FAIL  (27084ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 12] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 13: ✗ FAIL  (26211ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 13] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 14: ✗ FAIL  (26342ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 15: ✗ FAIL  (26186ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 15] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 16: ✗ FAIL  (26731ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 16] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 17: ✗ FAIL  (26050ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 17] ✗
+  Block 18: ✗ FAIL  (29097ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 18] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 19: ✗ FAIL  (26399ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 19] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 20: ✗ FAIL  (27299ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 20] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 21: ✗ FAIL  (25941ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 21] ✗
+  Block 22: ✗ FAIL  (29102ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 22] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 23: ✗ FAIL  (26407ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 23] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 24: ✗ FAIL  (26464ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 24] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 25: ✗ FAIL  (26070ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 25] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 26: ✗ FAIL  (26965ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 26] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 27: ✗ FAIL  (26497ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 27] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 28: ✗ FAIL  (26554ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 28] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 29: ✗ FAIL  (26003ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 29] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 30: ✗ FAIL  (26906ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (26441ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 0/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+PatchMerger proof: ✗ FAIL  (1178ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1178ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_18.jpg] ✗ FAIL  总耗时 1835867ms
+  进度: 10/152  通过: 1  均值: 1540s/图  预计剩余: 60h44m
+
+[nikon_page_20.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1715ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (374ms  fold=✗  binding=—)
+  [conv3d] ✗  374ms
+  Block 0: ✗ FAIL  (28368ms  fold=0/0  binding=0/0)  failed=['skip2']
+  [ViT block 0] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 1: ✗ FAIL  (25820ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 1] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 2: ✗ FAIL  (26684ms  fold=0/0  binding=0/0)  failed=['ffn', 'skip2']
+  [ViT block 2] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 3: ✗ FAIL  (26385ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 3] ✗
+    [Step1 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Incompatible dimensions
+
+    [Step2 FAIL] 
+    [Step3 FAIL] 
+  Block 4: ✗ FAIL  (8256ms  fold=0/0  binding=0/0)  failed=['rmsnorm_pre', 'attn_linear', 'zkAttn']
+  [ViT block 4] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 5: ✓ PASS  (25221ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30981ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (33642ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30787ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30847ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (31013ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30719ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (33351ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30790ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30739ms  fold=9/9  binding=9/9)
+  Block 15: ✗ FAIL  (27655ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 15] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 16: ✗ FAIL  (26085ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 16] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 17: ✗ FAIL  (26757ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 17] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 18: ✗ FAIL  (27345ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 18] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 19: ✗ FAIL  (32175ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 19] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 20: ✗ FAIL  (26517ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 20] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 21: ✗ FAIL  (31556ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 21] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 22: ✗ FAIL  (26879ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 22] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 23: ✗ FAIL  (31802ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 23] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 24: ✗ FAIL  (31750ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 24] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 25: ✗ FAIL  (31526ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 25] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 26: ✗ FAIL  (26449ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 26] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 27: ✗ FAIL  (31797ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 27] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 28: ✗ FAIL  (32007ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 28] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 29: ✗ FAIL  (26579ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 29] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 30: ✗ FAIL  (32117ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (32037ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 10/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1368ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1368ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_20.jpg] ✗ FAIL  总耗时 1959310ms
+  进度: 11/152  通过: 1  均值: 1578s/图  预计剩余: 61h48m
+
+[nikon_page_22.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1548ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (391ms  fold=✗  binding=—)
+  [conv3d] ✗  391ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+[12/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 12/152  通过: 1  均值: 1449s/图  预计剩余: 56h20m
+
+[nikon_page_24.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2623ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (397ms  fold=✗  binding=—)
+  [conv3d] ✗  397ms
+  Block 0: ✓ PASS  (28089ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27781ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (28174ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (28195ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (25813ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30421ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30836ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30624ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (31545ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30297ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30983ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30448ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (31139ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (31039ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (31351ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30684ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (31358ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30659ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (31152ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30571ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (32492ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30415ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30233ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30641ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30549ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30235ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30805ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (29996ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30988ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30783ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30985ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30941ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1274ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1274ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_24.jpg] ✗ FAIL  总耗时 2015505ms
+  进度: 13/152  通过: 1  均值: 1492s/图  预计剩余: 57h37m
+
+[nikon_page_26.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1137ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (498ms  fold=✗  binding=—)
+  [conv3d] ✗  498ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[14/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 14/152  通过: 1  均值: 1387s/图  预计剩余: 53h11m
+
+[nikon_page_28.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1765ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (485ms  fold=✗  binding=—)
+  [conv3d] ✗  485ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[15/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 15/152  通过: 1  均值: 1297s/图  预计剩余: 49h20m
+
+[nikon_page_30.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2888ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (399ms  fold=✗  binding=—)
+  [conv3d] ✗  399ms
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 0: ✓ PASS  (27936ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27564ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (11196ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 2] ✗
+  Block 3: ✓ PASS  (27704ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (25087ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (31011ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30861ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30754ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30330ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (31057ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (31029ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30308ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30871ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (31549ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30981ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30924ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30896ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30536ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30826ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30636ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30917ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30648ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30374ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (31010ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (31307ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31235ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30464ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30763ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (31047ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30972ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30820ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (32369ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 31/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1381ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1381ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_30.jpg] ✗ FAIL  总耗时 2060823ms
+  进度: 16/152  通过: 1  均值: 1344s/图  预计剩余: 50h47m
+
+[nikon_page_32.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1097ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (483ms  fold=✗  binding=—)
+  [conv3d] ✗  483ms
+  Block 0: ✓ PASS  (30180ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27749ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (27930ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (28535ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (25591ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30135ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (32595ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30983ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (32493ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (31093ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30339ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30679ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30649ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30716ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (31233ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30826ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30794ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30610ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (31010ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (31419ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30859ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30116ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30617ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30570ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (33146ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31154ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (31149ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (32964ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (31213ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30907ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (33237ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30947ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1301ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1301ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_32.jpg] ✗ FAIL  总耗时 2075571ms
+  进度: 17/152  通过: 1  均值: 1387s/图  预计剩余: 52h1m
+
+[nikon_page_34.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1211ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (516ms  fold=✗  binding=—)
+  [conv3d] ✗  516ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (29544ms  fold=9/9  binding=9/9)
+  Block 1: ✗ FAIL  (21306ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 1] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 2: ✗ FAIL  (24616ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 3: ✗ FAIL  (25724ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 3] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (26080ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+  Block 5: ✓ PASS  (26766ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30753ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30786ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (33326ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30797ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (31009ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (31031ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30551ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (33078ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30804ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (31198ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (33332ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (33042ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30936ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (33730ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (31199ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30989ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30957ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (31060ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (33225ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31062ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (31010ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (32967ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (33373ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (31039ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (31425ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30999ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 28/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1275ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1275ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_34.jpg] ✗ FAIL  总耗时 1941988ms
+  进度: 18/152  通过: 1  均值: 1418s/图  预计剩余: 52h47m
+
+[nikon_page_36.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1011ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (564ms  fold=✗  binding=—)
+  [conv3d] ✗  564ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[19/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 19/152  通过: 1  均值: 1345s/图  预计剩余: 49h41m
+
+[nikon_page_38.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1688ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (493ms  fold=✗  binding=—)
+  [conv3d] ✗  493ms
+  Block 0: ✓ PASS  (28499ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (24948ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (32188ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (31187ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (30273ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30366ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (32442ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (29842ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30249ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (33043ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30742ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30678ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30750ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30741ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30708ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30649ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30837ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30942ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (32284ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (31154ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30887ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30923ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30684ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30792ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (31132ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30849ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (31197ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30883ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30583ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (31048ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30831ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (31124ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1235ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1235ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_38.jpg] ✗ FAIL  总耗时 2135173ms
+  进度: 20/152  通过: 1  均值: 1384s/图  预计剩余: 50h45m
+
+[nikon_page_40.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1111ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (488ms  fold=✗  binding=—)
+  [conv3d] ✗  488ms
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (29640ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27766ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (30963ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (31215ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (32697ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30900ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30824ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (32741ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (33124ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (31040ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30992ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (33584ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (31080ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (33139ms  fold=9/9  binding=9/9)
+  Block 14: ✗ FAIL  (27513ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+DBG: gate_proj OK
+DBG: verifying up_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+  Block 15: ✗ FAIL  (28499ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 15] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 16: ✗ FAIL  (32033ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 16] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 17: ✗ FAIL  (27222ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 17] ✗
+  Block 18: ✓ PASS  (30283ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30066ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30438ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30268ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (29875ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (29833ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30898ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (29445ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (29525ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30263ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (29917ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30293ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (29928ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (29524ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 28/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+PatchMerger proof: ✗ FAIL  (2977ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  2977ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_40.jpg] ✗ FAIL  总耗时 2023069ms
+  进度: 21/152  通过: 1  均值: 1415s/图  预计剩余: 51h29m
+
+[nikon_page_42.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1694ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (497ms  fold=✗  binding=—)
+  [conv3d] ✗  497ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[22/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 22/152  通过: 1  均值: 1352s/图  预计剩余: 48h48m
+
+[nikon_page_44.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2805ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (405ms  fold=✗  binding=—)
+  [conv3d] ✗  405ms
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+DBG: gate_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (27858ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27912ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (27800ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 3: ✓ PASS  (30178ms  fold=9/9  binding=9/9)
+  Block 4: ✗ FAIL  (22969ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 5: ✓ PASS  (27954ms  fold=9/9  binding=9/9)
+  Block 6: ✗ FAIL  (18259ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 6] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (25071ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (25854ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 9: ✗ FAIL  (25841ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 9] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 10: ✗ FAIL  (25375ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 10] ✗
+  Block 11: ✓ PASS  (30042ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (27947ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30768ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (26532ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30846ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30492ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30383ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (31038ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (31136ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (33000ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (32766ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30474ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30966ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30648ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31052ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30839ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30681ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (33270ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (33248ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30795ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (31028ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 25/32 通过
+[23/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/corpus-nikon_page_44.jpg-merger-input.bin'
+  进度: 23/152  通过: 1  均值: 1338s/图  预计剩余: 47h57m
+
+[nikon_page_46.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1567ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (400ms  fold=✗  binding=—)
+  [conv3d] ✗  400ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[24/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b14/vit-block-14-h_mid.bin'
+  Block 0: ✓ PASS  (30210ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30045ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (31909ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (30922ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (30424ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30183ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (31060ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30370ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (31066ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30796ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (32877ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30662ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30881ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30976ms  fold=9/9  binding=9/9)
+  进度: 24/152  通过: 1  均值: 1304s/图  预计剩余: 46h21m
+
+[nikon_page_48.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1206ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (477ms  fold=✗  binding=—)
+  [conv3d] ✗  477ms
+  Block 0: ✓ PASS  (28513ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (28213ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (27844ms  fold=9/9  binding=9/9)
+  Block 3: ✗ FAIL  (29901ms  fold=9/9  binding=8/9)
+  [ViT block 3] ✗
+  Block 4: ✓ PASS  (28402ms  fold=9/9  binding=9/9)
+  Block 5: ✗ FAIL  (27655ms  fold=9/9  binding=8/9)
+  [ViT block 5] ✗
+  Block 6: ✓ PASS  (29502ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (27787ms  fold=9/9  binding=9/9)
+  Block 8: ✗ FAIL  (28531ms  fold=9/9  binding=8/9)
+  [ViT block 8] ✗
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[25/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b9/vit-block-9-h_mid.bin'
+  进度: 25/152  通过: 1  均值: 1265s/图  预计剩余: 44h36m
+
+[nikon_page_50.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1287ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (485ms  fold=✗  binding=—)
+  [conv3d] ✗  485ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[26/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 26/152  通过: 1  均值: 1217s/图  预计剩余: 42h35m
+
+[nikon_page_52.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2926ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (408ms  fold=✗  binding=—)
+  [conv3d] ✗  408ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (28197ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27956ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (30993ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (28110ms  fold=9/9  binding=9/9)
+  Block 4: ✗ FAIL  (16620ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 5: ✗ FAIL  (26335ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 5] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 6: ✓ PASS  (27676ms  fold=9/9  binding=9/9)
+  Block 7: ✗ FAIL  (18773ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (25658ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 9: ✓ PASS  (28078ms  fold=9/9  binding=9/9)
+  Block 10: ✗ FAIL  (18562ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 10] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 11: ✓ PASS  (27912ms  fold=9/9  binding=9/9)
+  Block 12: ✗ FAIL  (17998ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 12] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 13: ✓ PASS  (27649ms  fold=9/9  binding=9/9)
+  Block 14: ✗ FAIL  (18632ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 14] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 15: ✓ PASS  (27771ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (27908ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30701ms  fold=9/9  binding=9/9)
+  Block 18: ✗ FAIL  (23623ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 18] ✗
+  Block 19: ✓ PASS  (25305ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (33693ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30768ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (33034ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30990ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (31079ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31127ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (33235ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (33364ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30908ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (33202ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30527ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (33630ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 24/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1249ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1249ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_52.jpg] ✗ FAIL  总耗时 1895918ms
+  进度: 27/152  通过: 1  均值: 1242s/图  预计剩余: 43h7m
+
+[nikon_page_54.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1092ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (517ms  fold=✗  binding=—)
+  [conv3d] ✗  517ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[28/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 28/152  通过: 1  均值: 1199s/图  预计剩余: 41h17m
+
+[nikon_page_56.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2837ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (391ms  fold=✗  binding=—)
+  [conv3d] ✗  391ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 0: ✓ PASS  (28788ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (28011ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (12253ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 2] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step3 FAIL] 
+  Block 3: ✓ PASS  (27857ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (27962ms  fold=9/9  binding=9/9)
+  Block 5: ✗ FAIL  (9541ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 5] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 6: ✓ PASS  (27957ms  fold=9/9  binding=9/9)
+  Block 7: ✗ FAIL  (18057ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 8: ✗ FAIL  (25913ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 9: ✗ FAIL  (24482ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 9] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 10: ✗ FAIL  (24299ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 10] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 11: ✓ PASS  (28583ms  fold=9/9  binding=9/9)
+  Block 12: ✗ FAIL  (17879ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 12] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step3 FAIL] 
+  Block 13: ✓ PASS  (28014ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (28128ms  fold=9/9  binding=9/9)
+  Block 15: ✗ FAIL  (9691ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 15] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 16: ✓ PASS  (28277ms  fold=9/9  binding=9/9)
+  Block 17: ✗ FAIL  (17521ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 17] ✗
+  Block 18: ✓ PASS  (27920ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (24944ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30154ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30743ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (31777ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (31577ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30322ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30669ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30914ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30801ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30748ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30656ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30887ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30788ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 23/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1283ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1283ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_56.jpg] ✗ FAIL  总耗时 1832659ms
+  进度: 29/152  通过: 1  均值: 1221s/图  预计剩余: 41h42m
+
+[nikon_page_58.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1161ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (389ms  fold=✗  binding=—)
+  [conv3d] ✗  389ms
+  Block 0: ✓ PASS  (30229ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30994ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (32392ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (32297ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (32627ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30113ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30754ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30959ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30241ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30905ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (31037ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30116ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30794ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30987ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (31468ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (31257ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30535ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (31946ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (31381ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (26998ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30859ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30803ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30608ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30968ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (32420ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30881ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30818ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (32950ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (33307ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (33189ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30832ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (33510ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1371ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1371ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_58.jpg] ✗ FAIL  总耗时 2028680ms
+  进度: 30/152  通过: 1  均值: 1247s/图  预计剩余: 42h16m
+
+[nikon_page_60.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1656ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (434ms  fold=✗  binding=—)
+  [conv3d] ✗  434ms
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 0: ✓ PASS  (31293ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (32430ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (31027ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (33158ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (33226ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30739ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (31202ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30958ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30468ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30529ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30922ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (33362ms  fold=9/9  binding=9/9)
+  Block 12: ✗ FAIL  (26993ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 12] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 13: ✓ PASS  (29950ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (27972ms  fold=9/9  binding=9/9)
+  Block 15: ✗ FAIL  (16078ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 15] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step3 FAIL] 
+  Block 16: ✓ PASS  (28449ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (27992ms  fold=9/9  binding=9/9)
+  Block 18: ✗ FAIL  (9628ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 18] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 19: ✗ FAIL  (26067ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 19] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 20: ✓ PASS  (28285ms  fold=9/9  binding=9/9)
+  Block 21: ✗ FAIL  (17822ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 21] ✗
+  Block 22: ✓ PASS  (28671ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (27990ms  fold=9/9  binding=9/9)
+  Block 24: ✗ FAIL  (32001ms  fold=8/9  binding=8/9)
+  [ViT block 24] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 25: ✓ PASS  (27755ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (28337ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (29320ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (28352ms  fold=9/9  binding=9/9)
+  Block 29: ✗ FAIL  (14873ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 29] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 30: ✗ FAIL  (24333ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 30] ✗
+  Block 31: ✓ PASS  (28413ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 24/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1342ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1342ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_60.jpg] ✗ FAIL  总耗时 1843259ms
+  进度: 31/152  通过: 1  均值: 1267s/图  预计剩余: 42h34m
+
+[nikon_page_62.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1771ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (411ms  fold=✗  binding=—)
+  [conv3d] ✗  411ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[32/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b13/vit-block-13-h_mid.bin'
+  Block 0: ✓ PASS  (31182ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30984ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (32252ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (30804ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (31353ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30413ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30389ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (31627ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (31731ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30544ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30976ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30801ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (31033ms  fold=9/9  binding=9/9)
+  进度: 32/152  通过: 1  均值: 1242s/图  预计剩余: 41h24m
+
+[nikon_page_64.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2615ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (406ms  fold=✗  binding=—)
+  [conv3d] ✗  406ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (28465ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (28127ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (28162ms  fold=9/9  binding=9/9)
+  Block 3: ✗ FAIL  (29901ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 3] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (25791ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 5: ✓ PASS  (28292ms  fold=9/9  binding=9/9)
+  Block 6: ✗ FAIL  (18210ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 6] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 7: ✓ PASS  (27730ms  fold=9/9  binding=9/9)
+  Block 8: ✗ FAIL  (17647ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 9: ✗ FAIL  (25839ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 9] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 10: ✓ PASS  (27787ms  fold=9/9  binding=9/9)
+  Block 11: ✗ FAIL  (17412ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 11] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 12: ✗ FAIL  (25189ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 12] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:invalid argument
+
+  Block 13: ✓ PASS  (28572ms  fold=9/9  binding=9/9)
+  Block 14: ✗ FAIL  (17616ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 14] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 15: ✗ FAIL  (25989ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 15] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 16: ✗ FAIL  (24702ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 16] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 17: ✓ PASS  (29646ms  fold=9/9  binding=9/9)
+  Block 18: ✗ FAIL  (17395ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 18] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 19: ✗ FAIL  (23938ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 19] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 20: ✗ FAIL  (25882ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 20] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 21: ✗ FAIL  (24575ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 21] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 22: ✗ FAIL  (25824ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 22] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 23: ✗ FAIL  (25903ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 23] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step3 FAIL] 
+  Block 24: ✓ PASS  (28034ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (27842ms  fold=9/9  binding=9/9)
+  Block 26: ✗ FAIL  (9621ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 26] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 27: ✓ PASS  (29059ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (27520ms  fold=9/9  binding=9/9)
+  Block 29: ✗ FAIL  (10325ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 29] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 30: ✓ PASS  (27449ms  fold=9/9  binding=9/9)
+  Block 31: ✗ FAIL  (18145ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 13/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1324ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1324ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_64.jpg] ✗ FAIL  总耗时 1730599ms
+  进度: 33/152  通过: 1  均值: 1257s/图  预计剩余: 41h33m
+
+[nikon_page_66.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1824ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (495ms  fold=✗  binding=—)
+  [conv3d] ✗  495ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (30908ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30818ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (21194ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 3: ✗ FAIL  (25423ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 3] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  claim != p(0) + p(1)
+
+  Block 4: ✓ PASS  (27945ms  fold=9/9  binding=9/9)
+  Block 5: ✗ FAIL  (17573ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 5] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 6: ✗ FAIL  (26191ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 6] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (25949ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (25767ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 9: ✓ PASS  (28028ms  fold=9/9  binding=9/9)
+  Block 10: ✗ FAIL  (17774ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 10] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 11: ✓ PASS  (28649ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (28518ms  fold=9/9  binding=9/9)
+  Block 13: ✗ FAIL  (25664ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 13] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 14: ✓ PASS  (29859ms  fold=9/9  binding=9/9)
+  Block 15: ✗ FAIL  (21306ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 15] ✗
+  Block 16: ✓ PASS  (29082ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (27825ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30293ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (27622ms  fold=9/9  binding=9/9)
+  Block 20: ✗ FAIL  (28070ms  fold=9/9  binding=8/9)
+  [ViT block 20] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 21: ✓ PASS  (29912ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (28022ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (27867ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (28622ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (28144ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (28474ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (29084ms  fold=9/9  binding=9/9)
+  Block 28: ✗ FAIL  (21312ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 28] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 29: ✗ FAIL  (26165ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 29] ✗
+  Block 30: ✓ PASS  (29227ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (27617ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 20/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+PatchMerger proof: ✗ FAIL  (1936ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1936ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_66.jpg] ✗ FAIL  总耗时 1846828ms
+  进度: 34/152  通过: 1  均值: 1274s/图  预计剩余: 41h46m
+[35/152] 跳过（已存在）: nikon_page_68.jpg
+
+[nikon_page_70.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1726ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (464ms  fold=✗  binding=—)
+  [conv3d] ✗  464ms
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 0: ✓ PASS  (30955ms  fold=9/9  binding=9/9)
+  Block 1: ✗ FAIL  (12189ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 1] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 2: ✗ FAIL  (25774ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 2] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 3: ✗ FAIL  (31860ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 3] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 4: ✗ FAIL  (32081ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 4] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 5: ✓ PASS  (30694ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (28231ms  fold=9/9  binding=9/9)
+  Block 7: ✗ FAIL  (17058ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (25962ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 9: ✓ PASS  (28530ms  fold=9/9  binding=9/9)
+  Block 10: ✗ FAIL  (18390ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 10] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 11: ✓ PASS  (28550ms  fold=9/9  binding=9/9)
+  Block 12: ✗ FAIL  (17905ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 12] ✗
+  Block 13: ✓ PASS  (28701ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (28410ms  fold=9/9  binding=9/9)
+  Block 15: ✗ FAIL  (30301ms  fold=8/9  binding=8/9)
+  [ViT block 15] ✗
+  Block 16: ✓ PASS  (27804ms  fold=9/9  binding=9/9)
+  Block 17: ✗ FAIL  (27946ms  fold=9/9  binding=8/9)
+  [ViT block 17] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 18: ✓ PASS  (28491ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (28207ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (27783ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (29624ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (27955ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (28156ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (28870ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (27792ms  fold=9/9  binding=9/9)
+  Block 26: ✗ FAIL  (14865ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 26] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 27: ✓ PASS  (28350ms  fold=9/9  binding=9/9)
+  Block 28: ✗ FAIL  (18160ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 28] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 29: ✗ FAIL  (26111ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 29] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 30: ✗ FAIL  (26032ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 30] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (26074ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 17/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1268ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1268ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_70.jpg] ✗ FAIL  总耗时 1796656ms
+  进度: 36/152  通过: 2  均值: 1254s/图  预计剩余: 40h23m
+
+[nikon_page_72.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1908ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (505ms  fold=✗  binding=—)
+  [conv3d] ✗  505ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (30516ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30318ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (30939ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (30770ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (30846ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (33361ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (31143ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (29791ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (31335ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30214ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (31041ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30225ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (31347ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30941ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (31137ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30957ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30638ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (31104ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (31252ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30727ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30496ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (33648ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30624ms  fold=9/9  binding=9/9)
+  Block 23: ✗ FAIL  (21219ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 23] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 24: ✗ FAIL  (25641ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 24] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 25: ✗ FAIL  (24906ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 25] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 26: ✓ PASS  (28471ms  fold=9/9  binding=9/9)
+  Block 27: ✗ FAIL  (18218ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 27] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 28: ✓ PASS  (28801ms  fold=9/9  binding=9/9)
+  Block 29: ✗ FAIL  (17313ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 29] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 30: ✓ PASS  (28626ms  fold=9/9  binding=9/9)
+  Block 31: ✗ FAIL  (17548ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 26/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1290ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1290ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_72.jpg] ✗ FAIL  总耗时 1931764ms
+  进度: 37/152  通过: 2  均值: 1272s/图  预计剩余: 40h37m
+
+[nikon_page_74.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1871ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (517ms  fold=✗  binding=—)
+  [conv3d] ✗  517ms
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 0: ✗ FAIL  (25652ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 0] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 1: ✗ FAIL  (31843ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 1] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 2: ✗ FAIL  (26174ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 3: ✓ PASS  (30427ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (30355ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30472ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (33746ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30440ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30257ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30288ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30347ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30499ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30459ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (30282ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (34031ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30481ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30426ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30458ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30511ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30469ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30350ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (29528ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30291ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30478ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (29920ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (29466ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (29772ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (28139ms  fold=9/9  binding=9/9)
+  Block 28: ✗ FAIL  (13566ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 28] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 29: ✗ FAIL  (26237ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 29] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 30: ✗ FAIL  (26099ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 30] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (26222ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 25/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1359ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1359ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_74.jpg] ✗ FAIL  总耗时 1982753ms
+  进度: 38/152  通过: 2  均值: 1291s/图  预计剩余: 40h52m
+[39/152] 跳过（已存在）: nikon_page_76.jpg
+[40/152] 跳过（已存在）: nikon_page_78.jpg
+
+[nikon_page_80.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1761ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (375ms  fold=✗  binding=—)
+  [conv3d] ✗  375ms
+'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (406ms  fold=✗  binding=—)
+  [conv3d] ✗  406ms
+  Block 0: ✓ PASS  (30891ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (31201ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (31383ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (31223ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (30920ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (33394ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (33259ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30544ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (31165ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30718ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30795ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30817ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30366ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (33645ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (32857ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30427ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30861ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (27947ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30505ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (31901ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (31066ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (31019ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (31140ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30890ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30398ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31336ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30841ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (32692ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30579ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30816ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30909ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30484ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1355ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1355ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_46.jpg] ✗ FAIL  总耗时 2029981ms
+  进度: 24/152  通过: 3  均值: 1387s/图  预计剩余: 49h18m
+
+[nikon_page_48.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1847ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (407ms  fold=✗  binding=—)
+  [conv3d] ✗  407ms
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 0: ✓ PASS  (33655ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30848ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (32959ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (30656ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (30759ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (31316ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (33474ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (33119ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30639ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (32884ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30587ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (33353ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30442ms  fold=9/9  binding=9/9)
+  Block 13: ✗ FAIL  (10332ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 13] ✗
+  Block 14: ✓ PASS  (28544ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (28355ms  fold=9/9  binding=9/9)
+  Block 16: ✗ FAIL  (30521ms  fold=8/9  binding=8/9)
+  [ViT block 16] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 17: ✗ FAIL  (22500ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 17] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 18: ✗ FAIL  (26151ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 18] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 19: ✗ FAIL  (24637ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 19] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 20: ✗ FAIL  (25369ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 20] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 21: ✓ PASS  (29558ms  fold=9/9  binding=9/9)
+  Block 22: ✗ FAIL  (17506ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 22] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 23: ✗ FAIL  (25837ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 23] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 24: ✗ FAIL  (26093ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 24] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 25: ✗ FAIL  (26291ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 25] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:invalid argument
+
+  Block 26: ✗ FAIL  (25344ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 26] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step3 FAIL] 
+  Block 27: ✓ PASS  (29975ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (28017ms  fold=9/9  binding=9/9)
+  Block 29: ✗ FAIL  (9476ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 29] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 30: ✗ FAIL  (26118ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 30] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (26105ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 18/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1309ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1309ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_48.jpg] ✗ FAIL  总耗时 1872202ms
+  进度: 25/152  通过: 3  均值: 1406s/图  预计剩余: 49h36m
+
+[nikon_page_50.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1884ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (404ms  fold=✗  binding=—)
+  [conv3d] ✗  404ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+[26/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b14/vit-block-14-h_mid.bin'
+  Block 0: ✓ PASS  (31096ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30533ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (31769ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (31941ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (31039ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (30108ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (31495ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30854ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (30723ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (30638ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30675ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30978ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30065ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (27848ms  fold=9/9  binding=9/9)
+  进度: 26/152  通过: 3  均值: 1372s/图  预计剩余: 48h0m
+[27/152] 跳过（已存在）: nikon_page_52.jpg
+
+[nikon_page_54.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2908ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (371ms  fold=✗  binding=—)
+  [conv3d] ✗  371ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 0: ✗ FAIL  (26954ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 0] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 1: ✗ FAIL  (25923ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 1] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 2: ✓ PASS  (30487ms  fold=9/9  binding=9/9)
+  Block 3: ✗ FAIL  (17305ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 3] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (26279ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 5: ✗ FAIL  (24614ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 5] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 6: ✗ FAIL  (26183ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 6] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (24670ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 8: ✗ FAIL  (25951ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step6 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 9: ✓ PASS  (30674ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (28223ms  fold=9/9  binding=9/9)
+  Block 11: ✗ FAIL  (30459ms  fold=0/0  binding=0/0)  failed=['rmsnorm_post']
+  [ViT block 11] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 12: ✓ PASS  (29069ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (27960ms  fold=9/9  binding=9/9)
+  Block 14: ✗ FAIL  (27337ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+[28/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b15/vit-block-15-h_mid.bin'
+  进度: 28/152  通过: 4  均值: 1290s/图  预计剩余: 44h25m
+
+[nikon_page_56.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  3147ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (397ms  fold=✗  binding=—)
+  [conv3d] ✗  397ms
+  Block 0: ✓ PASS  (29015ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (28008ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (30562ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (28320ms  fold=9/9  binding=9/9)
+  Block 4: ✗ FAIL  (27738ms  fold=9/9  binding=8/9)
+  [ViT block 4] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 5: ✓ PASS  (29783ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (27728ms  fold=9/9  binding=9/9)
+  Block 7: ✗ FAIL  (15062ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 8: ✗ FAIL  (26066ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 9: ✓ PASS  (28348ms  fold=9/9  binding=9/9)
+  Block 10: ✗ FAIL  (17851ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 10] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 11: ✗ FAIL  (26142ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 11] ✗
+  Block 12: ✓ PASS  (27892ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (31089ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30891ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (32680ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (32190ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (32682ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30583ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30792ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30566ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (30969ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (30945ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (31003ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30578ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30767ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (31523ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (31126ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30923ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30920ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (32308ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (31147ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 27/32 通过
+[29/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/corpus-nikon_page_56.jpg-merger-input.bin'
+  进度: 29/152  通过: 4  均值: 1282s/图  预计剩余: 43h48m
+
+[nikon_page_58.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1763ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (414ms  fold=✗  binding=—)
+  [conv3d] ✗  414ms
+    [Step6 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (31103ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (30888ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (30620ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (30914ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (33109ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (31066ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (30849ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (33005ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (32879ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (33145ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30575ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (33557ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30386ms  fold=9/9  binding=9/9)
+  Block 13: ✗ FAIL  (27920ms  fold=0/0  binding=0/0)  failed=['rmsnorm_post', 'ffn']
+  [ViT block 13] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 14: ✓ PASS  (28901ms  fold=9/9  binding=9/9)
+  Block 15: ✗ FAIL  (21336ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 15] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 16: ✗ FAIL  (25605ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 16] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 17: ✓ PASS  (27897ms  fold=9/9  binding=9/9)
+  Block 18: ✗ FAIL  (17534ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 18] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:invalid argument
+
+  Block 19: ✓ PASS  (28327ms  fold=9/9  binding=9/9)
+  Block 20: ✗ FAIL  (17713ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 20] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 21: ✗ FAIL  (24871ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 21] ✗
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+[30/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b24/vit-block-24-h_mid.bin'
+  Block 22: ✓ PASS  (28553ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (28579ms  fold=9/9  binding=9/9)
+  进度: 30/152  通过: 4  均值: 1266s/图  预计剩余: 42h53m
+
+[nikon_page_60.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2902ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (408ms  fold=✗  binding=—)
+  [conv3d] ✗  408ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 0: ✗ FAIL  (25714ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 0] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 1: ✓ PASS  (28395ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (18770ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 3: ✗ FAIL  (25801ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 3] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step3 FAIL] 
+  Block 4: ✓ PASS  (28120ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (28181ms  fold=9/9  binding=9/9)
+  Block 6: ✗ FAIL  (9592ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 6] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (25989ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 8: ✓ PASS  (28145ms  fold=9/9  binding=9/9)
+  Block 9: ✗ FAIL  (17016ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 9] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 10: ✗ FAIL  (24620ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 10] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 11: ✗ FAIL  (25257ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 11] ✗
+  Block 12: ✓ PASS  (28498ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (27951ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (30582ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (28049ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (28520ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30035ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (28088ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (25687ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (33187ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (31219ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (33192ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (33247ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30633ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30923ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (31264ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (31034ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30742ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30880ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (33600ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30383ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 24/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1415ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1415ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_60.jpg] ✗ FAIL  总耗时 1862500ms
+  进度: 31/152  通过: 4  均值: 1285s/图  预计剩余: 43h11m
+
+[nikon_page_62.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1133ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (533ms  fold=✗  binding=—)
+  [conv3d] ✗  533ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+[32/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 32/152  通过: 4  均值: 1246s/图  预计剩余: 41h31m
+
+[nikon_page_64.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  3260ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (404ms  fold=✗  binding=—)
+  [conv3d] ✗  404ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 0: ✗ FAIL  (24222ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 0] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 1: ✓ PASS  (27708ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (18245ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 3: ✓ PASS  (27930ms  fold=9/9  binding=9/9)
+  Block 4: ✗ FAIL  (18784ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 5: ✓ PASS  (28473ms  fold=9/9  binding=9/9)
+  Block 6: ✗ FAIL  (17850ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 6] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 7: ✓ PASS  (28906ms  fold=9/9  binding=9/9)
+  Block 8: ✗ FAIL  (17646ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step3 FAIL] 
+  Block 9: ✓ PASS  (29232ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (28717ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30627ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (29418ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (27768ms  fold=9/9  binding=9/9)
+  Block 14: ✗ FAIL  (9475ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 14] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 15: ✓ PASS  (27496ms  fold=9/9  binding=9/9)
+  Block 16: ✗ FAIL  (18459ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 16] ✗
+  Block 17: ✓ PASS  (27577ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (25059ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30909ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (31623ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (31787ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (31127ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (31934ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30732ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31639ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (31798ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30892ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30585ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (31199ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30752ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30934ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 25/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1444ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1444ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_64.jpg] ✗ FAIL  总耗时 1887318ms
+  进度: 33/152  通过: 4  均值: 1265s/图  预计剩余: 41h49m
+
+[nikon_page_66.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1815ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (445ms  fold=✗  binding=—)
+  [conv3d] ✗  445ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[34/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 34/152  通过: 4  均值: 1229s/图  预计剩余: 40h16m
+
+[nikon_page_68.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1927ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (534ms  fold=✗  binding=—)
+  [conv3d] ✗  534ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (29291ms  fold=9/9  binding=9/9)
+  Block 1: ✗ FAIL  (21632ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 1] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 2: ✓ PASS  (29009ms  fold=9/9  binding=9/9)
+  Block 3: ✗ FAIL  (18491ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 3] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 4: ✗ FAIL  (26179ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 5: ✓ PASS  (27754ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (27648ms  fold=9/9  binding=9/9)
+  Block 7: ✗ FAIL  (10838ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 7] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (24750ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 8] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 9: ✓ PASS  (28155ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (28601ms  fold=9/9  binding=9/9)
+  Block 11: ✗ FAIL  (10838ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 11] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 12: ✓ PASS  (27463ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (27377ms  fold=9/9  binding=9/9)
+  Block 14: ✗ FAIL  (25918ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 15: ✓ PASS  (30207ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (27528ms  fold=9/9  binding=9/9)
+  Block 17: ✗ FAIL  (14932ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 17] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::compute:an illegal memory access was encountered
+
+  Block 18: ✓ PASS  (29248ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (27770ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (31831ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (28275ms  fold=9/9  binding=9/9)
+  Block 22: ✗ FAIL  (17400ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 22] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 23: ✓ PASS  (27883ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (28112ms  fold=9/9  binding=9/9)
+  Block 25: ✗ FAIL  (10893ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 25] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 26: ✓ PASS  (28577ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (28803ms  fold=9/9  binding=9/9)
+  Block 28: ✗ FAIL  (10285ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 28] ✗
+  Block 29: ✓ PASS  (25727ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (30929ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30713ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 21/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1307ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1307ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_68.jpg] ✗ FAIL  总耗时 1780537ms
+  进度: 35/152  通过: 4  均值: 1244s/图  预计剩余: 40h26m
+
+[nikon_page_70.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1307ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (572ms  fold=✗  binding=—)
+  [conv3d] ✗  572ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  CUDA error at zkSoftmax::zkSoftmax:invalid argument
+
+  Block 0: ✓ PASS  (30075ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27810ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (15277ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 3: ✓ PASS  (28999ms  fold=9/9  binding=9/9)
+  Block 4: ✗ FAIL  (18334ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+  Block 5: ✓ PASS  (27883ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (28263ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (30243ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (28116ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (28309ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (29285ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (27806ms  fold=9/9  binding=9/9)
+  Block 12: ✗ FAIL  (28135ms  fold=9/9  binding=8/9)
+  [ViT block 12] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  claim != p(0) + p(1)
+
+  Block 13: ✓ PASS  (30098ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (28228ms  fold=9/9  binding=9/9)
+  Block 15: ✗ FAIL  (15135ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 15] ✗
+  Block 16: ✓ PASS  (29459ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (28113ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (32143ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (28047ms  fold=9/9  binding=9/9)
+  Block 20: ✗ FAIL  (28245ms  fold=9/9  binding=8/9)
+  [ViT block 20] ✗
+  Block 21: ✓ PASS  (29742ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (28879ms  fold=9/9  binding=9/9)
+  Block 23: ✗ FAIL  (28476ms  fold=9/9  binding=8/9)
+  [ViT block 23] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 24: ✓ PASS  (27936ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (28218ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (28381ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (28704ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (31205ms  fold=9/9  binding=9/9)
+  Block 29: ✗ FAIL  (27440ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 29] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 30: ✗ FAIL  (31877ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 30] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 31: ✗ FAIL  (31886ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 31] ✗
+  [ViT 32 blocks] 23/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1376ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1376ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_70.jpg] ✗ FAIL  总耗时 1899602ms
+  进度: 36/152  通过: 4  均值: 1263s/图  预计剩余: 40h41m
+
+[nikon_page_72.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2040ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (499ms  fold=✗  binding=—)
+  [conv3d] ✗  499ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[37/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 37/152  通过: 4  均值: 1229s/图  预计剩余: 39h15m
+
+[nikon_page_74.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1389ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (503ms  fold=✗  binding=—)
+  [conv3d] ✗  503ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  claim != p(0) + p(1)
+
+  Block 0: ✗ FAIL  (28127ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 0] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 1: ✓ PASS  (27714ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (27857ms  fold=9/9  binding=9/9)
+  Block 3: ✗ FAIL  (10117ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 3] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 4: ✓ PASS  (28834ms  fold=9/9  binding=9/9)
+  Block 5: ✗ FAIL  (17845ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 5] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 6: ✓ PASS  (27520ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (27522ms  fold=9/9  binding=9/9)
+  Block 8: ✗ FAIL  (10893ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 8] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 9: ✓ PASS  (27954ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (27631ms  fold=9/9  binding=9/9)
+  Block 11: ✗ FAIL  (11123ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 11] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 12: ✓ PASS  (27897ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (27424ms  fold=9/9  binding=9/9)
+  Block 14: ✗ FAIL  (26114ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 14] ✗
+    [Step1 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+    [Step2 FAIL] 
+    [Step3 FAIL] 
+    [Step4 FAIL] 
+[38/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b18/vit-block-18-h_mid.bin'
+  Block 15: ✓ PASS  (30250ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (28335ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (27899ms  fold=9/9  binding=9/9)
+  进度: 38/152  通过: 4  均值: 1210s/图  预计剩余: 38h18m
+
+[nikon_page_76.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2162ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (403ms  fold=✗  binding=—)
+  [conv3d] ✗  403ms
+  Block 0: ✓ PASS  (27349ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (28611ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (27741ms  fold=8/9  binding=9/9)
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  multi_hadamard_sumchecks: claim != p(0) + p(1)
+
+  Block 3: ✗ FAIL  (27753ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 3] ✗
+    [Step2 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+    [Step3 FAIL] 
+  Block 4: ✓ PASS  (27463ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (27767ms  fold=9/9  binding=9/9)
+  Block 6: ✗ FAIL  (11111ms  fold=0/0  binding=0/0)  failed=['attn_linear', 'zkAttn']
+  [ViT block 6] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 7: ✗ FAIL  (24556ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 7] ✗
+  Block 8: ✓ PASS  (25450ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (31033ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (30186ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30795ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (30766ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (31026ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (33527ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (31018ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (30308ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (31158ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (30476ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (30877ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30390ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (31255ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (31464ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (31241ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30956ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (31167ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (31153ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30873ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30860ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (31019ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (33774ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30903ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 28/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1294ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1294ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_76.jpg] ✗ FAIL  总耗时 1976122ms
+  进度: 39/152  通过: 4  均值: 1230s/图  预计剩余: 38h35m
+
+[nikon_page_78.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1248ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (547ms  fold=✗  binding=—)
+  [conv3d] ✗  547ms
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase2: claim != p(0) + p(1)
+
+  Block 0: ✓ PASS  (29722ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (27962ms  fold=9/9  binding=9/9)
+  Block 2: ✗ FAIL  (13980ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 2] ✗
+    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  claim != p(0) + p(1)
+
+  Block 3: ✓ PASS  (28012ms  fold=9/9  binding=9/9)
+  Block 4: ✗ FAIL  (17963ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+  [ViT block 4] ✗
+    [Step7 FAIL] DBG: verifying down_proj...
+DBG: down_proj OK
+DBG: running prove_batch for gate+up...
+DBG: prove_batch done, verifying gate_proj...
+DBG: gate_proj OK
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Error: the rem is not correct.
+
+  Block 5: ✓ PASS  (28969ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (28432ms  fold=9/9  binding=9/9)
+  Block 7: ✗ FAIL  (28602ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 7] ✗
+    [Step7 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+  Block 8: ✗ FAIL  (31819ms  fold=0/0  binding=0/0)  failed=['ffn']
+  [ViT block 8] ✗
+  Block 9: ✓ PASS  (28745ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (31236ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (30911ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (31031ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (34002ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (31072ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (30860ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (31088ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (30922ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (31024ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (31165ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (30765ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (34311ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (31097ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (30934ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (30955ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (30998ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (30681ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (30888ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (30269ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (30814ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (31098ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (30674ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 28/32 通过
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  verifyWeightClaim: opening != c.claim
+
+PatchMerger proof: ✗ FAIL  (1376ms  fold=0/0  binding=0/0)
+  [patchmerger] ✗  1376ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_78.jpg] ✗ FAIL  总耗时 2010261ms
+  进度: 40/152  通过: 4  均值: 1249s/图  预计剩余: 38h51m
+
+[nikon_page_80.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1038ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (579ms  fold=✗  binding=—)
+  [conv3d] ✗  579ms
+    [Step4 FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  tLookup_phase1: claim != p(0) + p(1)
+
+[41/152] ✗ 异常: [Errno 2] No such file or directory: '/root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4/vit-b0/vit-block-0-h_mid.bin'
+  进度: 41/152  通过: 4  均值: 1219s/图  预计剩余: 37h35m
+
+[nikon_page_82.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2942ms
+  [PROVER FAIL] terminate called after throwing an instance of 'std::runtime_error'
+  what():  D or N is not power of 2, or D is not divisible by N
+
+Conv3d embed proof: ✗ FAIL  (393ms  fold=✗  binding=—)
+  [conv3d] ✗  393ms

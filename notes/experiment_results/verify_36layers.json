@@ -38,7 +38,7 @@
     35
   ],
   "layers_pass": 36,
-  "elapsed_ms": 1612476,
+  "elapsed_ms": 770554,
   "results": [
     {
       "layer": 0,
@@ -55,14 +55,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 819,
-        "attn_linear": 2321,
-        "zkAttn": 5988,
-        "o_proj": 1023,
-        "skip1": 240,
-        "rmsnorm_post": 810,
-        "ffn": 5970,
-        "skip2": 232
+        "rmsnorm_pre": 2478,
+        "attn_linear": 3789,
+        "zkAttn": 18031,
+        "o_proj": 1885,
+        "skip1": 435,
+        "rmsnorm_post": 1807,
+        "ffn": 9382,
+        "skip2": 469
       },
       "ipa": {
         "input_layernorm": {
@@ -120,14 +120,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 827,
-        "attn_linear": 2286,
-        "zkAttn": 5989,
-        "o_proj": 1031,
-        "skip1": 258,
-        "rmsnorm_post": 803,
-        "ffn": 5958,
-        "skip2": 306
+        "rmsnorm_pre": 4415,
+        "attn_linear": 5713,
+        "zkAttn": 19803,
+        "o_proj": 1568,
+        "skip1": 254,
+        "rmsnorm_post": 1446,
+        "ffn": 11070,
+        "skip2": 340
       },
       "ipa": {
         "input_layernorm": {
@@ -185,14 +185,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 831,
-        "attn_linear": 2298,
-        "zkAttn": 6029,
-        "o_proj": 1029,
-        "skip1": 260,
-        "rmsnorm_post": 805,
-        "ffn": 5974,
-        "skip2": 303
+        "rmsnorm_pre": 2791,
+        "attn_linear": 3353,
+        "zkAttn": 19729,
+        "o_proj": 1300,
+        "skip1": 335,
+        "rmsnorm_post": 1950,
+        "ffn": 11598,
+        "skip2": 266
       },
       "ipa": {
         "input_layernorm": {
@@ -250,14 +250,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 834,
-        "attn_linear": 2275,
-        "zkAttn": 6069,
-        "o_proj": 1024,
-        "skip1": 250,
-        "rmsnorm_post": 792,
-        "ffn": 6027,
-        "skip2": 248
+        "rmsnorm_pre": 1417,
+        "attn_linear": 3076,
+        "zkAttn": 21663,
+        "o_proj": 1938,
+        "skip1": 326,
+        "rmsnorm_post": 1468,
+        "ffn": 11117,
+        "skip2": 289
       },
       "ipa": {
         "input_layernorm": {
@@ -315,14 +315,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 819,
-        "attn_linear": 2288,
-        "zkAttn": 5989,
-        "o_proj": 1013,
-        "skip1": 244,
-        "rmsnorm_post": 806,
-        "ffn": 5996,
-        "skip2": 246
+        "rmsnorm_pre": 1231,
+        "attn_linear": 3274,
+        "zkAttn": 21645,
+        "o_proj": 1965,
+        "skip1": 318,
+        "rmsnorm_post": 1595,
+        "ffn": 8900,
+        "skip2": 279
       },
       "ipa": {
         "input_layernorm": {
@@ -380,14 +380,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 816,
-        "attn_linear": 2315,
-        "zkAttn": 6029,
-        "o_proj": 1026,
-        "skip1": 248,
-        "rmsnorm_post": 795,
-        "ffn": 5974,
-        "skip2": 253
+        "rmsnorm_pre": 1350,
+        "attn_linear": 2929,
+        "zkAttn": 23155,
+        "o_proj": 1758,
+        "skip1": 252,
+        "rmsnorm_post": 1545,
+        "ffn": 9018,
+        "skip2": 276
       },
       "ipa": {
         "input_layernorm": {
@@ -445,14 +445,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 823,
-        "attn_linear": 2296,
-        "zkAttn": 6139,
-        "o_proj": 1026,
-        "skip1": 253,
-        "rmsnorm_post": 801,
-        "ffn": 5980,
-        "skip2": 247
+        "rmsnorm_pre": 1227,
+        "attn_linear": 3136,
+        "zkAttn": 23881,
+        "o_proj": 1797,
+        "skip1": 299,
+        "rmsnorm_post": 1596,
+        "ffn": 7908,
+        "skip2": 291
       },
       "ipa": {
         "input_layernorm": {
@@ -510,14 +510,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 857,
-        "attn_linear": 2285,
-        "zkAttn": 6050,
-        "o_proj": 1000,
-        "skip1": 246,
-        "rmsnorm_post": 800,
-        "ffn": 5968,
-        "skip2": 248
+        "rmsnorm_pre": 1299,
+        "attn_linear": 3069,
+        "zkAttn": 25122,
+        "o_proj": 1369,
+        "skip1": 277,
+        "rmsnorm_post": 1596,
+        "ffn": 7805,
+        "skip2": 439
       },
       "ipa": {
         "input_layernorm": {
@@ -575,13 +575,13 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 815,
-        "attn_linear": 2292,
-        "zkAttn": 6085,
-        "o_proj": 1018,
-        "skip1": 250,
-        "rmsnorm_post": 803,
-        "ffn": 5989,
+        "rmsnorm_pre": 1168,
+        "attn_linear": 2946,
+        "zkAttn": 24422,
+        "o_proj": 1491,
+        "skip1": 325,
+        "rmsnorm_post": 1301,
+        "ffn": 7400,
         "skip2": 287
       },
       "ipa": {
@@ -640,14 +640,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 825,
-        "attn_linear": 2290,
-        "zkAttn": 6059,
-        "o_proj": 1024,
-        "skip1": 247,
-        "rmsnorm_post": 800,
-        "ffn": 5994,
-        "skip2": 246
+        "rmsnorm_pre": 1178,
+        "attn_linear": 3050,
+        "zkAttn": 25164,
+        "o_proj": 1469,
+        "skip1": 381,
+        "rmsnorm_post": 1510,
+        "ffn": 7737,
+        "skip2": 283
       },
       "ipa": {
         "input_layernorm": {
@@ -705,14 +705,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 808,
-        "attn_linear": 2288,
-        "zkAttn": 6055,
-        "o_proj": 1040,
-        "skip1": 248,
-        "rmsnorm_post": 801,
-        "ffn": 6005,
-        "skip2": 271
+        "rmsnorm_pre": 1151,
+        "attn_linear": 2909,
+        "zkAttn": 25297,
+        "o_proj": 1320,
+        "skip1": 280,
+        "rmsnorm_post": 1240,
+        "ffn": 7510,
+        "skip2": 426
       },
       "ipa": {
         "input_layernorm": {
@@ -770,14 +770,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 814,
-        "attn_linear": 2299,
-        "zkAttn": 6067,
-        "o_proj": 1019,
-        "skip1": 253,
-        "rmsnorm_post": 804,
-        "ffn": 6000,
-        "skip2": 254
+        "rmsnorm_pre": 1316,
+        "attn_linear": 3217,
+        "zkAttn": 24658,
+        "o_proj": 1625,
+        "skip1": 402,
+        "rmsnorm_post": 1364,
+        "ffn": 7960,
+        "skip2": 407
       },
       "ipa": {
         "input_layernorm": {
@@ -835,14 +835,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 817,
-        "attn_linear": 2304,
-        "zkAttn": 6188,
-        "o_proj": 1026,
-        "skip1": 247,
-        "rmsnorm_post": 795,
-        "ffn": 5986,
-        "skip2": 250
+        "rmsnorm_pre": 1145,
+        "attn_linear": 2995,
+        "zkAttn": 24640,
+        "o_proj": 1278,
+        "skip1": 289,
+        "rmsnorm_post": 1255,
+        "ffn": 7403,
+        "skip2": 284
       },
       "ipa": {
         "input_layernorm": {
@@ -900,14 +900,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 798,
-        "attn_linear": 2291,
-        "zkAttn": 5996,
-        "o_proj": 1076,
-        "skip1": 252,
-        "rmsnorm_post": 793,
-        "ffn": 6021,
-        "skip2": 252
+        "rmsnorm_pre": 1475,
+        "attn_linear": 3725,
+        "zkAttn": 24215,
+        "o_proj": 1602,
+        "skip1": 518,
+        "rmsnorm_post": 1387,
+        "ffn": 7852,
+        "skip2": 539
       },
       "ipa": {
         "input_layernorm": {
@@ -965,14 +965,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 819,
-        "attn_linear": 2284,
-        "zkAttn": 6018,
-        "o_proj": 1051,
-        "skip1": 249,
-        "rmsnorm_post": 799,
-        "ffn": 5982,
-        "skip2": 247
+        "rmsnorm_pre": 1709,
+        "attn_linear": 3305,
+        "zkAttn": 23838,
+        "o_proj": 1272,
+        "skip1": 276,
+        "rmsnorm_post": 1287,
+        "ffn": 7692,
+        "skip2": 299
       },
       "ipa": {
         "input_layernorm": {
@@ -1030,14 +1030,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 814,
-        "attn_linear": 2287,
-        "zkAttn": 6150,
-        "o_proj": 1046,
-        "skip1": 247,
-        "rmsnorm_post": 790,
-        "ffn": 6012,
-        "skip2": 294
+        "rmsnorm_pre": 1452,
+        "attn_linear": 3374,
+        "zkAttn": 22793,
+        "o_proj": 1562,
+        "skip1": 466,
+        "rmsnorm_post": 1531,
+        "ffn": 8288,
+        "skip2": 320
       },
       "ipa": {
         "input_layernorm": {
@@ -1095,14 +1095,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 803,
-        "attn_linear": 2288,
-        "zkAttn": 6003,
-        "o_proj": 1062,
-        "skip1": 256,
-        "rmsnorm_post": 806,
-        "ffn": 6011,
-        "skip2": 292
+        "rmsnorm_pre": 1551,
+        "attn_linear": 4121,
+        "zkAttn": 22406,
+        "o_proj": 1285,
+        "skip1": 294,
+        "rmsnorm_post": 1280,
+        "ffn": 8573,
+        "skip2": 310
       },
       "ipa": {
         "input_layernorm": {
@@ -1160,14 +1160,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 824,
-        "attn_linear": 2291,
-        "zkAttn": 6020,
-        "o_proj": 1024,
-        "skip1": 254,
-        "rmsnorm_post": 779,
-        "ffn": 6024,
-        "skip2": 256
+        "rmsnorm_pre": 2003,
+        "attn_linear": 4353,
+        "zkAttn": 21541,
+        "o_proj": 1910,
+        "skip1": 610,
+        "rmsnorm_post": 1578,
+        "ffn": 9673,
+        "skip2": 316
       },
       "ipa": {
         "input_layernorm": {
@@ -1225,14 +1225,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 815,
-        "attn_linear": 2294,
-        "zkAttn": 5993,
-        "o_proj": 1031,
-        "skip1": 245,
-        "rmsnorm_post": 795,
-        "ffn": 5999,
-        "skip2": 250
+        "rmsnorm_pre": 1690,
+        "attn_linear": 3413,
+        "zkAttn": 23020,
+        "o_proj": 1435,
+        "skip1": 301,
+        "rmsnorm_post": 1504,
+        "ffn": 9444,
+        "skip2": 474
       },
       "ipa": {
         "input_layernorm": {
@@ -1290,14 +1290,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 817,
-        "attn_linear": 2316,
-        "zkAttn": 6230,
-        "o_proj": 1051,
-        "skip1": 246,
-        "rmsnorm_post": 796,
-        "ffn": 5965,
-        "skip2": 252
+        "rmsnorm_pre": 1286,
+        "attn_linear": 3418,
+        "zkAttn": 22607,
+        "o_proj": 1946,
+        "skip1": 284,
+        "rmsnorm_post": 1647,
+        "ffn": 9970,
+        "skip2": 456
       },
       "ipa": {
         "input_layernorm": {
@@ -1355,14 +1355,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 846,
-        "attn_linear": 2286,
-        "zkAttn": 6071,
-        "o_proj": 1051,
-        "skip1": 254,
-        "rmsnorm_post": 831,
-        "ffn": 5973,
-        "skip2": 252
+        "rmsnorm_pre": 1608,
+        "attn_linear": 2969,
+        "zkAttn": 21640,
+        "o_proj": 1619,
+        "skip1": 310,
+        "rmsnorm_post": 2225,
+        "ffn": 9125,
+        "skip2": 313
       },
       "ipa": {
         "input_layernorm": {
@@ -1420,14 +1420,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 818,
-        "attn_linear": 2315,
-        "zkAttn": 6004,
-        "o_proj": 1054,
-        "skip1": 249,
-        "rmsnorm_post": 805,
-        "ffn": 5997,
-        "skip2": 259
+        "rmsnorm_pre": 1594,
+        "attn_linear": 3055,
+        "zkAttn": 22917,
+        "o_proj": 1613,
+        "skip1": 309,
+        "rmsnorm_post": 2057,
+        "ffn": 10653,
+        "skip2": 280
       },
       "ipa": {
         "input_layernorm": {
@@ -1485,14 +1485,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 814,
-        "attn_linear": 2293,
-        "zkAttn": 6013,
-        "o_proj": 1089,
-        "skip1": 250,
-        "rmsnorm_post": 797,
-        "ffn": 5958,
-        "skip2": 249
+        "rmsnorm_pre": 1144,
+        "attn_linear": 3160,
+        "zkAttn": 22370,
+        "o_proj": 1957,
+        "skip1": 401,
+        "rmsnorm_post": 1727,
+        "ffn": 8510,
+        "skip2": 351
       },
       "ipa": {
         "input_layernorm": {
@@ -1550,14 +1550,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 821,
-        "attn_linear": 2284,
-        "zkAttn": 6010,
-        "o_proj": 1071,
-        "skip1": 256,
-        "rmsnorm_post": 796,
-        "ffn": 5970,
-        "skip2": 246
+        "rmsnorm_pre": 1416,
+        "attn_linear": 3041,
+        "zkAttn": 23852,
+        "o_proj": 1806,
+        "skip1": 463,
+        "rmsnorm_post": 1702,
+        "ffn": 8608,
+        "skip2": 295
       },
       "ipa": {
         "input_layernorm": {
@@ -1615,14 +1615,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 809,
-        "attn_linear": 2284,
-        "zkAttn": 6044,
-        "o_proj": 1030,
-        "skip1": 246,
-        "rmsnorm_post": 797,
-        "ffn": 5992,
-        "skip2": 248
+        "rmsnorm_pre": 1527,
+        "attn_linear": 3502,
+        "zkAttn": 22956,
+        "o_proj": 1507,
+        "skip1": 286,
+        "rmsnorm_post": 2179,
+        "ffn": 7491,
+        "skip2": 283
       },
       "ipa": {
         "input_layernorm": {
@@ -1680,14 +1680,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 861,
-        "attn_linear": 2289,
-        "zkAttn": 5991,
-        "o_proj": 1020,
-        "skip1": 298,
-        "rmsnorm_post": 791,
-        "ffn": 5977,
-        "skip2": 250
+        "rmsnorm_pre": 1202,
+        "attn_linear": 3455,
+        "zkAttn": 25586,
+        "o_proj": 1524,
+        "skip1": 290,
+        "rmsnorm_post": 1287,
+        "ffn": 8104,
+        "skip2": 281
       },
       "ipa": {
         "input_layernorm": {
@@ -1745,14 +1745,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 820,
-        "attn_linear": 2287,
-        "zkAttn": 6056,
-        "o_proj": 1023,
-        "skip1": 251,
-        "rmsnorm_post": 849,
-        "ffn": 5985,
-        "skip2": 249
+        "rmsnorm_pre": 1312,
+        "attn_linear": 3221,
+        "zkAttn": 23641,
+        "o_proj": 1338,
+        "skip1": 317,
+        "rmsnorm_post": 1246,
+        "ffn": 7668,
+        "skip2": 274
       },
       "ipa": {
         "input_layernorm": {
@@ -1810,14 +1810,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 813,
-        "attn_linear": 2303,
-        "zkAttn": 6006,
-        "o_proj": 1024,
-        "skip1": 257,
-        "rmsnorm_post": 800,
-        "ffn": 5999,
-        "skip2": 254
+        "rmsnorm_pre": 1499,
+        "attn_linear": 3222,
+        "zkAttn": 25126,
+        "o_proj": 1403,
+        "skip1": 278,
+        "rmsnorm_post": 1608,
+        "ffn": 8662,
+        "skip2": 280
       },
       "ipa": {
         "input_layernorm": {
@@ -1875,14 +1875,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 816,
-        "attn_linear": 2295,
-        "zkAttn": 6004,
-        "o_proj": 1024,
-        "skip1": 246,
-        "rmsnorm_post": 791,
-        "ffn": 5970,
-        "skip2": 256
+        "rmsnorm_pre": 1263,
+        "attn_linear": 3194,
+        "zkAttn": 18861,
+        "o_proj": 1368,
+        "skip1": 319,
+        "rmsnorm_post": 1010,
+        "ffn": 6165,
+        "skip2": 324
       },
       "ipa": {
         "input_layernorm": {
@@ -1940,14 +1940,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 822,
-        "attn_linear": 2292,
-        "zkAttn": 6028,
-        "o_proj": 1028,
-        "skip1": 253,
-        "rmsnorm_post": 799,
-        "ffn": 6009,
-        "skip2": 234
+        "rmsnorm_pre": 1282,
+        "attn_linear": 2995,
+        "zkAttn": 17979,
+        "o_proj": 1226,
+        "skip1": 317,
+        "rmsnorm_post": 1335,
+        "ffn": 6517,
+        "skip2": 514
       },
       "ipa": {
         "input_layernorm": {
@@ -2005,14 +2005,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 820,
-        "attn_linear": 2303,
-        "zkAttn": 5991,
-        "o_proj": 1042,
-        "skip1": 254,
-        "rmsnorm_post": 768,
-        "ffn": 5966,
-        "skip2": 244
+        "rmsnorm_pre": 880,
+        "attn_linear": 2391,
+        "zkAttn": 8271,
+        "o_proj": 1163,
+        "skip1": 434,
+        "rmsnorm_post": 911,
+        "ffn": 6178,
+        "skip2": 494
       },
       "ipa": {
         "input_layernorm": {
@@ -2070,14 +2070,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 815,
-        "attn_linear": 2297,
-        "zkAttn": 6181,
-        "o_proj": 1044,
-        "skip1": 253,
-        "rmsnorm_post": 788,
-        "ffn": 6016,
-        "skip2": 258
+        "rmsnorm_pre": 984,
+        "attn_linear": 2622,
+        "zkAttn": 6940,
+        "o_proj": 1160,
+        "skip1": 491,
+        "rmsnorm_post": 919,
+        "ffn": 6349,
+        "skip2": 494
       },
       "ipa": {
         "input_layernorm": {
@@ -2135,14 +2135,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 829,
-        "attn_linear": 2302,
-        "zkAttn": 6101,
-        "o_proj": 1026,
-        "skip1": 261,
-        "rmsnorm_post": 807,
-        "ffn": 5981,
-        "skip2": 253
+        "rmsnorm_pre": 967,
+        "attn_linear": 2604,
+        "zkAttn": 6685,
+        "o_proj": 1282,
+        "skip1": 468,
+        "rmsnorm_post": 1091,
+        "ffn": 6199,
+        "skip2": 501
       },
       "ipa": {
         "input_layernorm": {
@@ -2200,14 +2200,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 822,
-        "attn_linear": 2290,
-        "zkAttn": 6070,
-        "o_proj": 1025,
-        "skip1": 259,
-        "rmsnorm_post": 799,
-        "ffn": 5971,
-        "skip2": 250
+        "rmsnorm_pre": 1103,
+        "attn_linear": 2558,
+        "zkAttn": 6865,
+        "o_proj": 1175,
+        "skip1": 499,
+        "rmsnorm_post": 998,
+        "ffn": 6412,
+        "skip2": 449
       },
       "ipa": {
         "input_layernorm": {
@@ -2265,14 +2265,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 820,
-        "attn_linear": 2259,
-        "zkAttn": 5993,
-        "o_proj": 1060,
-        "skip1": 256,
-        "rmsnorm_post": 809,
-        "ffn": 5977,
-        "skip2": 259
+        "rmsnorm_pre": 1058,
+        "attn_linear": 2538,
+        "zkAttn": 6585,
+        "o_proj": 1316,
+        "skip1": 494,
+        "rmsnorm_post": 1070,
+        "ffn": 6200,
+        "skip2": 331
       },
       "ipa": {
         "input_layernorm": {
@@ -2330,14 +2330,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 819,
-        "attn_linear": 2290,
-        "zkAttn": 6112,
-        "o_proj": 1041,
-        "skip1": 256,
-        "rmsnorm_post": 804,
-        "ffn": 5980,
-        "skip2": 250
+        "rmsnorm_pre": 881,
+        "attn_linear": 2492,
+        "zkAttn": 6307,
+        "o_proj": 1118,
+        "skip1": 321,
+        "rmsnorm_post": 886,
+        "ffn": 6175,
+        "skip2": 314
       },
       "ipa": {
         "input_layernorm": {

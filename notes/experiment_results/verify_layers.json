@@ -3,7 +3,7 @@
     30
   ],
   "layers_pass": 1,
-  "elapsed_ms": 28330,
+  "elapsed_ms": 22767,
   "results": [
     {
       "layer": 30,
@@ -20,14 +20,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 1265,
-        "attn_linear": 4111,
-        "zkAttn": 6244,
-        "o_proj": 1693,
-        "skip1": 307,
-        "rmsnorm_post": 1208,
-        "ffn": 8425,
-        "skip2": 316
+        "rmsnorm_pre": 895,
+        "attn_linear": 2375,
+        "zkAttn": 6069,
+        "o_proj": 1090,
+        "skip1": 319,
+        "rmsnorm_post": 862,
+        "ffn": 6003,
+        "skip2": 357
       },
       "ipa": {
         "input_layernorm": {

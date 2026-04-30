@@ -35,7 +35,7 @@ import numpy as np
 
 # ── 项目根目录（该脚本在 UltraRAG/script/ 下） ────────────────────────────
 ROOT = Path(__file__).parent.parent.resolve()
-BIN_DIR = ROOT / "src" / "zkllm" / "bin"
+BIN_DIR = ROOT / "src" / "zkllm"
 ZKLLM_CWD = ROOT / "src" / "zkllm"  # swiglu-table.bin 在这里
 
 EMBED_DIM  = 2048
@@ -281,8 +281,8 @@ def main():
     parser = argparse.ArgumentParser(description="预计算语料库侧 zkLLM 证明")
     parser.add_argument("--corpus",   default="corpora/image.jsonl")
     parser.add_argument("--workdir",  default="zkllm-workdir/jina-v4")
-    parser.add_argument("--k_layers", type=int, default=5,
-                        help="证明最后 K 层（图像 corpus 推荐 K=5，即层31-35）")
+    parser.add_argument("--k_layers", type=int, default=36,
+                        help="证明最后 K 层（全量=36；原消融实验推荐 K=5）")
     parser.add_argument("--limit",    type=int, default=-1,
                         help="只处理前 N 张（-1 = 全量）")
     parser.add_argument("--overwrite", action="store_true")

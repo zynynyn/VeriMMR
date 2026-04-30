@@ -1,0 +1,38 @@
+
+语料库全量证明  worker=1/2  gpu=1
+  workdir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+  out_dir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+
+加载 jina-v4 模型...
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.96it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.93it/s]
+Traceback (most recent call last):
+  File "/root/autodl-tmp/UltraRAG/script/build_corpus_full_proof.py", line 442, in <module>
+    main()
+  File "/root/autodl-tmp/UltraRAG/script/build_corpus_full_proof.py", line 385, in main
+    model = SentenceTransformer(args.model_path, trust_remote_code=True, device=f"cuda:{gpu_id}")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/sentence_transformers/SentenceTransformer.py", line 348, in __init__
+    self.to(device)
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1371, in to
+    return self._apply(convert)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    module._apply(fn)
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    module._apply(fn)
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    module._apply(fn)
+  [Previous line repeated 5 more times]
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 957, in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1357, in convert
+    return t.to(
+           ^^^^^
+torch.AcceleratorError: CUDA error: invalid device ordinal
+GPU device may be out of range, do you have enough GPUs?
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+

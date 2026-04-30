@@ -114,7 +114,21 @@ def _eval_g1_ml(pts, u_vec):
         pts = new
     return pts[0]
 
-def verify_ipa(proof_path: str) -> dict:
+def verify_ipa(proof_path: str, gpu_id: int = 1) -> dict:
+    """优先使用 C++ verify-ipa binary；不可用时回退 Python py_ecc。"""
+    cpp_bin = BIN_DIR / "verify-ipa"
+    com_path = proof_path.replace("-ipa-proof.bin", ".weight-commitment.bin")
+    if cpp_bin.exists() and os.path.exists(com_path):
+        import subprocess as _sp, json as _json
+        env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
+        r = _sp.run([str(cpp_bin), proof_path, com_path],
+                    capture_output=True, env=env)
+        if r.returncode in (0, 1):
+            try:
+                return _json.loads(r.stdout.decode().strip())
+            except Exception:
+                pass
+    # fallback: Python py_ecc
     from py_ecc.optimized_bls12_381 import add, multiply, eq
     data = open(proof_path, "rb").read()
     assert data[:4] in (b"IPA\x00", b"\x00API"), f"Bad magic: {data[:4]!r}"
@@ -154,10 +168,14 @@ def verify_ipa(proof_path: str) -> dict:
 # ── 主流程 ────────────────────────────────────────────────────────────────────
 
 def prove_conv3d_embed(frames_npy=None, workdir=None,
-                       patch_dim=PATCH_DIM, out_dim=OUT_DIM) -> dict:
+                       patch_dim=PATCH_DIM, out_dim=OUT_DIM,
+                       gpu_id: int = 1,
+                       patches_int32: np.ndarray = None) -> dict:
     """
-    frames_npy: str | Path | None — float32 npy (T,C,H,W)；None 则随机 smoke test
-    workdir   : Path | None
+    frames_npy   : str | Path | None — float32 npy (T,C,H,W)；None 则随机 smoke test
+    workdir      : Path | None
+    gpu_id       : int — GPU index for prover and verifier
+    patches_int32: (N, patch_dim) int32 — 预计算的量化 patch 矩阵，优先于 frames_npy
     """
     if workdir is None:
         workdir = ROOT / "zkllm-workdir" / "jina-v4"
@@ -165,7 +183,11 @@ def prove_conv3d_embed(frames_npy=None, workdir=None,
 
     # 1. 生成 patches int32 文件
     patches_path = workdir / f"{PREFIX}-patches.bin"
-    if frames_npy is None:
+    if patches_int32 is not None:
+        # 真实激活（由外部 hook 提供）
+        patches_int = patches_int32.astype(np.int32)
+        n_patches   = patches_int.shape[0]
+    elif frames_npy is None:
         # smoke test：随机 patch 矩阵，模拟 32 patches (4 frames 8×8px)
         rng = np.random.default_rng(42)
         n_patches = 32
@@ -179,7 +201,7 @@ def prove_conv3d_embed(frames_npy=None, workdir=None,
     output_path = workdir / f"{PREFIX}-embed_out.bin"
 
     # 2. 调用 conv3d-embed binary
-    env = {**os.environ, "CUDA_VISIBLE_DEVICES": "0"}
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
     t0 = time.perf_counter()
     r = subprocess.run(
         [str(BIN_DIR / "conv3d-embed"),
@@ -198,7 +220,7 @@ def prove_conv3d_embed(frames_npy=None, workdir=None,
     proof_path = str(workdir / f"{PREFIX}-conv3d_embed-ipa-proof.bin")
     if prover_ok and Path(proof_path).exists():
         try:
-            ipa = verify_ipa(proof_path)
+            ipa = verify_ipa(proof_path, gpu_id=gpu_id)
         except Exception as e:
             ipa = {"fold_ok": False, "binding_ok": False, "error": str(e)}
 

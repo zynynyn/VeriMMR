@@ -7,7 +7,8 @@ zkLLM ViT 32 blocks 完整验证脚本
 ViT 结构（Qwen2_5_VLVisionBlock）：
   norm1 (RMSNorm)、fused QKV (Linear(1280,3840))、o_proj、norm2、MLP(SwiGLU)
   - num_heads=16, head_dim=80, MHA (kv_dim=1280, num_kv_heads=16)
-  - 所有块使用 seq_len=1024（统一序列长度）
+  - Window Attention 块（除 7,15,23,31 外）：Step 3 拆分为 16×seq=64（64²=2^12 满足 NTT 约束）
+  - Full Attention 块（7,15,23,31）：seq=1024（1024²=2^20）
   - 权重 W 通过 IPA 证明；bias 是公开参数，单独保存供公开验证
 
 证明步骤（每块）：
@@ -47,10 +48,38 @@ SEQ_LEN       = 1024
 RMS_EPS       = 1e-6
 SCALE         = 1 << 16
 
+# Window vs Full Attention blocks (fullatt_block_indexes from jina-v4 ViT config)
+# Blocks 7,15,23,31 use full 1024-token attention; all others use 16 windows of 64 tokens.
+# 64² = 4096 = 2^12 satisfies the zkAttn NTT constraint.
+FULL_ATT_BLOCKS = {7, 15, 23, 31}
+WIN_SEQ  = 64               # tokens per window
+NUM_WINS = SEQ_LEN // WIN_SEQ  # = 16
+
 _P_FP    = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
 _R_FP    = pow(2, 384, _P_FP)
 _R_FP_INV = pow(_R_FP, -1, _P_FP)
 _P_FR    = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
+
+
+# ── Window Attention 拆分工具 ────────────────────────────────────────────────
+
+def _split_qkv_for_windows(vit_wd: Path, prefix: str) -> bool:
+    """把 linear 步骤写出的全序列 temp_Q/K/V (1024×dim) 拆成 16 个 64×dim 窗口文件。
+    每个窗口写到 {prefix}-win{w}-temp_Q/K/V.bin，供 attn 模式按 win_prefix 读取。
+    """
+    q_src = vit_wd / f"{prefix}-temp_Q.bin"
+    if not q_src.exists():
+        return False
+    Q = np.fromfile(str(q_src),               dtype=np.int32).reshape(SEQ_LEN, VIT_HIDDEN)
+    K = np.fromfile(str(vit_wd/f"{prefix}-temp_K.bin"), dtype=np.int32).reshape(SEQ_LEN, VIT_HIDDEN)
+    V = np.fromfile(str(vit_wd/f"{prefix}-temp_V.bin"), dtype=np.int32).reshape(SEQ_LEN, VIT_HIDDEN)
+    for w in range(NUM_WINS):
+        sl = slice(w * WIN_SEQ, (w + 1) * WIN_SEQ)
+        wp = f"{prefix}-win{w}"
+        Q[sl].tofile(str(vit_wd / f"{wp}-temp_Q.bin"))
+        K[sl].tofile(str(vit_wd / f"{wp}-temp_K.bin"))
+        V[sl].tofile(str(vit_wd / f"{wp}-temp_V.bin"))
+    return True
 
 
 # ── IPA 验证工具 ──────────────────────────────────────────────────────────────
@@ -261,16 +290,34 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
     if rc != 0:
         print(f"    [Step2 FAIL] {err[-300:]}", file=sys.stderr)
 
-    # Step 3: zkAttn (MHA: num_kv_heads=16, head_dim=80)
+    # Step 3: zkAttn
+    # Window blocks (not in FULL_ATT_BLOCKS): tokens already in window order after
+    # jina-v4's get_window_index reordering → split Q/K/V into 16×seq=64 windows,
+    # run attn binary 16 times.  Full Attention blocks: single seq=1024 call.
     t0 = time.perf_counter()
-    rc, err = _run([str(BIN_DIR / "self-attn"), "attn",
-                    str(attn_in), str(SEQ_LEN), str(VIT_HIDDEN),
-                    wd, prefix, str(tmp_b),
-                    str(VIT_HIDDEN), str(VIT_KV_HEADS)], cwd, gpu_id)
+    if block_idx not in FULL_ATT_BLOCKS:
+        _split_qkv_for_windows(vit_wd, prefix)
+        rcs_win = []
+        for w in range(NUM_WINS):
+            win_pfx = f"{prefix}-win{w}"
+            rc_w, err_w = _run([str(BIN_DIR / "self-attn"), "attn",
+                                str(attn_in), str(WIN_SEQ), str(VIT_HIDDEN),
+                                wd, win_pfx, str(tmp_b),
+                                str(VIT_HIDDEN), str(VIT_KV_HEADS)], cwd, gpu_id)
+            rcs_win.append(rc_w)
+            if rc_w != 0:
+                print(f"    [Step3 win{w} FAIL] {err_w[-200:]}", file=sys.stderr)
+                break  # 一旦失败立即停止，避免浪费时间
+        rc = 0 if all(r == 0 for r in rcs_win) else 1
+    else:
+        rc, err = _run([str(BIN_DIR / "self-attn"), "attn",
+                        str(attn_in), str(SEQ_LEN), str(VIT_HIDDEN),
+                        wd, prefix, str(tmp_b),
+                        str(VIT_HIDDEN), str(VIT_KV_HEADS)], cwd, gpu_id)
+        if rc != 0:
+            print(f"    [Step3 FAIL] {err[-300:]}", file=sys.stderr)
     step_ms["zkAttn"] = round((time.perf_counter()-t0)*1000)
     step_rc["zkAttn"] = rc
-    if rc != 0:
-        print(f"    [Step3 FAIL] {err[-300:]}", file=sys.stderr)
 
     # Step 4: o_proj
     t0 = time.perf_counter()
@@ -340,6 +387,11 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
         p.unlink(missing_ok=True)
     for suf in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
         (vit_wd / f"{prefix}-{suf}").unlink(missing_ok=True)
+    # 清理 window 临时 Q/K/V 文件
+    if block_idx not in FULL_ATT_BLOCKS:
+        for w in range(NUM_WINS):
+            for suf in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
+                (vit_wd / f"{prefix}-win{w}-{suf}").unlink(missing_ok=True)
 
     fold_pass = sum(1 for v in ipa.values() if isinstance(v, dict) and v.get("fold_ok"))
     bind_pass = sum(1 for v in ipa.values() if isinstance(v, dict) and v.get("binding_ok"))

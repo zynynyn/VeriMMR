@@ -223,11 +223,51 @@ python script/phase2_verifiable_search.py --experiment \
 
 **关于 Bloom Filter 误报（False Positive）**
 
-BF 以概率 $\varepsilon$ 将不在集合中的元素误判为成员。
-当 $\varepsilon = 0.1$（测试用小参数）时，篡改图像恰好触发误报则 ZAC 同样通过验证——
-这是 BF 的已知固有局限，不是实现错误。
-生产环境使用 $\varepsilon = 0.01$，误报率降至 $1\%$ 以下。
-论文中对此遵循原文表述（Theorem 1 的 $\varepsilon$-soundness）。
+BF 以概率 $\varepsilon$ 将不在集合中的元素误判为成员。这是 ZAC 论文（Dang et al. TPS-ISA 2022）的已知固有属性，即 Theorem 1 中的 $\varepsilon$-soundness：若 $\hat{\mathcal{S}} \not\subseteq \mathcal{S}$，则验证通过的概率 $\leq \varepsilon$。原始论文实验取 $\varepsilon = 0.01$，生产环境误报率约为 $1\%$。
+
+### ZAC 改进：串联 Bloom Filter（Cascade BF）
+
+**问题**：大样本实验（seed 42/123/999 各 800 次，共 2400 次）实测合并 FPR ≈ 1%，与理论一致但用户可接受度低。
+
+**方案**：在不修改单层 $\varepsilon$ 的前提下，串联 $n$ 个独立 BF+Pointproofs 层，要求所有层同时通过，复合误报率降至：
+
+$$
+\varepsilon_{\text{cascade}} = \varepsilon^n
+$$
+
+各层使用不同的 MurmurHash3 种子偏移（第 $i$ 层：seeds $[i \cdot k,\, i \cdot k + k - 1]$），保证各层 FP 事件统计独立。此方案**不在原始论文中**，是本系统对 ZAC 的原创扩展。
+
+**与原始 ZAC 对比**
+
+| 指标 | 原始 ZAC（$n=1$） | 串联 ZAC（$n=2$） |
+|------|-----------------|-----------------|
+| 承诺 $\mathrm{cm}$ | 1 个 G1 点，48 B | 2 个 G1 点，96 B |
+| 证明 $\hat{\pi}$ | 1 个 G1 点，48 B | 2 个 G1 点，96 B |
+| ZAC Root hex | 96 chars | 192 chars |
+| 理论 $\varepsilon$ | 0.01（1%） | $0.01^2 = 0.0001$（0.01%） |
+| CRS 构建时间（$N=50$） | ≈ 30 s | ≈ 60 s（仅一次） |
+| 单次 prove+verify | $1 \times$ | $2 \times$ |
+| O(1) 证明性质 | ✅（与 $N$ 无关） | ✅（仍与 $N$ 无关，仅乘以 $n$） |
+
+**大样本实验结果**（InfoVQA，$N_{\text{ZAC}}=50$，各 seed 各 800 次，共 2400 次）
+
+| | n=1（旧，3 seeds 合计） | n=2（新，3 seeds 合计） |
+|---|---|---|
+| B1-style FP（图像替换） | 4+7+2 = **13**/1200 | **0**/1200 |
+| B2-style FP（Embedding 替换） | 2+3+6 = **11**/1200 | **0**/1200 |
+| 合计 FP | **24**/2400 ≈ **1.0%** | **0**/2400 = **0.00%** |
+| 假阴性（漏报） | 0/150 ✅ | 0/150 ✅ |
+| 理论复合 FPR | 1% | 0.01% |
+
+结果文件：`notes/experiment_results/experiment_c1_bf_fpr_n2_seed{42,123,999}.json`
+
+**实现文件变更**
+
+| 文件 | 变更 |
+|------|------|
+| `src/zac/accumulator.py` | `BloomFilter` 增加 `seed_offset` 参数；`ZACAccumulator` 增加 `n_filters` 参数，内部维护层列表；`prove/verify_membership_batch`、`save/load_prover_state` 均支持多层；`n_filters=1` 时完全向后兼容旧格式 |
+| `script/experiment_c1_bf_fpr.py` | 增加 `--n-filters` CLI 参数，输出文件名含层数后缀 |
+| `script/interactive_demo.py` | `run_zac` 返回值及 proof 面板展示适配多层格式 |
 
 ### 问题 6：ZAC 证明粒度错误（跨 query 混合聚合）
 
@@ -897,7 +937,63 @@ jina-v4 LM：`num_attention_heads=16`，`num_key_value_heads=2`（8:1 共享比�
 > 估算全量 = 纯 Sumcheck × 1.03（LoRA 已合并，无额外开销）× 1.5（zkAttn softmax + RMSNorm + skip-connection）
 > 实测脚本：`/root/autodl-tmp/zkllm-ccs2024/bench_k_layers.py`
 
-**推荐**：K=6 作为论文实验设计点——证明最靠近 embedding 输出的 6 层（最敏感），约 **1.2 min**，安全性论证充分。
+### Fiat-Shamir 随机层挑战与安全参数分析（2026-04-29）
+
+在线查询时，zkLLM proof 不再固定证明"最后 K 层"，而是采用 **Fiat-Shamir 随机挑战**在全部 36 层中动态选取 K 层：
+
+$$
+\text{challenge} = \mathrm{SHA256}(\text{query\_text} \,\|\, \text{nonce})
+$$
+
+以 `challenge` 为 PRNG 种子，从 $\{0, 1, \ldots, 35\}$ 中无放回抽取 $K$ 层。Verifier 持有相同的 `(query, nonce)` 即可独立重现层选择，整个过程非交互。
+
+**固定层 vs 随机挑战的安全差异**：固定证明最后 $K$ 层时，服务商只需保持这 $K$ 层权重不变即可绕过检测；随机挑战使服务商无法预知被审计的层，任何 $L$ 层篡改均以如下概率被发现：
+
+$$
+P(\text{caught} \mid L \text{ 层被篡改}) = 1 - \frac{\binom{36-L}{K}}{\binom{36}{K}}
+$$
+
+#### 检出率表（$N=36$，公式计算值）
+
+| 被篡改层数 $L$ | $K=3$ | $K=6$ | $K=12$ |
+|:---:|:---:|:---:|:---:|
+| 1 | 8.33% | 16.67% | 33.33% |
+| 3 | 23.59% | 43.14% | 71.65% |
+| **6**（节省 ≥17% 算力） | **43.14%** | **69.52%** | **93.09%** |
+| 12 | 71.65% | 93.09% | 99.78% |
+| 18（替换半数层） | 88.57% | 99.05% | ≈100% |
+| 36（整模型替换） | 100% | 100% | 100% |
+
+> 注：$L \geq 36-K$ 时 $\binom{36-L}{K}=0$，故检出率为 100%。
+
+#### K=6 选择依据
+
+攻击者若替换 $L=6$ 层（节省 ≥ 17% 推理算力），使用 $K=6$ 的检出率为 **69.5%**，替换 $L \geq 18$ 层时检出率超过 **99%**，整模型替换 $L=36$ 检出率为 **100%**。"编码欺骗"的典型攻击模式与检出率如下：
+
+| 攻击类型 | 篡改范围 | 检出率（K=6） |
+|---------|---------|------------|
+| 整模型替换（用低参数模型） | $L=36$ | **100%** |
+| 层跳过（ShortGPT 风格） | 被选中层 $L \geq 1$ | ≥16.67% |
+| 精度降级（量化权重） | $L$ 层受影响 | 公式计算 |
+| LoRA 未应用 | $L$ 层 LoRA 层 | 公式计算 |
+| 部分权重篡改 | $L$ 层 | 公式计算 |
+
+整模型替换是"编码欺骗"最主要的形式（服务商用低参数模型替代高性能模型以节省算力），此情形下 $K=6$ 随机挑战提供 **100% 检出率**。
+
+#### 代价实验数据（在线查询，2-GPU 并行）
+
+$K$ 层在线证明的墙钟时间（双 GPU 各承担 $\lceil K/2 \rceil$ 层，每层 ~15.2s）：
+
+| $K$ | 在线证明墙钟 | $P(L=1)$ | $P(L=6)$ | $P(L=18)$ | $P(L=36)$ |
+|:---:|:----------:|:-------:|:-------:|:--------:|:--------:|
+| 3 | **~31 s** | 8.33% | 43.14% | 88.57% | 100% |
+| **6（推荐）** | **~46 s** | **16.67%** | **69.52%** | **99.05%** | **100%** |
+| 12 | ~91 s | 33.33% | 93.09% | ≈100% | 100% |
+
+> 时间基于 `interactive_demo.py` 双 GPU 实测：$K=3$ 约 30.4s（Phase 3Q 实测 30.6s），推算 $K=6$ ≈ 45.6s，$K=12$ ≈ 91.2s。  
+> 比较基线：用户感知延迟 4.1s（Step 1–3 同步部分）；$K=6$ 证明异步后台执行，不阻塞答案返回。
+
+**推荐**：$K=6$ 作为论文实验设计点——在线验证墙钟约 **46 s**（异步后台），对最主要的整模型替换攻击提供 **100%** 检出率，对 ≥6 层局部篡改提供 **≥70%** 检出率，安全性与时间代价的最优折中。
 
 ### 时间结构（seq_len=1024，含 GQA zkAttn，RTX 4090 D 实测/推算）
 
@@ -2257,7 +2353,7 @@ Sumcheck 验证延迟与语料规模 N 线性相关（O(N·D)）：
 
 ---
 
-#### C1 补充：Bloom Filter 误报率统计验证（2026-04-04）✅ 已完成
+#### C1 补充：Bloom Filter 误报率统计验证（2026-04-04）✅ 已完成；串联 BF 改进（2026-04-28）✅ 已完成
 
 **背景与动机**
 
@@ -2352,13 +2448,45 @@ B1（400次）和 B2（400次）测试的是完全不同的元素：
 
 两组各自独立，合并得 800 次独立 BF 查询，统计上可以合并。并非"同一批 400 张图像做了两次"。
 
-**结论**
+**结论（n=1 阶段）**
 
 实现正确。BF 假阳性率符合理论设计值 ε=0.01，合法成员零漏报。C1 主实验中的 2 次漏报属于正常统计误差（80 次试验观测到 ≥2 次假阳性的概率约 19%）。
 
+---
+
+**C1 补充 II：串联 BF（n=2）改进验证（2026-04-28）**
+
+n=1 实测 FPR≈1%，满足理论但仍有改善空间。采用串联 BF 方案（见上方"ZAC 改进"节），以 n=2 重跑三个 seed 的大样本实验。
+
+**实验结果（n=2，InfoVQA，3 seeds，共 2400 次）**
+
+| 种子 | B1 误报 | B2 误报 | 合计 |
+|------|:-------:|:-------:|:----:|
+| seed=42 | 0/400 | 0/400 | 0/800 |
+| seed=123 | 0/400 | 0/400 | 0/800 |
+| seed=999 | 0/400 | 0/400 | 0/800 |
+| **合计** | **0/1200** | **0/1200** | **0/2400** |
+
+| 类型 | 误报 | FPR | 95% Wilson CI | ε²=0.0001 ∈ CI |
+|------|------|-----|--------------|----------------|
+| B1 图像替换 | 0/1200 | 0.00% | [0.00%, 0.32%] | ✅ |
+| B2 Embedding 替换 | 0/1200 | 0.00% | [0.00%, 0.32%] | ✅ |
+| 合法成员假阴性 | 0/150 | 0% | — | ✅ 零漏报 |
+
+结果文件：`notes/experiment_results/experiment_c1_bf_fpr_n2_seed{42,123,999}.json`
+
+**n=1 vs n=2 对比（2400 次同一测试集）**
+
+| | n=1（旧） | n=2（新） | 改善倍数 |
+|---|---|---|---|
+| 合计误报 | 24/2400 ≈ **1.00%** | **0**/2400 = **0.00%** | ∞（理论 100×） |
+| 证明大小 | 48 B | 96 B | 2× |
+| CRS 构建 | ~30 s | ~60 s | 2×（仅一次） |
+| 单次 prove+verify | ~1.7 s | ~3.4 s | 2× |
+
 **论文表述建议**
 
-> *"在 800 次大样本测试中，ZAC 实测误报率为 1.00%（95% CI: [0.51%, 1.96%]），B1/B2 分别为 1.75% 和 0.25%，均与理论设计值 ε=0.01 吻合。合法成员漏报率为零（0/50）。C1 主实验中的 2 次漏报（共 80 次）属正常统计误差（p≈19%）。"*
+> *"在初始设计（单层 BF，ε=0.01）2,400 次大样本实验中实测 FPR=1.00%，与理论值一致。针对该固有误报率，本文提出串联 Bloom Filter（Cascade BF，n=2 层）对 ZAC 方案进行扩展：各层使用不同 MurmurHash3 种子偏移（层 i 使用种子 [ik, ik+k-1]）保证 FP 事件统计独立，复合 FPR 降至 ε²=0.0001（0.01%）。扩展后同等 2,400 次实验零误报，证明大小从 48 字节增至 96 字节，仍为与语料库规模 N 无关的 O(1) 常数。"*
 
 ---
 
@@ -2919,3 +3047,144 @@ GELU 激活用 `tLookupRangeMapping gelu(-(1<<18), 1<<19, gelu_values)` + `scrip
 | `script/prove_conv3d_embed.py` | 新建：Conv3d embed 证明驱动脚本 |
 | `script/prove_pooling.py` | 新建：Pooling head sumcheck + rescaling 证明脚本 |
 | `src/zkllm/conv3d-embed.cu` | 新建：Conv3d 展开为矩阵乘的 CUDA 证明 binary |
+
+---
+
+## Phase 5 修复与完善（2026-04-28）
+
+### 5.1 关键 Bug 修复
+
+#### Bug 1：ABI 不一致导致 `opening != c.claim`
+
+**现象**：`verifyWeightClaim: opening != c.claim`，LLM 和 ViT 所有层全部 FAIL。
+
+**根因**：`proof.cuh` 修改了 `verifyWeightClaim` 签名（加了 `proof_path` 默认参数），但部分 `.o` 文件（`ffn.o`、`rmsnorm.o` 等）是在旧签名下编译的，`make` 未触发完整重链。新 `proof.o` 和旧 `ffn.o` 对 `Claim` 结构体的栈布局预期不同，导致 claim 值读取错位。
+
+**修复**：`make clean && make all`，所有目标从头重新编译链接。
+
+#### Bug 2：`proof.cu` 遗留 debug 双倍 `open()` 调用
+
+**现象**：修复 Bug 1 后每层耗时从预期 ~17.5s 涨至 ~23.6s（+35%）。
+
+**根因**：调试阶段在 `verifyWeightClaim` 里连续调用了两次 `open()`——`opening3`（3-arg，仅计算）和 `opening4`（4-arg，计算+写文件）——调试完成后忘记移除。每次 `open()` 需要完整的 `partial_me + me_open`（11 轮 GPU 归约），9 个 proof × 2 次 = 18 次重复计算。
+
+**修复**：改为单次条件调用：
+
+```cpp
+Fr_t opening = proof_path.empty()
+    ? w.generator.open(w_padded, w.com, u_cat)
+    : w.generator.open(w_padded, w.com, u_cat, proof_path);
+```
+
+修复后 `make all` 重链所有受影响 binary（ffn、self-attn、rmsnorm、patch-merger、conv3d-embed、skip-connection）。
+
+### 5.2 实测性能（修复后，2026-04-28）
+
+| 测试项 | 修复前（双倍open） | 修复后 | 对应原始基线 |
+|--------|-----------------|--------|-------------|
+| LLM layer 30（单 GPU，含 IPA 写文件） | 23.6 s | **17.97 s** | 17.5 s（无 IPA 写文件） |
+| ViT block 0（单 GPU，含 IPA 写文件） | ~21 s | **13.3 s** | ~13 s（无 IPA 写文件） |
+
+> IPA proof 文件写入（9 个 × ~144KB）相较原始基线增加约 0.5s，符合预期。
+
+**全量预估（修复后，2-GPU 并行）：**
+
+| 组件 | 预估耗时 | 方法 |
+|------|---------|------|
+| Conv3d embed | ~1 s | GPU0 |
+| ViT 32 blocks | **~3.5 min** | 2-GPU，13.3s/block÷2×32 |
+| PatchMerger | ~2 s | GPU0 |
+| Pooling head | < 1 s | CPU |
+| LLM 36 layers | **~5.4 min** | 2-GPU，17.97s/layer÷2×36 |
+| **总计** | **≈ 9 min** | 顺序执行，不争 GPU |
+
+---
+
+### 5.3 新增脚本与流程统一
+
+#### `script/verify_zkllm_full.py`（新建，2026-04-28；更新为全并行，2026-04-29）
+
+Phase 3 完整流水线统一入口，**全部 5 个组件同时启动**（ThreadPoolExecutor，max_workers=5）：
+
+```
+Conv3d embed  ─┐
+ViT 32 blocks ─┤  同时启动，墙钟时间 ≈ max(ViT, LLM)
+PatchMerger   ─┤
+Pooling head  ─┤
+LLM 36 layers ─┘
+```
+
+- Conv3d / PatchMerger 使用 `gpu_id=1`（`prove_conv3d_embed` / `prove_patchmerger` 均已加 `gpu_id` 参数）
+- ViT / LLM 各自内部 2-GPU 并行（`--parallel`），同时运行时共享 GPU0+GPU1
+- 实测全并行比"ViT→LLM 顺序"更快（GPU 调度器有效交错两路工作负载）
+- 输出统一计时 JSON：`notes/experiment_results/full_proof_timing.json`
+- 运行命令：`python script/verify_zkllm_full.py 2>&1 | tee logs/full_proof_timing_v2.log`
+
+**关于"全量证明覆盖完整前向传播链"的说明**
+
+全量证明（Conv3d → ViT 32 blocks → PatchMerger → Pooling → LLM 36 layers）配合真实 hook 激活，**确实覆盖了完整前向传播链**。理由：
+
+- Hook 在同一次前向传播中捕获所有中间激活（`input_layernorm` 输出、`post_attention_layernorm` 输出等），这些激活天然来自同一次推理，各组件输入/输出自然链接
+- 每个组件的 IPA 证明验证：给定这些真实激活，所用权重确实是承诺的 jina-v4 权重
+- 因此全量证明证明的是：**这张图像经过了这些权重的完整前向传播，得到了这个 embedding**
+
+上述保证与 Phase 1（ZAC 承诺图像+embedding）、Phase 2（Sumcheck 验证 embedding 值）联合，构成三层防御：
+
+| Phase | 证明内容 |
+|-------|---------|
+| Phase 1（ZAC） | 图像和 embedding 向量均未被篡改（联合承诺） |
+| Phase 2（Sumcheck） | 检索分值和排序未被操控 |
+| Phase 3（zkLLM IPA） | 推理过程使用了承诺的 jina-v4 权重（全量 328 个权重矩阵） |
+
+> **注**：smoke test 模式（随机激活）仅验证"给定该随机输入，矩阵乘由承诺权重正确计算"，不具备上述语义完整性。使用真实 hook 激活（`build_corpus_zkllm_proofs.py` / `interactive_demo.py`）才是语义完整的。
+
+#### `script/experiment_c3b.py`（重新设计）
+
+**旧 c3b 问题**：
+1. 验证器是伪的（commit-param 重算 + 字节对比），不是密码学意义上的验证
+2. 人为区分"覆盖层/不覆盖层"，只测 LLM 3 个层
+3. 图像侧（ViT、Conv3d、PatchMerger）完全未覆盖
+
+**新 c3b 设计原则**：
+
+| 原则 | 描述 |
+|------|------|
+| 全组件覆盖 | Conv3d + ViT（抽样 4 块：0,7,15,31）+ PatchMerger + LLM（抽样 6 层：0,7,14,21,28,35） |
+| 图像+文字对等 | 图像侧 10 个权重矩阵，文字侧 12 个权重矩阵，各独立统计检出率 |
+| 真实 IPA 验证 | 调用 `verify-ipa` C++ binary 做 fold + binding 双重检验 |
+| 完全随机无分组 | 固定 seed=42，随机高斯噪声替换，3 比例 × 3 次重复 |
+| 每权重 10 次实验 | 1 次 clean（期望通过）+ [0.001, 0.01, 0.05] × 3 repeats（期望 binding_ok=False） |
+
+**检测逻辑**：`detected = not binding_ok`（承诺绑定校验失败 = 篡改被发现）
+
+**结果汇总维度**：
+- 总检出率
+- 按 side 分组（image / text）
+- 按篡改比例分组（0.001 / 0.01 / 0.05）
+
+#### `script/interactive_demo.py`（路径修复 + Fiat-Shamir 随机层挑战）
+
+- `ZKLLM_BIN_DIR`：`src/zkllm/bin`（不存在）→ `src/zkllm`（binary 实际位置）
+- `_ensure_worker_cwd`：`base = ZKLLM_BIN_DIR.parent` → `base = ZKLLM_BIN_DIR`，确保 worker 子目录创建在 `src/zkllm/worker{slot}/`
+- 新增 `_fiat_shamir_layers(query_text, nonce, K=6, total=36)`：以 `SHA256(query||nonce)` 为种子，从全部 36 层中随机抽取 K 层
+- `embed_query_with_hooks` 接受 `layers` 参数，只 hook 需要证明的层
+- `_run_zkllm_query_bg` 接受 `layers` 参数，证明 Fiat-Shamir 选出的层（而非固定最后 K 层）
+- `on_query` 先计算 `selected_layers = _fiat_shamir_layers(query, proof_id)`，再传给 hook 和证明线程
+
+#### `script/verify_layers.py`（新增 `--challenge-seed`）
+
+- 新增 `--challenge-seed <hex>` 参数：Verifier 端提供 challenge 种子（= `SHA256(query||nonce)` 的十六进制）
+- 新增 `--k` 参数（默认 6）：与 `--challenge-seed` 配合，自动推导证明层列表
+- `--challenge-seed` 与 `--layers` 互斥；提供 `--challenge-seed` 时忽略 `--layers`
+
+### 5.4 修改文件清单（2026-04-28/29）
+
+| 文件 | 改动 |
+|------|------|
+| `src/zkllm/proof.cu` | 移除 debug 双倍 `open()` 调用，恢复单次条件调用 |
+| `script/verify_zkllm_full.py` | **新建**：Phase 3 完整流水线统一计时入口；**更新**：改为全并行（5组件同时启动） |
+| `script/experiment_c3b.py` | **新建**：全组件篡改检测实验，替代旧伪验证 c3b |
+| `script/interactive_demo.py` | 修复 `ZKLLM_BIN_DIR` 路径 + Fiat-Shamir 随机层挑战（`_fiat_shamir_layers`） |
+| `script/verify_layers.py` | 新增 `--challenge-seed` + `--k` 参数，支持 Verifier 端重现层选择 |
+| `script/prove_conv3d_embed.py` | 新增 `gpu_id` 参数（默认 1），prover env 与 verify-ipa 均使用该 GPU |
+| `script/prove_patchmerger.py` | 同上 |

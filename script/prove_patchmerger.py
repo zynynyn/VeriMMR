@@ -71,7 +71,21 @@ def _eval_g1_ml(pts, u_vec):
         pts = new
     return pts[0]
 
-def verify_ipa(proof_path: str) -> dict:
+def verify_ipa(proof_path: str, gpu_id: int = 1) -> dict:
+    """优先使用 C++ verify-ipa binary；不可用时回退 Python py_ecc。"""
+    cpp_bin = BIN_DIR / "verify-ipa"
+    com_path = proof_path.replace("-ipa-proof.bin", ".weight-commitment.bin")
+    if cpp_bin.exists() and os.path.exists(com_path):
+        import subprocess as _sp
+        env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
+        r = _sp.run([str(cpp_bin), proof_path, com_path],
+                    capture_output=True, env=env)
+        if r.returncode in (0, 1):
+            try:
+                return json.loads(r.stdout.decode().strip())
+            except Exception:
+                pass
+    # fallback: Python py_ecc
     from py_ecc.optimized_bls12_381 import add, multiply, eq
     data = open(proof_path, "rb").read()
     assert data[:4] in (b"IPA\x00", b"\x00API"), f"Bad magic: {data[:4]!r}"
@@ -105,18 +119,27 @@ def verify_ipa(proof_path: str) -> dict:
     return {"fold_ok": fold_ok, "binding_ok": binding_ok}
 
 
-def prove_patchmerger(n_patches=256, workdir=None) -> dict:
+def prove_patchmerger(n_patches=256, workdir=None, gpu_id: int = 1,
+                      input_int32: np.ndarray = None) -> dict:
+    """
+    n_patches  : int — patch 数（input_int32=None 时用于生成随机输入）
+    input_int32: (n_patches, VIT_DIM) int32 — 真实 ViT 输出（优先于随机）
+    """
     if workdir is None:
         workdir = ROOT / "zkllm-workdir" / "jina-v4"
     workdir = Path(workdir)
 
-    # 生成随机输入 (smoke test)
-    rng = np.random.default_rng(42)
-    X_int = (rng.standard_normal((n_patches, VIT_DIM)) * SCALE).astype(np.int32)
+    # 生成/加载输入
+    if input_int32 is not None:
+        X_int = input_int32.astype(np.int32)
+        n_patches = X_int.shape[0]
+    else:
+        rng   = np.random.default_rng(42)
+        X_int = (rng.standard_normal((n_patches, VIT_DIM)) * SCALE).astype(np.int32)
 
-    input_path  = workdir / f"{PREFIX}-input.bin"
+    input_path   = workdir / f"{PREFIX}-input.bin"
     rms_inv_path = workdir / f"{PREFIX}-rms_inv.bin"
-    output_path = workdir / f"{PREFIX}-output.bin"
+    output_path  = workdir / f"{PREFIX}-output.bin"
 
     X_int.tofile(str(input_path))
 
@@ -126,7 +149,7 @@ def prove_patchmerger(n_patches=256, workdir=None) -> dict:
     (rms_inv * SCALE).round().astype(np.int32).tofile(str(rms_inv_path))
 
     # 调用 patch-merger binary
-    env = {**os.environ, "CUDA_VISIBLE_DEVICES": "0"}
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
     t0 = time.perf_counter()
     r = subprocess.run(
         [str(BIN_DIR / "patch-merger"),
@@ -149,7 +172,7 @@ def prove_patchmerger(n_patches=256, workdir=None) -> dict:
             proof_path = str(workdir / f"{PREFIX}-{name}-ipa-proof.bin")
             if Path(proof_path).exists():
                 try:
-                    ipa[name] = verify_ipa(proof_path)
+                    ipa[name] = verify_ipa(proof_path, gpu_id=gpu_id)
                 except Exception as e:
                     ipa[name] = {"fold_ok": False, "error": str(e)}
 

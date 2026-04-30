@@ -1,736 +1,83 @@
-[
-  {
-    "label": "text",
-    "total_s": 118.1,
-    "verified": false,
-    "layers": [
-      {
-        "layer": 0,
-        "ok": false,
-        "s": 3.29,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 1,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 2,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 3,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 4,
-        "ok": false,
-        "s": 3.23,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 5,
-        "ok": false,
-        "s": 3.19,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 6,
-        "ok": false,
-        "s": 3.24,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 7,
-        "ok": false,
-        "s": 3.24,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 8,
-        "ok": false,
-        "s": 3.32,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 9,
-        "ok": false,
-        "s": 3.28,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 10,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 11,
-        "ok": false,
-        "s": 3.24,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 12,
-        "ok": false,
-        "s": 3.23,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 13,
-        "ok": false,
-        "s": 3.28,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 14,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 15,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 16,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 17,
-        "ok": false,
-        "s": 3.28,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 18,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 19,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 20,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 21,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 22,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 23,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 24,
-        "ok": false,
-        "s": 3.29,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 25,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 26,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 27,
-        "ok": false,
-        "s": 3.29,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 28,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 29,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 30,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 31,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 32,
-        "ok": false,
-        "s": 3.37,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 33,
-        "ok": false,
-        "s": 3.36,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 34,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 35,
-        "ok": false,
-        "s": 3.29,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
+{
+  "total_ms": 770821,
+  "total_min": 12.85,
+  "n_pass": 5,
+  "n_total": 5,
+  "all_pass": true,
+  "components": [
+    {
+      "label": "Conv3d embed",
+      "ok": true,
+      "elapsed_ms": 2336,
+      "detail": {
+        "all_ok": true,
+        "prover_ok": true,
+        "elapsed_ms": 1579,
+        "n_patches": 32,
+        "ipa": {
+          "fold_ok": true,
+          "binding_ok": true
+        }
       }
-    ]
-  },
-  {
-    "label": "image",
-    "total_s": 118.1,
-    "verified": false,
-    "layers": [
-      {
-        "layer": 0,
-        "ok": false,
-        "s": 3.2,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 1,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 2,
-        "ok": false,
-        "s": 3.22,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 3,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 4,
-        "ok": false,
-        "s": 3.24,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 5,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 6,
-        "ok": false,
-        "s": 3.32,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 7,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 8,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 9,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 10,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 11,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 12,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 13,
-        "ok": false,
-        "s": 3.28,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 14,
-        "ok": false,
-        "s": 3.32,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 15,
-        "ok": false,
-        "s": 3.34,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 16,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 17,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 18,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 19,
-        "ok": false,
-        "s": 3.23,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 20,
-        "ok": false,
-        "s": 3.25,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 21,
-        "ok": false,
-        "s": 3.34,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 22,
-        "ok": false,
-        "s": 3.28,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 23,
-        "ok": false,
-        "s": 3.29,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 24,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 25,
-        "ok": false,
-        "s": 3.22,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 26,
-        "ok": false,
-        "s": 3.32,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 27,
-        "ok": false,
-        "s": 3.3,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 28,
-        "ok": false,
-        "s": 3.32,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 29,
-        "ok": false,
-        "s": 3.28,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 30,
-        "ok": false,
-        "s": 3.29,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 31,
-        "ok": false,
-        "s": 3.36,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 32,
-        "ok": false,
-        "s": 3.23,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 33,
-        "ok": false,
-        "s": 3.28,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 34,
-        "ok": false,
-        "s": 3.26,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
-      },
-      {
-        "layer": 35,
-        "ok": false,
-        "s": 3.27,
-        "ffn_rc": -6,
-        "lin_rc": -6,
-        "sfx_rc": 1,
-        "ffn_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n",
-        "lin_err": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  verifyWeightClaim: IPA verification FAILED — weight tampered?\n"
+    },
+    {
+      "label": "ViT 32 blocks (2-GPU)",
+      "ok": true,
+      "elapsed_ms": 676087,
+      "returncode": 0
+    },
+    {
+      "label": "PatchMerger",
+      "ok": true,
+      "elapsed_ms": 8790,
+      "detail": {
+        "all_ok": true,
+        "prover_ok": true,
+        "elapsed_ms": 6058,
+        "n_patches": 256,
+        "ipa": {
+          "patchmerger_layernorm": {
+            "fold_ok": true,
+            "binding_ok": true
+          },
+          "patchmerger_fc1": {
+            "fold_ok": true,
+            "binding_ok": true
+          },
+          "patchmerger_fc2": {
+            "fold_ok": true,
+            "binding_ok": true
+          }
+        }
       }
-    ]
-  }
-]
+    },
+    {
+      "label": "Pooling head",
+      "ok": true,
+      "elapsed_ms": 201,
+      "detail": {
+        "meanpool_ok": true,
+        "l2norm_ok": true,
+        "all_ok": true,
+        "K": 501,
+        "meanpool": {
+          "ok": true,
+          "K": 501
+        },
+        "l2norm": {
+          "ok": true,
+          "rms_inv_q": 64,
+          "norm": 1017.6470594005563,
+          "max_error": 0.0005417969310479859,
+          "error_bound": 0.0013560621510107518
+        }
+      }
+    },
+    {
+      "label": "LLM 36 layers (2-GPU)",
+      "ok": true,
+      "elapsed_ms": 770818,
+      "returncode": 0
+    }
+  ]
+}

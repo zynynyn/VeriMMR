@@ -15,6 +15,8 @@ import sys
 import os
 import json
 import html as _html
+import hashlib
+import random as _random
 import time
 import uuid
 import threading
@@ -37,21 +39,31 @@ EMBEDDING_PATH = ROOT / "embedding" / "embedding.npy"
 INDEX_PATH     = ROOT / "index" / "index.index"
 ZAC_STATE      = ROOT / "output" / "phase1" / "prover_state.json"
 ZKLLM_WORKDIR  = ROOT / "zkllm-workdir" / "jina-v4"
-ZKLLM_BIN_DIR  = ROOT / "src" / "zkllm" / "bin"
+ZKLLM_BIN_DIR  = ROOT / "src" / "zkllm"
 MODEL_PATH     = "/root/autodl-tmp/models/jina-embeddings-v4"
 GEN_MODEL_PATH = "/root/autodl-tmp/models/MiniCPM-V-4"
 TOP_K          = 5
-# 消融实验（实验A BI Score + 实验B 残差置零）结论：
-#   文本：层33-35 是核心关键区（coverage 44.3%），层30-32 对文本贡献低（均值0.08）
-#   图像：层31-35 均显著（coverage 67.5%），层31-32 对图像贡献明显（均值0.13）
-#   → 差异化 K：文本 K=3，图像 K=5
-K_LAYERS_TEXT  = 3   # 文本 query 证明层 33-35
-K_LAYERS_IMG   = 5   # 图像 corpus 证明层 31-35
+# Fiat-Shamir 随机层挑战参数（在线查询安全）：
+#   challenge = SHA256(query_text || nonce)，从全部 36 层中随机抽 K=6 层
+#   P(caught | L 层被篡改) = 1 - C(36-L, K) / C(36, K)
+#   K=6: L≥6 篡改→P≥69.5%，整模型替换→P=100%，在线墙钟≈46s（2-GPU 异步）
+K_LAYERS_TEXT  = 6   # Fiat-Shamir 在线挑战：从 36 层中随机选 6 层
+K_LAYERS_IMG   = 5   # 图像语料库侧固定：层 31-35（预计算，不需要随机化）
 # 统一填充到 1024：满足 FFN/linear（seq×2048=2^21）和 GQA zkAttn（seq²=2^20）全部 NTT 约束
 # 语料库侧图像（~641 tokens）同样填充到 1024，两侧策略完全对称
 SEQ_LEN_PAD    = 1024
 KV_DIM_QUERY   = 256    # jina-v4 GQA kv_dim
 NUM_KV_HEADS_Q = 2      # jina-v4 GQA num_kv_heads
+
+# ── Fiat-Shamir 工具 ─────────────────────────────────────────────────────────
+
+def _fiat_shamir_layers(query_text: str, nonce: str,
+                        K: int = 6, total: int = 36) -> list:
+    """以 SHA256(query||nonce) 为种子从 [0, total) 中无放回抽取 K 层，返回排序后的列表。"""
+    seed = hashlib.sha256((query_text + "|" + nonce).encode("utf-8")).digest()
+    rng  = _random.Random(seed)
+    return sorted(rng.sample(range(total), K))
+
 
 # ── 全局状态 ──────────────────────────────────────────────────────────────────
 _model          = None
@@ -168,19 +180,23 @@ def embed_query(query: str) -> np.ndarray:
 
 
 def embed_query_with_hooks(query: str, proof_id: str,
-                           act_ready: threading.Event) -> np.ndarray:
+                           act_ready: threading.Event,
+                           layers: list = None) -> np.ndarray:
     """
-    编码查询并捕获 layer 30-35 的真实激活，保存为 zkLLM 二进制格式：
+    编码查询并捕获指定层的真实激活，保存为 zkLLM 二进制格式：
       layer-{l}-qry-{proof_id}-attn-input.bin  → input_layernorm 输出（self-attn 输入）
       layer-{l}-qry-{proof_id}-ffn-input.bin   → post_attention_layernorm 输出（ffn 输入）
     文件均 zero-pad 到 SEQ_LEN_PAD×2048 的 int32 数组。
+    layers: Fiat-Shamir 选出的层列表（None 时退回固定最后 K 层）
     完成后设置 act_ready 事件，解锁后台证明线程。
     """
     import torch
-    print(f"[Step 1] 向量编码 + hook 捕获  proof_id={proof_id}  layers={36-K_LAYERS_TEXT}-35")
+    if layers is None:
+        layers = list(range(36 - K_LAYERS_TEXT, 36))
+    print(f"[Step 1] 向量编码 + hook 捕获  proof_id={proof_id}  layers={layers}")
     try:
-        layers = (list(_model.children())[0]
-                  .model.base_model.model.model.language_model.layers)
+        model_layers = (list(_model.children())[0]
+                        .model.base_model.model.model.language_model.layers)
         captured = {}
         handles = []
 
@@ -189,12 +205,12 @@ def embed_query_with_hooks(query: str, proof_id: str,
                 captured[key] = out.detach().float().cpu()
             return _hook
 
-        for li in range(36 - K_LAYERS_TEXT, 36):
+        for li in layers:
             handles.append(
-                layers[li].input_layernorm.register_forward_hook(
+                model_layers[li].input_layernorm.register_forward_hook(
                     _make_hook(f"attn_{li}")))
             handles.append(
-                layers[li].post_attention_layernorm.register_forward_hook(
+                model_layers[li].post_attention_layernorm.register_forward_hook(
                     _make_hook(f"ffn_{li}")))
 
         result = _model.encode(
@@ -205,7 +221,7 @@ def embed_query_with_hooks(query: str, proof_id: str,
             h.remove()
 
         scale = 1 << 16
-        for li in range(36 - K_LAYERS_TEXT, 36):
+        for li in layers:
             for hook_type in ("attn", "ffn"):
                 key = f"{hook_type}_{li}"
                 if key not in captured:
@@ -376,7 +392,7 @@ def run_generation(query: str, image_paths: List[str]) -> str:
 
 def _ensure_worker_cwd(slot: int) -> tuple:
     """创建 src/zkllm/worker{slot}/ 并 symlink swiglu-table.bin，返回 (cwd_str, env_dict)。"""
-    base = ZKLLM_BIN_DIR.parent
+    base = ZKLLM_BIN_DIR          # src/zkllm/
     d    = base / f"worker{slot}"
     d.mkdir(exist_ok=True)
     link = d / "swiglu-table.bin"
@@ -387,14 +403,16 @@ def _ensure_worker_cwd(slot: int) -> tuple:
     return str(d), env
 
 
-def _run_zkllm_query_bg(proof_id: str, act_ready: threading.Event = None):
+def _run_zkllm_query_bg(proof_id: str, act_ready: threading.Event = None,
+                        layers: list = None):
     workdir = str(ZKLLM_WORKDIR)
     bin_dir = str(ZKLLM_BIN_DIR)
-    # 层间并行：K_TEXT=3 层按前后两半分配给 GPU0 / GPU1
+    # Fiat-Shamir 层间并行：K 层均分给 GPU0 / GPU1
     # 各 GPU 在自己负责的层上独立串行：FFN+linear+zkAttn
-    # 时序：每半 K/2 层 × 15.2s/层；墙钟 = (K/2) × 15.2s
-    # K=3 → gpu0=[33]×15.2s ∥ gpu1=[34,35]×30.4s ≈ 30.4s（比 K=6 的 45.6s 快 1.5×）
-    print(f"[zkLLM-Q] 后台线程启动  proof_id={proof_id}  K_layers={K_LAYERS_TEXT}  等待激活文件…")
+    # K=6 → gpu0=[3层]×15.2s ∥ gpu1=[3层]×15.2s ≈ 45.6s 墙钟
+    if layers is None:
+        layers = list(range(36 - K_LAYERS_TEXT, 36))
+    print(f"[zkLLM-Q] 后台线程启动  proof_id={proof_id}  layers={layers}  等待激活文件…")
     cwd0, env0 = _ensure_worker_cwd(0)
     cwd1, env1 = _ensure_worker_cwd(1)
     t0 = time.perf_counter()
@@ -403,14 +421,13 @@ def _run_zkllm_query_bg(proof_id: str, act_ready: threading.Event = None):
     # 等待真实激活文件就绪（embed_query_with_hooks 完成后设置）
     if act_ready is not None:
         act_ready.wait(timeout=60)
-        print(f"[zkLLM-Q] 激活文件就绪，开始证明  layers={list(range(36-K_LAYERS_TEXT, 36))}")
+        print(f"[zkLLM-Q] 激活文件就绪，开始证明  layers={layers}")
 
     import concurrent.futures as _cf
 
-    all_layers = list(range(36 - K_LAYERS_TEXT, 36))
+    all_layers = layers
     half       = len(all_layers) // 2
-    # 奇数层时 GPU1 多一层（尾部层更靠近 embedding 输出，略重要）
-    # K=3 → gpu0=[33], gpu1=[34,35]
+    # 奇数层时 GPU1 多一层
     gpu0_layers = all_layers[:half]
     gpu1_layers = all_layers[half:]
 
@@ -496,7 +513,8 @@ def _run_zkllm_query_bg(proof_id: str, act_ready: threading.Event = None):
     verified = success and all(r["verified"] for r in layer_results)
     print(f"[zkLLM-Q] 完成  verified={verified}  elapsed={elapsed_ms}ms  layers_ok={sum(r['verified'] for r in layer_results)}/{len(layer_results)}")
     result = {
-        "status": "completed", "k_layers": K_LAYERS_TEXT, "modality": "text", "layers": layer_results,
+        "status": "completed", "k_layers": len(layers), "modality": "text",
+        "fiat_shamir_layers": layers, "layers": layer_results,
         "verified": verified,
         "elapsed_ms": elapsed_ms,
     }
@@ -909,17 +927,19 @@ def on_query(query: str):
     def y(gallery_v, ah, **kw):
         return gallery_v, vtl(**kw), ah, proof_id
 
-    # ── Step 0: 启动 zkLLM query proof 后台线程（等待激活文件就绪后才运行证明）
+    # ── Step 0: Fiat-Shamir 层挑战 + 启动 zkLLM query proof 后台线程
+    fs_layers = _fiat_shamir_layers(query, proof_id, K=K_LAYERS_TEXT)
+    print(f"[Fiat-Shamir] 选中层: {fs_layers}  (challenge=SHA256({query[:20]!r}|{proof_id}))")
     act_ready = threading.Event()
     zkllm_thread = threading.Thread(
-        target=_run_zkllm_query_bg, args=(proof_id, act_ready), daemon=True)
+        target=_run_zkllm_query_bg, args=(proof_id, act_ready, fs_layers), daemon=True)
     zkllm_thread.start()
     yield y([], answer_html(),
             input_icon="✅", encode_icon="⏳", zkllm_q_icon="⏳")
 
     # ── Step 1: 向量编码（同时捕获 hook 激活并保存，完成后 act_ready.set()）
     t0 = time.perf_counter()
-    q_emb = embed_query_with_hooks(query, proof_id, act_ready)
+    q_emb = embed_query_with_hooks(query, proof_id, act_ready, layers=fs_layers)
     enc_ms = round((time.perf_counter() - t0) * 1000, 1)
     yield y([], answer_html(),
             input_icon="✅",

@@ -216,12 +216,15 @@ def cmd_generate(args: argparse.Namespace) -> None:
         embeddings_path=embedding_npy,
         corpus_jsonl=corpus_jsonl,
         corpus_base_dir=corpus_base_dir,
+        n_filters=args.n_filters,
     )
     elapsed = time.time() - t0
 
+    root_bytes = len(acc.root_hex()) // 2
     print(f"\n[ZAC] Done in {elapsed:.2f}s")
     print(f"      items      : {len(acc._S)}")
-    print(f"      ZAC root   : {acc.root_hex()}  (48 bytes)")
+    print(f"      n_filters  : {acc._n_filters}")
+    print(f"      ZAC root   : {acc.root_hex()}  ({root_bytes} bytes)")
     print(f"      BF params  : q={acc._bf.q}, k={acc._bf.k}")
 
     # Step 4: Save manifest + prover state
@@ -314,6 +317,10 @@ def main() -> None:
                         help="Output directory for embeddings (default: output/phase1/embedding).")
     parser.add_argument("--output", default="output/phase1/fingerprint.json",
                         help="Output path for fingerprint JSON (default: output/phase1/fingerprint.json).")
+
+    # ZAC options
+    parser.add_argument("--n-filters", type=int, default=1,
+                        help="串联 BF 层数（复合 FPR = ε^n，默认 1）。")
 
     # Model / hardware
     parser.add_argument("--model", default="/root/autodl-tmp/models/jina-embeddings-v4",

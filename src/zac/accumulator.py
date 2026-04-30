@@ -503,21 +503,42 @@ class ZACAccumulator:
     def prove_membership(self, element: bytes) -> dict:
         """
         ZAC.ProveM for one element.
-        Returns JSON-serializable dict with the 48-byte aggregated proof.
+        Single-filter: returns flat format (backward compat).
+        Cascade (n_filters>1): returns {"layer_proofs": [...]} format.
         """
         S_hat = {element}
-        I = self._bf.membership_indices(S_hat)
-        v_I = [self._v[i] for i in I]
 
-        individual = [self._pr.prove(i, self._v, self._r) for i in I]
-        pi_hat = self._pr.aggregate(self._cm, I, v_I, individual)
+        if self._n_filters == 1:
+            I = self._bf.membership_indices(S_hat)
+            v_I = [self._v[i] for i in I]
+            individual = [self._pr.prove(i, self._v, self._r) for i in I]
+            pi_hat = self._pr.aggregate(self._cm, I, v_I, individual)
+            return {
+                "element_hex": element.hex(),
+                "I": I,
+                "v_I": v_I,
+                "proof_hex": _g1_compress(pi_hat).hex(),
+                "cm_hex": self.root_hex(),
+            }
 
+        # Cascade: one proof per layer.
+        layer_proofs = []
+        for L in self._layers:
+            I = L["bf"].membership_indices(S_hat)
+            v_I = [L["v"][i] for i in I]
+            individual = [L["pr"].prove(i, L["v"], L["r"]) for i in I]
+            pi_hat = L["pr"].aggregate(L["cm"], I, v_I, individual)
+            layer_proofs.append({
+                "I": I,
+                "v_I": v_I,
+                "proof_hex": _g1_compress(pi_hat).hex(),
+                "cm_hex": _g1_compress(L["cm"]).hex(),
+            })
         return {
             "element_hex": element.hex(),
-            "I": I,
-            "v_I": v_I,
-            "proof_hex": _g1_compress(pi_hat).hex(),
             "cm_hex": self.root_hex(),
+            "n_filters": self._n_filters,
+            "layer_proofs": layer_proofs,
         }
 
     def prove_membership_batch(self, elements: List[bytes]) -> dict:
@@ -748,6 +769,7 @@ class ZACAccumulator:
         corpus_jsonl: str,
         corpus_base_dir: str,
         epsilon: float = 0.01,
+        n_filters: int = 1,
     ) -> "ZACAccumulator":
         """
         Build ZAC accumulator from UltraRAG image corpus.
@@ -781,7 +803,7 @@ class ZACAccumulator:
                 h = hashlib.sha256(img_bytes + emb_bytes).digest()
                 S.add(h)
 
-        return cls(S=S, epsilon=epsilon)
+        return cls(S=S, epsilon=epsilon, n_filters=n_filters)
 
 
 # ---------------------------------------------------------------------------
