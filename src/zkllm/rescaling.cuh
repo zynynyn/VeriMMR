@@ -17,7 +17,16 @@ public:
 
     Rescaling(uint scaling_factor);
     FrTensor operator()(const FrTensor& X);
-    vector<Claim> prove(const FrTensor& X, const FrTensor& X_);
+    // proof: sumcheck polynomials + final tLookup claim appended here.
+    vector<Claim> prove(const FrTensor& X, const FrTensor& X_, vector<Polynomial>& proof);
+
+    // Constraint Fusion (zkGPT §5): fused proof for X →[/sf]→ X_ →[/sf]→ X__.
+    // Replaces two prove() tLookup range checks with one, halving that overhead.
+    // Caller: invoke operator() on both rs_outer and *this before calling this.
+    void prove_chain_with(const Rescaling& rs_outer,
+                          const FrTensor& X, const FrTensor& X_, const FrTensor& X__,
+                          vector<Polynomial>& proof);
+
     ~Rescaling();
 };
 

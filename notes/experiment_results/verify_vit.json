@@ -2,34 +2,71 @@
   "blocks": [
     7
   ],
-  "blocks_pass": 0,
-  "elapsed_ms": 10381,
+  "blocks_pass": 1,
+  "elapsed_ms": 12617,
   "results": [
     {
       "block": 7,
-      "all_pass": false,
-      "prover_ok": false,
+      "all_pass": true,
+      "prover_ok": true,
       "step_rc": {
         "rmsnorm_pre": 0,
-        "attn_linear": -6,
-        "zkAttn": -11,
+        "attn_linear": 0,
+        "zkAttn": 0,
         "o_proj": 0,
         "skip1": 0,
         "rmsnorm_post": 0,
-        "ffn": -6,
+        "ffn": 0,
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 1379,
-        "attn_linear": 613,
-        "zkAttn": 107,
-        "o_proj": 1302,
-        "skip1": 271,
-        "rmsnorm_post": 5132,
-        "ffn": 1181,
-        "skip2": 300
+        "rmsnorm_pre": 880,
+        "attn_linear": 1634,
+        "zkAttn": 3382,
+        "o_proj": 795,
+        "skip1": 311,
+        "rmsnorm_post": 845,
+        "ffn": 2418,
+        "skip2": 319
       },
-      "ipa": {}
+      "ipa": {
+        "input_layernorm": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.k_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.q_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.v_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "self_attn.o_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "post_attention_layernorm": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "mlp.gate_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "mlp.up_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        },
+        "mlp.down_proj": {
+          "fold_ok": true,
+          "binding_ok": true
+        }
+      }
     }
   ]
 }

@@ -1,0 +1,4 @@
+  Block 0: ✓ PASS  (65126ms  fold=9/9  binding=9/9)
+Block 0 total: 69.5s
+step_ms: {'rmsnorm_pre': '1.0s', 'attn_linear': '2.1s', 'zkAttn': '55.8s', 'o_proj': '0.9s', 'skip1': '0.3s', 'rmsnorm_post': '0.9s', 'ffn': '3.8s', 'skip2': '0.3s'}
+all_pass: True

@@ -13,8 +13,27 @@ class zkSoftmax {
     Fr_t prove(const FrTensor& Y, const FrTensor& X, const FrTensor& shift, const FrTensor& X_shifted,
         const vector<FrTensor>& X_segments, const vector<FrTensor>& Y_segments, const vector<FrTensor>& m_segments,
         const vector<Fr_t>& u_Y, const vector<Fr_t>& v_Y,
-        const Fr_t& r_seg, const Fr_t& alpha_seg, const Fr_t& beta_seg, 
+        const Fr_t& r_seg, const Fr_t& alpha_seg, const Fr_t& beta_seg,
         vector<Polynomial>& proof);
+
+    // prove() minus the K per-segment tLookup calls (deferred for cross-head batch).
+    // merged_X_segs[k] / merged_Y_segs[k] must be accumulated across all heads, then
+    // passed to batch_prove_segs() once after the head loop.
+    Fr_t prove_no_segs(const FrTensor& Y, const FrTensor& X, const FrTensor& shift, const FrTensor& X_shifted,
+        const vector<FrTensor>& X_segments, const vector<FrTensor>& Y_segments, const vector<FrTensor>& m_segments,
+        const vector<Fr_t>& u_Y, const vector<Fr_t>& v_Y,
+        const Fr_t& r_seg, const Fr_t& alpha_seg, const Fr_t& beta_seg,
+        vector<Polynomial>& proof);
+
+    // One batch tLookup prove for K segments over merged data from all heads.
+    // merged_X_segs[k] = concat of all heads' X_segs[k], padded to next pow2.
+    // merged_Y_segs[k-L] = concat of all heads' Y_segs[k-L] (only for k >= L).
+    void batch_prove_segs(const vector<FrTensor>& merged_X_segs,
+                          const vector<FrTensor>& merged_Y_segs,
+                          vector<Polynomial>& proof);
+
+    uint get_K() const { return K; }
+    uint get_L() const { return L; }
 
     protected:
     const vector<uint> bs;

@@ -124,6 +124,10 @@ FrTensor zkSoftmax::compute(const FrTensor& X, FrTensor& shift, FrTensor& X_shif
     // decompose X into segments
     Fr_t* X_decomposed;
     cudaMalloc(&X_decomposed, m * n * sizeof(Fr_t) * K);
+    // Zero-init: decompose_kernel only writes elements where X_shifted < 0 (i.e. -X fits in 64 bits).
+    // For positive X_shifted values the kernel leaves memory unwritten; zeroing ensures those
+    // elements map to segment index 0, which is a valid entry in every tLookup table.
+    cudaMemset(X_decomposed, 0, m * n * sizeof(Fr_t) * K);
 
     Fr_t** X_decomposed_segments = new Fr_t*[K];
     for (uint i = 0; i < K; ++ i) X_decomposed_segments[i] = X_decomposed + i * m * n;
@@ -200,6 +204,9 @@ Fr_t zkSoftmax::prove(const FrTensor& Y, const FrTensor& X, const FrTensor& shif
             r_seg, alpha_seg, beta_seg, u_Y, v_Y, proof));
     }
 
+    // Emit tLookup final claims into proof so verifier can link them to oracle queries.
+    for (auto& c : claim_lus) proof.push_back(Polynomial(c));
+
     vector<Fr_t> Y_seg_claims, X_seg_claims;
     for (uint i = L; i < K; ++ i) Y_seg_claims.push_back(Y_segments[i - L](v_Y));
     for (uint i = 0; i < K; ++ i) X_seg_claims.push_back(X_segments[i](v_Y));
@@ -217,6 +224,72 @@ Fr_t zkSoftmax::prove(const FrTensor& Y, const FrTensor& X, const FrTensor& shif
 
     if (shift_const_opening - minus_X_shifted_claim != X_opening) throw std::runtime_error("X claim is not correct");
     return X_opening;
+}
+
+Fr_t zkSoftmax::prove_no_segs(const FrTensor& Y, const FrTensor& X, const FrTensor& shift, const FrTensor& X_shifted,
+    const vector<FrTensor>& X_segments, const vector<FrTensor>& Y_segments, const vector<FrTensor>& m_segments,
+    const vector<Fr_t>& u_Y, const vector<Fr_t>& v_Y,
+    const Fr_t& r_seg, const Fr_t& alpha_seg, const Fr_t& beta_seg,
+    vector<Polynomial>& proof)
+{
+    // Identical to prove() but skips the K tLookup segment calls (lines 190-201).
+    // Caller must accumulate X_segments / Y_segments across all heads, then call
+    // batch_prove_segs() once after the head loop.
+    uint N = Y.size;
+    if (X.size != N) throw std::invalid_argument("X and Y must have the same size "+to_string(X.size)+" "+to_string(Y.size));
+
+    auto claim_Y = Y(u_Y);
+    multi_hadamard_sumchecks(claim_Y, Y_segments, u_Y, v_Y, proof);
+
+    vector<Fr_t> Y_seg_claims, X_seg_claims;
+    for (uint i = L; i < K; ++ i) Y_seg_claims.push_back(Y_segments[i - L](v_Y));
+    for (uint i = 0; i < K; ++ i) X_seg_claims.push_back(X_segments[i](v_Y));
+
+    Fr_t minus_X_shifted_claim = {0, 0, 0, 0, 0, 0, 0, 0};
+    for (int i = bs.size() - 1; i >= 0; -- i)
+        minus_X_shifted_claim = minus_X_shifted_claim * Fr_t({bs[i], 0, 0, 0, 0, 0, 0, 0}) + X_seg_claims[i];
+
+    vector<Fr_t> v_Y_(v_Y.begin() + ceilLog2(n), v_Y.end());
+    auto shift_const_opening = shift(v_Y_);
+    auto X_opening = X(v_Y);
+
+    if (shift_const_opening - minus_X_shifted_claim != X_opening)
+        throw std::runtime_error("X claim is not correct (prove_no_segs)");
+    return X_opening;
+}
+
+void zkSoftmax::batch_prove_segs(const vector<FrTensor>& merged_X_segs,
+                                   const vector<FrTensor>& merged_Y_segs,
+                                   vector<Polynomial>& proof)
+{
+    // Fresh challenges for the batch tLookup proves (independent of per-head challenges).
+    auto rnd = random_vec(3);
+    auto &r_b = rnd[0], &alpha_b = rnd[1], &beta_b = rnd[2];
+
+    for (uint k = 0; k < K; ++k) {
+        auto& X_m = merged_X_segs[k];
+
+        if (k < L) {
+            // tLookup::prove (used by tLookupRange) requires D to be a power of 2.
+            // Pad with zeros — 0 is always a valid entry in the range [0, bs[k]).
+            auto X_p = X_m.pad({X_m.size});
+            auto u_b = random_vec(ceilLog2(X_p.size));
+            auto v_b = random_vec(ceilLog2(X_p.size));
+            auto m = least_significant_segments[k].prep(X_p);
+            auto c = least_significant_segments[k].prove(X_p, m, alpha_b, beta_b, u_b, v_b, proof);
+            proof.push_back(Polynomial(c));
+        } else {
+            // tLookupRangeMapping::prove handles non-power-of-2 D internally,
+            // padding with (table[0], mapped_vals[0]) which is a valid (X, Y) pair.
+            auto& Y_m = merged_Y_segs[k - L];
+            uint D_pad = 1U << ceilLog2(X_m.size);
+            auto u_b = random_vec(ceilLog2(D_pad));
+            auto v_b = random_vec(ceilLog2(D_pad));
+            auto m = other_segments[k - L].prep(X_m);
+            auto c = other_segments[k - L].prove(X_m, Y_m, m, r_b, alpha_b, beta_b, u_b, v_b, proof);
+            proof.push_back(Polynomial(c));
+        }
+    }
 }
 
 zkAttn::zkAttn(unsigned long sf_Q, unsigned long sf_K, const vector<uint>& bs, uint L, uint M, const vector<double>& thetas, uint m, uint n, uint d, uint E):

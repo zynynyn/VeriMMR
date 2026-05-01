@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
 
     embed_out_.save_int(output_file);
 
-    rescale.prove(embed_out, embed_out_);
+    { vector<Polynomial> rs_proof; rescale.prove(embed_out, embed_out_, rs_proof); }
     verifyWeightClaim(embed_weight, embed_layer.prove(patches, embed_out)[0],
         workdir + "/" + prefix + "-conv3d_embed-ipa-proof.bin");
 

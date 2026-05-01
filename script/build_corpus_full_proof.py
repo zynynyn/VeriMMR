@@ -138,22 +138,38 @@ def capture_all_hooks(model, image_path: str, sid: str,
         files.append(path)
         return S   # original length (for mask)
 
+    def _save_full(act: torch.Tensor, path: Path) -> int:
+        """全量保存，不截断——用于 ViT block inputs（soundness gap 修复）。"""
+        if act.dim() == 3:
+            act = act[0]
+        S, D = act.shape
+        (act * SCALE).round().to(torch.int32).numpy().astype(np.int32).tofile(str(path))
+        files.append(path)
+        return S
+
     meta = {"files": files}
 
     # ── Conv3d patches（从 hook 捕获的预处理帧推导 patches）─────────────────
     if "conv3d" in captured:
+        from script.prove_conv3d_embed import im2col, KT, KH, KW
         frames_t = captured["conv3d"]      # (batch, C, T, H, W) or (C, T, H, W)
         if frames_t.dim() == 5:
-            frames_t = frames_t[0]         # → (C, T, H, W)
-        if frames_t.dim() == 4:
-            # (C, T, H, W) → (T, C, H, W)
-            frames_t = frames_t.permute(1, 0, 2, 3)
-        frames_np = frames_t.numpy().astype(np.float32)
-        # 将预处理后的浮点帧转换为量化 patches（im2col 后量化）
-        from script.prove_conv3d_embed import im2col
-        patches = im2col(frames_np)                      # (N, 1176)
-        # 已经是预处理后的值，直接量化（不再做 /255 归一化）
-        # 注意：模型内部值域可能超出 [0,1]，直接 × SCALE
+            B, _C, T, H, W = frames_t.shape
+            if T == KT and H == KH and W == KW:
+                # jina-v4 / Qwen2.5-VL per-tile format:
+                # batch = num_patches, each (C, KT, KH, KW) is exactly one patch.
+                # Flatten (B, C, KT, KH, KW) → (B, 1176) in (in_c, kT, kH, kW) order —
+                # matches the weight layout saved by setup_conv3d_params.py.
+                patches = frames_t.numpy().astype(np.float32).reshape(B, -1)
+            else:
+                # Full-image format: im2col on first batch element
+                frames_t = frames_t[0].permute(1, 0, 2, 3)   # (T, C, H, W)
+                patches = im2col(frames_t.numpy().astype(np.float32))
+        elif frames_t.dim() == 4:
+            frames_t = frames_t.permute(1, 0, 2, 3)           # (C, T, H, W) → (T, C, H, W)
+            patches = im2col(frames_t.numpy().astype(np.float32))
+        else:
+            patches = frames_t.numpy().astype(np.float32).reshape(-1, KT * 3 * KH * KW)
         patches_int32 = np.round(patches * SCALE).astype(np.int32)
         meta["conv3d_patches"] = patches_int32
         meta["n_conv3d_patches"] = patches_int32.shape[0]
@@ -166,7 +182,8 @@ def capture_all_hooks(model, image_path: str, sid: str,
         vit_wd = workdir / f"vit-b{bi}"   # 与 verify_vit.py _setup_vit_workdir 保持一致
         vit_wd.mkdir(exist_ok=True)
         path = vit_wd / f"vit-block-{bi}-h_in.bin"
-        _pad_save(captured[key], SEQ_VIT, path)
+        n_real = _save_full(captured[key], path)   # Step A: 保存全量，不截断
+        meta[f"vit_b{bi}_n_patches"] = n_real
 
     # ── PatchMerger input ────────────────────────────────────────────────────
     if "merger" in captured:
@@ -237,17 +254,21 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
     results["conv3d"] = r_conv
     print(f"  [conv3d] {'✓' if r_conv['all_ok'] else '✗'}  {r_conv['elapsed_ms']}ms", flush=True)
 
-    # ── Step 2: ViT 32 blocks ──────────────────────────────────────────────
-    # h_in 文件已由 capture_all_hooks 保存到各 block 的子目录中
-    # verify_vit_block 会自动使用（_make_input 检查文件是否存在）
-    from script.verify_vit import verify_vit_block
-    vit_results = []
-    for bi in range(VIT_N_BLOCKS):
-        r_vit = verify_vit_block(bi, workdir, gpu_id=gpu_id)
-        vit_results.append(r_vit)
-        ok = r_vit.get("all_pass", False)
-        if not ok:
-            print(f"  [ViT block {bi}] ✗", flush=True)
+    # ── Step 2: ViT 32 blocks（2-GPU 并行：偶数块→GPU0，奇数块→GPU1）──────
+    # 各 block 的 h_in 已由 capture_all_hooks 保存至独立子目录，无文件冲突。
+    from concurrent.futures import ProcessPoolExecutor
+    from script.verify_vit import _run_blocks_on_gpu
+    blocks_0 = list(range(0, VIT_N_BLOCKS, 2))   # 0,2,4,...,30
+    blocks_1 = list(range(1, VIT_N_BLOCKS, 2))   # 1,3,5,...,31
+    with ProcessPoolExecutor(max_workers=2) as ex:
+        f0 = ex.submit(_run_blocks_on_gpu, blocks_0, workdir, 0)
+        f1 = ex.submit(_run_blocks_on_gpu, blocks_1, workdir, 1)
+        res_0 = f0.result()
+        res_1 = f1.result()
+    vit_results = sorted(res_0 + res_1, key=lambda r: r["block"])
+    for r in vit_results:
+        if not r.get("all_pass", False):
+            print(f"  [ViT block {r['block']}] ✗", flush=True)
     n_vit_pass = sum(1 for r in vit_results if r.get("all_pass", False))
     results["vit"] = {"n_pass": n_vit_pass, "n_total": VIT_N_BLOCKS, "blocks": vit_results}
     print(f"  [ViT 32 blocks] {n_vit_pass}/{VIT_N_BLOCKS} 通过", flush=True)
@@ -278,16 +299,25 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
     results["pooling"] = r_pool
     print(f"  [pooling] {'✓' if r_pool.get('all_ok') else '✗'}", flush=True)
 
-    # ── Step 5: LLM 36 layers ─────────────────────────────────────────────
+    # ── Step 5: LLM 36 layers（2-GPU 并行：偶数层→GPU0，奇数层→GPU1）────────
+    # 各层 proof 完全独立（输入激活已由 hook 捕获），无执行顺序依赖，可并发运行。
+    # ThreadPoolExecutor(max_workers=2) 令 GPU0/GPU1 始终各有一层在执行，
+    # 将 ~590s 串行缩短至 ~300s。
+    from concurrent.futures import ThreadPoolExecutor
+
     cwd = str(ZKLLM_CWD)
-    layer_results = []
-    for li in range(LLM_N_LAYERS):
-        prefix   = f"layer-{li}"
-        attn_inp = workdir / f"{prefix}-corpus-{sid}-attn-input.bin"
-        ffn_inp  = workdir / f"{prefix}-corpus-{sid}-ffn-input.bin"
-        ffn_out  = workdir / f"{prefix}-corpus-{sid}-ffn-out.bin"
-        attn_out = workdir / f"{prefix}-corpus-{sid}-attn-out.bin"
-        attn_sfx = workdir / f"{prefix}-corpus-{sid}-attn-sfx-out.bin"
+    # 使用物理 GPU 编号，不受 CUDA_VISIBLE_DEVICES 的 worker 限制影响
+    env_g0 = {**os.environ, "CUDA_VISIBLE_DEVICES": "0"}
+    env_g1 = {**os.environ, "CUDA_VISIBLE_DEVICES": "1"}
+
+    def _prove_llm_layer(li: int) -> dict:
+        layer_env   = env_g0 if li % 2 == 0 else env_g1
+        prefix      = f"layer-{li}"
+        attn_inp    = workdir / f"{prefix}-corpus-{sid}-attn-input.bin"
+        ffn_inp     = workdir / f"{prefix}-corpus-{sid}-ffn-input.bin"
+        ffn_out     = workdir / f"{prefix}-corpus-{sid}-ffn-out.bin"
+        attn_out    = workdir / f"{prefix}-corpus-{sid}-attn-out.bin"
+        attn_sfx    = workdir / f"{prefix}-corpus-{sid}-attn-sfx-out.bin"
 
         if not attn_inp.exists():
             (np.random.randn(SEQ_LLM, LLM_HIDDEN) * SCALE).astype(np.int32).tofile(str(attn_inp))
@@ -297,25 +327,29 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
         r_ffn = subprocess.run(
             [str(BIN_DIR / "ffn"), str(ffn_inp), str(SEQ_LLM), str(LLM_HIDDEN), "11008",
              str(workdir), prefix, str(ffn_out)],
-            capture_output=True, cwd=cwd, env=env)
+            capture_output=True, cwd=cwd, env=layer_env)
         r_lin = subprocess.run(
             [str(BIN_DIR / "self-attn"), "linear", str(attn_inp), str(SEQ_LLM), str(LLM_HIDDEN),
              str(workdir), prefix, str(attn_out), str(KV_DIM)],
-            capture_output=True, cwd=cwd, env=env)
+            capture_output=True, cwd=cwd, env=layer_env)
         if r_lin.returncode == 0:
             r_sfx = subprocess.run(
                 [str(BIN_DIR / "self-attn"), "attn", str(attn_inp), str(SEQ_LLM), str(LLM_HIDDEN),
                  str(workdir), prefix, str(attn_sfx), str(KV_DIM), str(NUM_KV_HEADS)],
-                capture_output=True, cwd=cwd, env=env)
+                capture_output=True, cwd=cwd, env=layer_env)
         else:
-            class _F:
+            class _Fail:
                 returncode = 1
-            r_sfx = _F()
+            r_sfx = _Fail()
 
         ok = (r_ffn.returncode == 0 and r_lin.returncode == 0 and r_sfx.returncode == 0)
-        layer_results.append({"layer": li, "ok": ok})
         for p in [ffn_out, attn_out, attn_sfx, attn_inp, ffn_inp]:
             Path(p).unlink(missing_ok=True)
+        return {"layer": li, "ok": ok}
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        futs = [ex.submit(_prove_llm_layer, li) for li in range(LLM_N_LAYERS)]
+        layer_results = [f.result() for f in futs]
 
     n_layer_pass = sum(1 for r in layer_results if r["ok"])
     results["llm_layers"] = {"n_pass": n_layer_pass, "n_total": LLM_N_LAYERS}

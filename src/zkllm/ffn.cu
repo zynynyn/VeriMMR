@@ -80,13 +80,11 @@ int main(int argc, char *argv[])
 
     down_out.save_int(output_file_name);
 
-    down_rescale.prove(down_out, down_out_);
     cerr << "DBG: verifying down_proj..." << endl;
     verifyWeightClaim(down_proj, down_layer.prove(down_in_, down_out)[0],
         workdir + "/" + layer_prefix + "-mlp.down_proj-ipa-proof.bin");
     cerr << "DBG: down_proj OK" << endl;
 
-    hidden_rescale.prove(down_in, down_in_);
     swiglu.prove(gate_out_, swiglu_out, swiglu_m, temp_rand[0], temp_rand[1], temp_rand[2], swiglu_u, swiglu_v, swiglu_proof);
     cout << "SwiGLU proof complete." << endl;
     // Batch prove for gate+up: both share the same input, saving one X.partial_me + one zkip
@@ -94,16 +92,37 @@ int main(int argc, char *argv[])
     auto gate_up_claims = zkFC::prove_batch(input,
         {{&gate_layer, &gate_out}, {&up_layer, &up_out}});
     cerr << "DBG: prove_batch done, verifying gate_proj..." << endl;
-    gate_rescale.prove(gate_out, gate_out_);
     verifyWeightClaim(gate_proj, gate_up_claims[0],
         workdir + "/" + layer_prefix + "-mlp.gate_proj-ipa-proof.bin");
     cerr << "DBG: gate_proj OK" << endl;
-
-    up_rescale.prove(up_out, up_out_);
     cerr << "DBG: verifying up_proj..." << endl;
     verifyWeightClaim(up_proj, gate_up_claims[1],
         workdir + "/" + layer_prefix + "-mlp.up_proj-ipa-proof.bin");
     cerr << "DBG: up_proj OK" << endl;
+
+    // gate_rescale (sf=1<<20) proven separately; up+hidden+down (all sf=1<<16) batched.
+    { vector<Polynomial> rs_proof; gate_rescale.prove(gate_out, gate_out_, rs_proof); }
+    {
+        uint usz = up_out.size, hsz = down_in.size, dsz = down_out.size;
+        uint total = usz + hsz + dsz;
+        FrTensor all_rems(total);
+        cudaMemcpy(all_rems.gpu_data,          up_rescale.rem_tensor_ptr->gpu_data,
+                   usz * sizeof(Fr_t), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(all_rems.gpu_data + usz,    hidden_rescale.rem_tensor_ptr->gpu_data,
+                   hsz * sizeof(Fr_t), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(all_rems.gpu_data + usz + hsz, down_rescale.rem_tensor_ptr->gpu_data,
+                   dsz * sizeof(Fr_t), cudaMemcpyDeviceToDevice);
+        cudaDeviceSynchronize();
+        auto rem_p = all_rems.pad({total});
+        Rescaling rs_b(1 << 16);
+        auto m   = rs_b.tl_rem.prep(rem_p);
+        auto u   = random_vec(ceilLog2(rem_p.size));
+        auto v   = random_vec(ceilLog2(rem_p.size));
+        auto rnd = random_vec(2);
+        vector<Polynomial> rs_proof;
+        rs_proof.push_back(Polynomial(rs_b.tl_rem.prove(rem_p, m, rnd[0], rnd[1], u, v, rs_proof)));
+        cout << "FFN batch rescaling prove: up+hidden+down D=" << rem_p.size << endl;
+    }
 
     
 

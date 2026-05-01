@@ -2,8 +2,9 @@
   "layers": [
     30
   ],
+  "challenge_seed": null,
   "layers_pass": 1,
-  "elapsed_ms": 22767,
+  "elapsed_ms": 17322,
   "results": [
     {
       "layer": 30,
@@ -20,14 +21,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 895,
-        "attn_linear": 2375,
-        "zkAttn": 6069,
-        "o_proj": 1090,
-        "skip1": 319,
-        "rmsnorm_post": 862,
-        "ffn": 6003,
-        "skip2": 357
+        "rmsnorm_pre": 905,
+        "attn_linear": 2302,
+        "zkAttn": 3367,
+        "o_proj": 1098,
+        "skip1": 314,
+        "rmsnorm_post": 853,
+        "ffn": 5820,
+        "skip2": 310
       },
       "ipa": {
         "input_layernorm": {

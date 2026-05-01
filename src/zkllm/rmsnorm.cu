@@ -45,10 +45,10 @@ int main(int argc, char *argv[])
     auto v0 = ceilLog2(seq_len);
     auto v1 = ceilLog2(embed_dim);
 
-    rs2.prove(Y, Y_);
+    { vector<Polynomial> rs_proof; rs2.prove(Y, Y_, rs_proof); }
     Y_.save_int(output_file_name);
     hadamard_product_sumcheck(g_inv_rms_, X, random_vec(ceilLog2(Y.size)), random_vec(ceilLog2(Y.size)));
-    rs1.prove(g_inv_rms, g_inv_rms_);
+    { vector<Polynomial> rs_proof; rs1.prove(g_inv_rms, g_inv_rms_, rs_proof); }
     verifyWeightClaim(rmsnorm_weight, g.prove(rms_inv_temp, g_inv_rms)[0],
         workdir + "/" + layer_prefix + "-" + which + "_layernorm-ipa-proof.bin");
     return 0;

@@ -122,7 +122,7 @@ int main(int argc, char* argv[])
     fc2_out_.save_int(output_file);
 
     // ── 证明 (逆序) ───────────────────────────────────────────────────────────
-    fc2_rescale.prove(fc2_out, fc2_out_);
+    { vector<Polynomial> rs_proof; fc2_rescale.prove(fc2_out, fc2_out_, rs_proof); }
     verifyWeightClaim(fc2_weight, fc2.prove(gelu_out, fc2_out)[0],
         workdir + "/" + prefix + "-patchmerger_fc2-ipa-proof.bin");
 
@@ -131,16 +131,16 @@ int main(int argc, char* argv[])
                gelu_u, gelu_v, gelu_proof);
     cout << "GELU proof complete." << endl;
 
-    fc1_rs_b.prove(fc1_mid, fc1_out_);
-    fc1_rs_a.prove(fc1_out, fc1_mid);
+    { vector<Polynomial> rs_proof; fc1_rs_b.prove(fc1_mid, fc1_out_, rs_proof); }
+    { vector<Polynomial> rs_proof; fc1_rs_a.prove(fc1_out, fc1_mid, rs_proof); }
     verifyWeightClaim(fc1_weight, fc1.prove(merged, fc1_out)[0],
         workdir + "/" + prefix + "-patchmerger_fc1-ipa-proof.bin");
 
     // ── RMSNorm 证明 ──────────────────────────────────────────────────────────
-    rs_norm2.prove(normed, normed_);
+    { vector<Polynomial> rs_proof; rs_norm2.prove(normed, normed_, rs_proof); }
     hadamard_product_sumcheck(g_inv_rms_, X,
         random_vec(ceilLog2(normed.size)), random_vec(ceilLog2(normed.size)));
-    rs_norm1.prove(g_inv_rms, g_inv_rms_);
+    { vector<Polynomial> rs_proof; rs_norm1.prove(g_inv_rms, g_inv_rms_, rs_proof); }
     verifyWeightClaim(norm_weight, g.prove(rms_inv, g_inv_rms)[0],
         workdir + "/" + prefix + "-patchmerger_layernorm-ipa-proof.bin");
 

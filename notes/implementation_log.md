@@ -3718,3 +3718,151 @@ LLM 层同等节省（每层 6 个 IPA 验证 → 类似加速）。
 | `script/verify_vit.py` | `_verify_proofs` 改为单次批量 subprocess 调用 |
 | `script/verify_layers.py` | 同上 |
 
+---
+
+### 优化 6：Linear mode q/k/v Rescaling 批量 tLookup（2026-05-01）
+
+#### 问题
+
+`self-attn.cu` linear mode 中，q/k/v 三次 rescaling（均为 `sf=1<<16`）分别调用 `prove()`，产生三次独立 tLookup sub-proof：
+- D_per = `seq_len × embed_dim`（或 kv_dim），三次 D 合计 ≈ `3 × D_per`
+- 三次独立 kernel launch，GPU occupancy 低
+
+#### 方案
+
+将 q/k/v 三个 `rem_tensor` 拼接为一个大张量 `all_rems(total)`，直接调用 `rs_b.tl_rem.prove(...)` 一次：
+
+```cpp
+{
+    uint qsz = Q.size, ksz = K.size, vsz = V.size;
+    uint total = qsz + ksz + vsz;
+    FrTensor all_rems(total);
+    cudaMemcpy(all_rems.gpu_data,          q_rescale.rem_tensor_ptr->gpu_data, qsz*sizeof(Fr_t), cudaMemcpyDeviceToDevice);
+    cudaMemcpy(all_rems.gpu_data + qsz,    k_rescale.rem_tensor_ptr->gpu_data, ksz*sizeof(Fr_t), cudaMemcpyDeviceToDevice);
+    cudaMemcpy(all_rems.gpu_data + qsz + ksz, v_rescale.rem_tensor_ptr->gpu_data, vsz*sizeof(Fr_t), cudaMemcpyDeviceToDevice);
+    cudaDeviceSynchronize();
+    auto rem_p = all_rems.pad({total});
+    Rescaling rs_b(1 << 16);
+    auto m = rs_b.tl_rem.prep(rem_p);
+    // ... one prove
+}
+```
+
+三次 D=`embed_dim × seq_len` → 一次 D_merged=`(embed_dim + 2×kv_dim) × seq_len`，与 attn mode 的跨 head/window 批量 rem 同构。
+
+#### smoke test（2026-05-01，layer 30，jina-v4）
+
+`verify_layers.py --layers 30`：✓ PASS，14969ms，fold=9/9，binding=9/9。
+
+---
+
+### 优化 7：FFN Rescaling 批量 tLookup（2026-05-01）
+
+#### 问题
+
+`ffn.cu` 中原有 4 次独立 rescaling prove：
+
+| rescaling | sf | 独立 prove |
+|-----------|-----|-----------|
+| `gate_rescale` | `1<<20` | 独立（sf 不同，不可合并） |
+| `up_rescale`   | `1<<16` | 独立 |
+| `hidden_rescale` | `1<<16` | 独立 |
+| `down_rescale` | `1<<16` | 独立 |
+
+后三者 sf 相同，可合并。
+
+#### 方案
+
+`gate_rescale` 保持单独 prove（sf=1<<20 与其他不同，lookup table 大小不同，不可混合）。
+`up_rescale`、`hidden_rescale`、`down_rescale` 三者 rem 拼接为一个大张量，一次 tLookup prove：
+
+```cpp
+{ vector<Polynomial> rs_proof; gate_rescale.prove(gate_out, gate_out_, rs_proof); }
+{
+    uint usz = up_out.size, hsz = down_in.size, dsz = down_out.size;
+    uint total = usz + hsz + dsz;
+    FrTensor all_rems(total);
+    cudaMemcpy(...);  // 三段拼接
+    auto rem_p = all_rems.pad({total});
+    Rescaling rs_b(1 << 16);
+    // one prove
+    cout << "FFN batch rescaling prove: up+hidden+down D=" << rem_p.size << endl;
+}
+```
+
+4 次 tLookup → 2 次（gate 单独 + up/hidden/down 合并）。
+
+#### smoke test
+
+同上，layer 30 ✓ PASS，验证了 FFN batch rescaling 与 gate 单独 prove 的组合。
+
+---
+
+## Phase 6 进阶优化完整汇总（截至 2026-05-01）
+
+### 优化清单与状态
+
+| # | 优化内容 | 关键文件 | tLookup 调用数变化 | 状态 |
+|---|---------|---------|-------------------|------|
+| 1 | 跨窗口批量 attn（`argv[12]=n_wins`，1次CUDA context） | `self-attn.cu` attn | 40×fork → 1×subprocess | ✓ |
+| 2 | `zkSoftmax` 构造提至循环外（`softmax_shared`） | `self-attn.cu` attn | 构造<1ms，无计算变化 | ✓ |
+| 3 | Softmax tLookup 跨 head/window 批量（`batch_prove_segs`） | `zksoftmax.cu/cuh`, `self-attn.cu` | 2560次×D=4K → K=4次×D=4M | ✓ |
+| 4 | Rescaling rem 跨 head/window 批量（attn mode） | `self-attn.cu` attn | 640×2次×D=16K → 1次×D=20M | ✓ |
+| 5 | tLookup claim soundness修复（`prove()` 加 `vector<Polynomial>&`） | `rescaling.cu/cuh`，所有调用方 | — （soundness fix） | ✓ |
+| 6 | CUB `DeviceHistogram` 替换 atomicAdd（`tLookup::prep`） | `tlookup.cu` | GPU hist kernel 更高效 | ✓ |
+| 7 | `verify-ipa` 批量模式（N对一次subprocess） | `verify-ipa.cu`, `verify_vit.py` | 9次CUDA init → 1次 | ✓ |
+| 8 | LLM 36层 2-GPU 并行（`ThreadPoolExecutor`） | `build_corpus_full_proof.py` | LLM 590s → ~309s | ✓ |
+| **9** | **linear mode q/k/v rescaling 批量 tLookup** | `self-attn.cu` linear | 3次×D → 1次×D×3 | ✓ |
+| **10** | **FFN up+hidden+down rescaling 批量 tLookup** | `ffn.cu` | 4次 → 2次（gate单独） | ✓ |
+
+### 全流水线时间预测（单张图，jina-v4，nikon PDF，2GPU）
+
+| 组件 | Phase 5 基线 | Phase 6 优化后 | 主要来源 |
+|------|------------|--------------|---------|
+| ViT 28 window blocks | ~2268s | ~1148s | #1 fork消除 + #3 softmax batch |
+| ViT 4 full-att blocks | ~260s | ~260s | 无变化 |
+| LLM 36 layers | ~590s | ~309s | #8 2-GPU并行 |
+| Conv3d / PatchMerger | ~10s | ~10s | 无变化 |
+| **总计** | **~3128s（52min）** | **~1727s（29min）** | **1.81×** |
+
+注：#9/#10 的收益在 linear/FFN 每步耗时约 3-5s，全流水线节省约 60-90s（小于 attn 批量效果）。
+
+### 未实现项
+
+| 优化 | 原因 |
+|------|------|
+| zkGPT §4.2 Grouping/Sparse Skip | GPU warp 无法跳过单线程，内存带宽瓶颈非乘法计数，不适用 |
+| LLM 层内步骤并行（ffn+attn） | 层内有激活依赖（attn_out → skip → ffn_in），无法并行 |
+
+---
+
+## Bug 修复：全局注意力块 zkAttn OOM（2026-05-01）
+
+### 问题
+
+jina-v4 ViT 中 block 7、15、23、31 是**全局注意力块**（`seq=4096`），`per_head_seg = 4096² = 16M`。
+`batch_prove_segs` 优化代码在循环前预分配合并张量：
+
+```
+total_segs_raw = 1 win × 16 Q-heads × 16M = 256M 个 Fr_t
+merged_X_segs_sm: K=4 个 FrTensor(256M) = 4 × 256M × 32B = 32 GB → GPU OOM
+```
+
+GPU OOM 后 CUDA 进入错误状态，后续 `zkSoftmax::compute` 内的分配失败，抛出：
+
+```
+CUDA error at zkSoftmax::compute: an illegal memory access was encountered
+```
+
+### 修复（`src/zkllm/self-attn.cu`）
+
+加 `use_batch_segs` 守卫（阈值 32M 元素 = 1GB/tensor）：
+- **窗口块**（seq=64）：`total_segs_raw = 640×4K = 2.6M ≤ 32M` → 批量 `batch_prove_segs`（原路径）
+- **全局注意力块**（seq=4096）：`total_segs_raw = 256M > 32M` → 逐 head 调用 `batch_prove_segs(X_segs, Y_segs)`（每 head D=16M，GPU 已满载，无需跨 head 合并）
+
+阈值同时覆盖 LLM full-att（seq=1024，16 heads，total=16M ≤ 32M），保留其批量优化。
+
+### 验证
+
+`verify_vit.py --blocks 7`：✓ PASS，fold=9/9，binding=9/9（旧：FAIL，OOM crash）。
+
