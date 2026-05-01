@@ -315,6 +315,31 @@ $$P(\text{caught} \mid L \text{ 层被篡改}) = 1 - \frac{\binom{36-L}{K}}{\bin
 
 篡改后 $\widetilde{W_\text{tampered}}(\mathbf{u}_W) \neq \widetilde{W_\text{original}}(\mathbf{u}_W)$，IPA 开放值与承诺不匹配，Sumcheck 拒绝。检测率：1/1 = **100%**。
 
+**Fiat-Shamir 随机层挑战统计实验**（10,000 次模拟，$N=36$，$K=6$，Python `random.Random(SHA256)`）：
+
+FS-1 单次检出率实测 vs 理论（$M=10000$ 次随机挑战）：
+
+| 篡改层数 $L$ | 实测检出率 | 理论值 | 误差 |
+|:-----------:|:---------:|:-----:|:---:|
+| 1 | 16.21% | 16.67% | 0.46% |
+| 3 | 43.63% | 43.14% | 0.49% |
+| **6** | **68.54%** | **69.52%** | **0.98%** |
+| 12 | 93.15% | 93.09% | 0.06% |
+| 18 | 99.22% | 99.05% | 0.17% |
+
+FS-2 多轮累积检出率（$L=1$ 层被篡改，连续 $T$ 次查询）：
+
+| 轮次 $T$ | 实测累积检出率 | 理论值 |
+|:--------:|:-----------:|:-----:|
+| 5 | 59.92% | 59.81% |
+| 10 | 84.04% | 83.85% |
+| 20 | 97.34% | 97.39% |
+| 30 | 99.40% | 99.50% |
+
+FS-3 层选择均匀性：$\chi^2=27.35$，$p=0.82 > 0.05$，各层被选中频次均匀（均值 1667 次，$\sigma=35.6$，CV=2.1%）。
+
+**服务器端 nonce 安全分析**：当前实现 nonce 由服务器生成，恶意服务器可枚举 nonce 直至选出不含篡改层的挑战集合。$L=1$ 时期望枚举次数仅 1.2 次，$L=6$ 时 3.3 次，绕过成本极低。完整防御方案为改用客户端 nonce：客户端提交 `(query, client_nonce)` → 服务器以 `SHA256(query+client_nonce)` 生成挑战 → 客户端可独立验证挑战合法性。当前实现采用**半诚实服务器假设**（honest-but-curious），Fiat-Shamir 构造的层选择不可预测性保持不变；如需完整防御恶意服务器，切换至客户端 nonce 即可，无需修改其余 ZK 协议。
+
 ---
 
 ## 2.4 关键参数与优化实验
@@ -407,14 +432,59 @@ $$\alpha \cdot (XW_\text{gate}^\top) + (1-\alpha) \cdot (XW_\text{up}^\top) = X(
 
 > LLM 加速比较低（2×）是因为 GPU prover（~18s/层）已成为新瓶颈；IPA 验证本身已从 ~27s 降至 < 0.5s。
 
-**全量证明耗时对比**（estimate，2-GPU）：
+**全量证明耗时对比**（Phase 5 阶段估算，2-GPU）：
 
 | 组件 | 优化前 | 优化后（verify-ipa + Batch）| 加速比 |
 |------|:------:|:-------------------------:|:-----:|
 | ViT 32 blocks | 76 min | **~5.3 min** | **14×** |
 | LLM 36 layers | ~27 min | **~6.0 min** | **4.5×** |
 | PatchMerger | 2.0s | < 0.5s | >4× |
-| **总计** | **~103 min** | **~11.3 min** | **~9×** |
+| **总计** | **~103 min** | **~11.3 min**（估算）| **~9×** |
+
+---
+
+### 2.4.7 Phase 6：跨窗口批量证明与全量端到端验证
+
+Phase 6 在 Phase 5（Batch Sumcheck + C++ verify-ipa）基础上，针对 **ViT 窗口注意力批量化**和 **tLookup 跨层融合**做系统优化，并修复了全局注意力块的 softmax 参数选择 bug，实现首次完整端到端真实语料验证。
+
+**优化 1：区分 Window / Full Attention，WIN_SEQ=64 精确分割**
+
+jina-v4 ViT 前 28 块为窗口注意力（每 window 64 patches），后 4 块为全局注意力（blocks 7, 15, 23, 31，真实 2520 tokens padding 至 seq=4096）。`verify_vit.py` 实现精确区分：
+
+- **窗口块（28 块）**：Python 预切分 1024 patches 为 16 组各 64，分别调用 binary（seq_len=64，seq²=4096=2¹²，满足 NTT 约束）
+- **全局块（4 块）**：seq_use=4096，seq²=2²⁴，使用 K=3 full-att softmax 参数（bs={256, 2²⁰, 2²⁰}），同时修复了 Phase 5 中因条件分支错误导致的 tLookup 参数退化 bug（bs 第 3 段 B_k 溢出 2⁵⁶ → sumcheck 断言失败）
+
+**优化 2：跨窗口批量 tLookup 证明**
+
+窗口注意力产生的 softmax tLookup 分段（K=4 个 lookup 表），在 `self-attn.cu` 中实现跨窗口融合：循环内仅累积各头的 X_segs / Y_segs，循环结束后一次性调用 `batch_prove_segs()`，将 n_wins × n_heads × K 次单独 tLookup 合并为 K 次。数据规模：D_merged = next_pow2(n_wins × n_heads × seq²)，比逐头分别证明减少约 40× kernel launch 开销。
+
+**优化 3：跨头批量 rescaling tLookup**
+
+每个注意力头输出需 2 次 Rescaling（rs1, rs2）去量化。Phase 6 在头循环外预分配 `all_rems`，累积所有头的 remainder 张量，循环结束后 1 次批量 tLookup 证明替代每头 2 次独立调用：
+
+| 方案 | tLookup 调用次数 | D（合并后） |
+|------|:--------------:|:-----------:|
+| Phase 5 逐头独立 | 640 次（40 wins × 16 heads） | 32K/次 |
+| **Phase 6 批量融合** | **2 次** | **D_merged ≈ 8M** |
+
+**优化 4：CUB DeviceHistogram 替换 atomicAdd**
+
+tLookup "prep" 阶段频次直方图统计改用 CUB `DeviceHistogram::HistogramEven`，D=8M 时从 ~3.5s 降至 ~0.4s。
+
+**优化 5：verify-ipa 批量模式（9 proofs per binary 调用）**
+
+每块 9 个 IPA proof 原需 9 次独立 verify-ipa 调用（各 ~100ms CUDA 初始化开销，合计 ~900ms）。Phase 6 改为批量接口 `./verify-ipa <com_dir> <proof1> [proof2] ...`，一次 CUDA 初始化处理全部 proof，降至 ~150ms/block（~16ms/proof）。
+
+**全量端到端实测（jina-v4，真实语料，双 GPU RTX 4090 D）**：
+
+| 组件 | Phase 5 估算 | Phase 6 实测 | 说明 |
+|------|:-----------:|:-----------:|:---:|
+| ViT 32 blocks | ~5.3 min | **~3.7 min** | 含 window/full-att 区分 |
+| LLM 36 layers（双 GPU）| ~6.0 min | **~5.5 min** | — |
+| PatchMerger + Conv3d + Pooling | < 0.5s | < 0.5s | — |
+| **总计** | **~11.3 min** | **683s（11.4 min）** | **首次真实语料全量通过** |
+| fold check | — | 288/288 PASS | ViT+LLM 全部通过 |
+| binding check | — | 288/288 PASS | — |
 
 ---
 
@@ -430,6 +500,8 @@ $$\alpha \cdot (XW_\text{gate}^\top) + (1-\alpha) \cdot (XW_\text{up}^\top) = X(
 | Pooling head | Sumcheck + Rescaling | — | **PASS** |
 | LLM 36 layers（离线）| IPA × 6/层 | 216 | **216/216 PASS** |
 | **总计** | — | **508** | **全部通过** |
+
+> **实测全量证明耗时**（Phase 6，jina-v4 真实语料，双 GPU RTX 4090 D）：**683s（11.4 min）**，32/32 ViT blocks + 36/36 LLM layers 全部 PASS（fold_ok=True，binding_ok=True）。
 
 **系统全组件覆盖**（三层证明联合）：
 
@@ -453,6 +525,10 @@ $$\alpha \cdot (XW_\text{gate}^\top) + (1-\alpha) \cdot (XW_\text{up}^\top) = X(
 | Batch Sumcheck（gate+up，q/k/v）| 单层耗时降低 23% | §2.4.5 |
 | 层间并行（2-GPU）| K=6 在线证明从 89s 降至 ~45s | §2.4.4 |
 | per-block 独立子目录 | 消除并行时临时文件冲突，支持 2-GPU 并发 | §2.2.2 |
+| Window/Full Attention 精确区分（Phase 6）| 窗口块 seq=64，全局块 seq=4096；修复 tLookup 参数 bug | §2.4.7 |
+| 跨窗口批量 tLookup（Phase 6）| 40×16 头的 K 次 tLookup → K 次批量，~40× kernel launch 减少 | §2.4.7 |
+| CUB DeviceHistogram（Phase 6）| tLookup prep D=8M：3.5s → 0.4s | §2.4.7 |
+| verify-ipa 批量模式（Phase 6）| 9 proofs/block：900ms → 150ms（~16ms/proof） | §2.4.7 |
 
 ### 2.6.2 当前局限性
 
@@ -464,9 +540,9 @@ $$\alpha \cdot (XW_\text{gate}^\top) + (1-\alpha) \cdot (XW_\text{up}^\top) = X(
 
 在线查询仅证明随机选取的 $K=6$ 层，而语料库离线证明为全量 36 层（未来将扩展为全量 5 组件）。$K=6$ 的随机挑战对整模型替换（B4 主要形式）提供 100% 检出率，但对局部单层篡改（$L=1$）检出率仅 16.7%。对安全性要求更高的场景，可调大 $K$（每增加一层约增加 15s）。
 
-**③ ViT 的 Window Attention 未区分处理**
+**③ [已解决] ViT Window / Full Attention 区分**
 
-jina-v4 ViT 前 28 块使用 Window Attention（每 window 64 patches），后 4 块使用 Full Attention（1024 patches）。当前实现统一用 seq=1024 证明所有块（前 28 块存在大量 padding），实际上 Window Attention 仅需 seq=64（$64^2 = 4096 = 2^{12}$，同样满足 NTT 约束），可减少约 75% 的 zkAttn 计算量，留作后续优化。
+Phase 6 已实现精确区分：窗口块（28/32）使用 seq=64（seq²=2¹²），全局块（4/32）使用 seq=4096（seq²=2²⁴），两者均满足 NTT 约束。同时修复了全局块 softmax 参数选择 bug（bs 第 3 段 B_k 溢出导致 tLookup sumcheck 断言失败）。实测全量 32/32 块 PASS，此项局限性已消除。
 
 **④ 权重承诺公开性假设**
 

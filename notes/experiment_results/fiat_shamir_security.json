@@ -1,0 +1,295 @@
+{
+  "experiment": "Fiat-Shamir Security",
+  "description": "Fiat-Shamir 层选择机制统计安全性分析",
+  "params": {
+    "N": 36,
+    "K": 6,
+    "trials": 10000
+  },
+  "fs1_single_round": {
+    "experiment": "FS-1",
+    "N": 36,
+    "K": 6,
+    "M": 10000,
+    "results": [
+      {
+        "L": 1,
+        "detected": 1621,
+        "trials": 10000,
+        "p_empirical": 0.1621,
+        "p_theory": 0.166667,
+        "abs_error": 0.004567
+      },
+      {
+        "L": 3,
+        "detected": 4363,
+        "trials": 10000,
+        "p_empirical": 0.4363,
+        "p_theory": 0.431373,
+        "abs_error": 0.004927
+      },
+      {
+        "L": 6,
+        "detected": 6854,
+        "trials": 10000,
+        "p_empirical": 0.6854,
+        "p_theory": 0.695155,
+        "abs_error": 0.009755
+      },
+      {
+        "L": 12,
+        "detected": 9315,
+        "trials": 10000,
+        "p_empirical": 0.9315,
+        "p_theory": 0.930898,
+        "abs_error": 0.000602
+      },
+      {
+        "L": 18,
+        "detected": 9922,
+        "trials": 10000,
+        "p_empirical": 0.9922,
+        "p_theory": 0.990469,
+        "abs_error": 0.001731
+      }
+    ]
+  },
+  "fs2_cumulative": {
+    "experiment": "FS-2",
+    "N": 36,
+    "K": 6,
+    "L": 1,
+    "T_max": 30,
+    "M": 5000,
+    "results": [
+      {
+        "T": 1,
+        "p_empirical": 0.1662,
+        "p_theory": 0.166667
+      },
+      {
+        "T": 2,
+        "p_empirical": 0.3042,
+        "p_theory": 0.305556
+      },
+      {
+        "T": 3,
+        "p_empirical": 0.4232,
+        "p_theory": 0.421296
+      },
+      {
+        "T": 4,
+        "p_empirical": 0.5152,
+        "p_theory": 0.517747
+      },
+      {
+        "T": 5,
+        "p_empirical": 0.596,
+        "p_theory": 0.598122
+      },
+      {
+        "T": 6,
+        "p_empirical": 0.664,
+        "p_theory": 0.665102
+      },
+      {
+        "T": 7,
+        "p_empirical": 0.714,
+        "p_theory": 0.720918
+      },
+      {
+        "T": 8,
+        "p_empirical": 0.7584,
+        "p_theory": 0.767432
+      },
+      {
+        "T": 9,
+        "p_empirical": 0.7994,
+        "p_theory": 0.806193
+      },
+      {
+        "T": 10,
+        "p_empirical": 0.8316,
+        "p_theory": 0.838494
+      },
+      {
+        "T": 11,
+        "p_empirical": 0.8588,
+        "p_theory": 0.865412
+      },
+      {
+        "T": 12,
+        "p_empirical": 0.882,
+        "p_theory": 0.887843
+      },
+      {
+        "T": 13,
+        "p_empirical": 0.903,
+        "p_theory": 0.906536
+      },
+      {
+        "T": 14,
+        "p_empirical": 0.9196,
+        "p_theory": 0.922113
+      },
+      {
+        "T": 15,
+        "p_empirical": 0.931,
+        "p_theory": 0.935095
+      },
+      {
+        "T": 16,
+        "p_empirical": 0.9416,
+        "p_theory": 0.945912
+      },
+      {
+        "T": 17,
+        "p_empirical": 0.9498,
+        "p_theory": 0.954927
+      },
+      {
+        "T": 18,
+        "p_empirical": 0.9584,
+        "p_theory": 0.962439
+      },
+      {
+        "T": 19,
+        "p_empirical": 0.9666,
+        "p_theory": 0.968699
+      },
+      {
+        "T": 20,
+        "p_empirical": 0.9728,
+        "p_theory": 0.973916
+      },
+      {
+        "T": 21,
+        "p_empirical": 0.9766,
+        "p_theory": 0.978263
+      },
+      {
+        "T": 22,
+        "p_empirical": 0.9798,
+        "p_theory": 0.981886
+      },
+      {
+        "T": 23,
+        "p_empirical": 0.9842,
+        "p_theory": 0.984905
+      },
+      {
+        "T": 24,
+        "p_empirical": 0.9878,
+        "p_theory": 0.987421
+      },
+      {
+        "T": 25,
+        "p_empirical": 0.9902,
+        "p_theory": 0.989517
+      },
+      {
+        "T": 26,
+        "p_empirical": 0.9918,
+        "p_theory": 0.991265
+      },
+      {
+        "T": 27,
+        "p_empirical": 0.9934,
+        "p_theory": 0.99272
+      },
+      {
+        "T": 28,
+        "p_empirical": 0.9944,
+        "p_theory": 0.993934
+      },
+      {
+        "T": 29,
+        "p_empirical": 0.9952,
+        "p_theory": 0.994945
+      },
+      {
+        "T": 30,
+        "p_empirical": 0.996,
+        "p_theory": 0.995787
+      }
+    ]
+  },
+  "fs3_uniformity": {
+    "experiment": "FS-3",
+    "N": 36,
+    "K": 6,
+    "M": 10000,
+    "expected_freq": 1666.67,
+    "freq_mean": 1666.6667,
+    "freq_std": 35.584,
+    "cv": 0.02135,
+    "chi2_stat": 27.3504,
+    "p_value": 0.818488,
+    "uniform": true,
+    "layer_freq": [
+      1615,
+      1736,
+      1665,
+      1634,
+      1647,
+      1650,
+      1715,
+      1675,
+      1691,
+      1677,
+      1730,
+      1673,
+      1741,
+      1626,
+      1681,
+      1673,
+      1669,
+      1620,
+      1615,
+      1672,
+      1627,
+      1627,
+      1680,
+      1735,
+      1664,
+      1674,
+      1704,
+      1682,
+      1671,
+      1664,
+      1622,
+      1632,
+      1623,
+      1633,
+      1660,
+      1697
+    ]
+  },
+  "security_discussion": {
+    "note": "服务器端 nonce 时，恶意服务器可枚举 nonce 绕过检测。修复：改用客户端 nonce，challenge=SHA256(query+client_nonce)。",
+    "N": 36,
+    "K": 6,
+    "bypass_analysis": [
+      {
+        "L": 1,
+        "p_bypass": 0.833333,
+        "expected_tries": 1.2
+      },
+      {
+        "L": 3,
+        "p_bypass": 0.568627,
+        "expected_tries": 1.76
+      },
+      {
+        "L": 6,
+        "p_bypass": 0.304845,
+        "expected_tries": 3.28
+      },
+      {
+        "L": 12,
+        "p_bypass": 0.069102,
+        "expected_tries": 14.47
+      }
+    ]
+  }
+}

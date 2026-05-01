@@ -3866,3 +3866,62 @@ CUDA error at zkSoftmax::compute: an illegal memory access was encountered
 
 `verify_vit.py --blocks 7`：✓ PASS，fold=9/9，binding=9/9（旧：FAIL，OOM crash）。
 
+
+---
+
+### Bug 修复：Full-Att 块（seq=4096）softmax 参数分支错误（2026-05-01）
+
+#### 问题
+
+jina-v4 真实图像的 ViT token 数为 2520，`_get_seq_params` 将其 pad 到下一个 2^k = **4096**，传给 `self-attn.cu` 的 `seq_len=4096`，`seq_sq=2^24`。
+
+但 `self-attn.cu` 中的 softmax 参数分支只有两路：
+```cpp
+if (seq_sq == (1U << 20)) {          // seq=1024 → K=3
+    ...
+} else {                              // 意图：window（seq≤64），实际也包含 seq=4096
+    softmax_bs = {256U, seq_sq, seq_sq, seq_sq};  // seq=4096 → bs[1]=16M
+    softmax_thetas = {double(1<<18), double(1<<22), double(1<<22)};
+}
+```
+
+`seq=4096` 落入 else 分支，产生 `bs={256, 16M, 16M, 16M}`，第3段 `Bk=bs[0]×bs[1]×bs[2]=2^56`，远超 uint64 有效范围，table[x≥1] 退化为 0，tLookup sumcheck 不变式立即破坏，抛出：
+```
+tLookup_phase2: claim != p(0) + p(1)
+```
+每个全局注意力块（7, 15, 23, 31）均 FAIL。
+
+#### 根因分析
+
+条件 `seq_sq == (1U<<20)` 只精确匹配 seq=1024。seq=4096（seq_sq=2^24）不满足，误走 window 分支。
+
+#### 修复（`src/zkllm/self-attn.cu`）
+
+将精确匹配改为范围判断，阈值 `seq_sq > 2^12`：
+
+```cpp
+// 修复前
+if (seq_sq == (1U << 20)) { K=3 } else { K=4 window }
+
+// 修复后
+if (seq_sq > (1U << 12)) {
+    // Full attention（seq≥1024，含 seq=4096）：K=3, bs={256,1M,1M}
+    softmax_bs     = {1U<<8, 1U<<20, 1U<<20};
+    softmax_thetas = {double(1<<18), double(1<<22)};
+} else {
+    // Window attention（seq≤64，seq_sq=2^12）：K=4
+    softmax_bs     = {256U, seq_sq, seq_sq, seq_sq};
+    softmax_thetas = {double(1<<18), double(1<<22), double(1<<22)};
+}
+```
+
+**为何 K=3 对 seq=4096 也正确**：bs={256,1M,1M} 覆盖值域 [0, 2^32)，seq=4096 的实际 softmax 输入值不超过 2^32，1M entry 的表足够表示所有可能值（table[x≥实际范围]≈0 不影响，因为从未被查询）。
+
+**为何 window 块不受影响**：Python 先把序列切分为 64-token 窗口，C++ 收到的 `seq_len=64`，`seq_sq=2^12`，`2^12 > 2^12` 为 false → 走 K=4 window 分支，不变。
+
+#### 验证
+
+真实语料全量证明（nikon_page_0.jpg，jina-v4，2GPU）：
+- ViT 32 blocks：**32/32 通过**（含 block 7/15/23/31，之前均 FAIL）
+- LLM 36 layers：36/36 通过
+- 总耗时：**683s（约 11.4 分钟）**

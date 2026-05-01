@@ -3,7 +3,7 @@
     7
   ],
   "blocks_pass": 1,
-  "elapsed_ms": 12617,
+  "elapsed_ms": 12655,
   "results": [
     {
       "block": 7,
@@ -20,14 +20,14 @@
         "skip2": 0
       },
       "step_ms": {
-        "rmsnorm_pre": 880,
-        "attn_linear": 1634,
-        "zkAttn": 3382,
-        "o_proj": 795,
-        "skip1": 311,
+        "rmsnorm_pre": 947,
+        "attn_linear": 1610,
+        "zkAttn": 3349,
+        "o_proj": 800,
+        "skip1": 313,
         "rmsnorm_post": 845,
-        "ffn": 2418,
-        "skip2": 319
+        "ffn": 2450,
+        "skip2": 310
       },
       "ipa": {
         "input_layernorm": {

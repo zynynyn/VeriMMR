@@ -1,21 +1,17 @@
 """
-C3b：全组件 zkLLM 权重篡改检测率实验
+C3b v2：随机化全组件 zkLLM 权重篡改检测率实验
 
-覆盖所有 Phase 3 组件（图像侧 + 文字侧）：
-  - Conv3d patch embedding
-  - ViT blocks（抽样 4 个：0, 7, 15, 31）
-  - PatchMerger（fc1, fc2）
-  - LLM decoder layers（抽样 6 层：0, 7, 14, 21, 28, 35）
-
-每个组件 × 每个权重矩阵：
-  - 1 次正常验证（期望 binding_ok=True）
-  - 3 个篡改比例 × N_REPEATS 次随机篡改（期望 binding_ok=False）
-
-篡改方法：随机选取比例 p 的元素，替换为 N(0, σ²) 高斯噪声（σ = std(W)）
+改进（相比 v1）：
+  - 随机抽样 ViT 块（默认 8 个，从 0-31）和 LLM 层（默认 12 层，从 0-35）
+  - 每个块/层随机选择 N 个权重矩阵（FFN: gate/up/down；Attn: q/k/v）
+  - 双模式：grid（固定档位 × 重复，论文表格）/ random（对数均匀采样）
+  - 跨模态标注：side=image（ViT/Conv3d/PatchMerger）vs side=text（LLM）
+  - 输出到 c3b_detection_rate_v2.json
 
 用法：
   cd /root/autodl-tmp/UltraRAG
-  python script/experiment_c3b.py [--repeats 3] [--ratios 0.001 0.01 0.05]
+  python script/experiment_c3b.py --mode grid --vit-blocks 8 --llm-layers 12
+  python script/experiment_c3b.py --mode random --n-random 30 --vit-blocks 4 --llm-layers 6
 """
 
 import argparse
@@ -33,17 +29,32 @@ ROOT     = Path(__file__).parent.parent.resolve()
 BIN_DIR  = ROOT / "src" / "zkllm"
 CWD      = ROOT / "src" / "zkllm"
 WORKDIR  = ROOT / "zkllm-workdir" / "jina-v4"
-OUT_FILE = ROOT / "notes" / "experiment_results" / "c3b_detection_rate.json"
+OUT_FILE = ROOT / "notes" / "experiment_results" / "c3b_detection_rate_v2.json"
 
 SCALE = 1 << 16
 
-# ── binary 路径 ────────────────────────────────────────────────────────────────
+# ViT 架构参数（jina-v4 ViT）
+VIT_SEQ = 1024
+VIT_HID = 1280
+VIT_FFN = 3420
+VIT_KV  = 1280  # MHA: kv_dim = embed_dim
+
+# LLM 架构参数（jina-v4 文本侧，Qwen2.5 风格）
+LLM_SEQ = 512
+LLM_HID = 2048
+LLM_FFN = 11008
+LLM_KV  = 256   # GQA: kv_dim = 256
+
+# 每个模块可测试的权重矩阵
+FFN_KEYS  = ["mlp.gate_proj", "mlp.up_proj", "mlp.down_proj"]
+ATTN_KEYS = ["self_attn.q_proj", "self_attn.k_proj", "self_attn.v_proj"]
+ALL_WEIGHT_KEYS = FFN_KEYS + ATTN_KEYS  # 6 种
+
+
+# ── helpers ────────────────────────────────────────────────────────────────────
 
 def _bin(name): return str(BIN_DIR / name)
 def _env(gpu=0): return {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu)}
-
-
-# ── IPA 验证（复用 verify_layers.py 里的 verify_ipa_cpp）────────────────────────
 
 sys.path.insert(0, str(ROOT))
 from script.verify_layers import verify_ipa_cpp, verify_ipa_python
@@ -53,10 +64,8 @@ def _verify_ipa(proof_path: str) -> dict:
     com_path = proof_path.replace("-ipa-proof.bin", ".weight-commitment.bin")
     if (BIN_DIR / "verify-ipa").exists() and Path(com_path).exists():
         return verify_ipa_cpp(proof_path, com_path, gpu_id=0)
-    return verify_ipa_python(proof_path)
+    return verify_ipa_python(proof_path, com_path)
 
-
-# ── 权重篡改 ────────────────────────────────────────────────────────────────────
 
 def _tamper(src: Path, dst: Path, ratio: float, rng: np.random.Generator) -> dict:
     W = np.fromfile(str(src), dtype=np.int32)
@@ -69,8 +78,6 @@ def _tamper(src: Path, dst: Path, ratio: float, rng: np.random.Generator) -> dic
     return {"n_total": int(len(W)), "n_tampered": n, "sigma": round(sigma, 2)}
 
 
-# ── 各组件 prover 调用 ─────────────────────────────────────────────────────────
-
 def _run(cmd, cwd=None, gpu=0):
     r = subprocess.run(cmd, capture_output=True,
                        cwd=str(cwd or CWD), env=_env(gpu))
@@ -79,174 +86,149 @@ def _run(cmd, cwd=None, gpu=0):
 
 def _rand_input(path: Path, rows: int, cols: int):
     if not path.exists():
-        rng = np.random.default_rng(42)
-        (rng.standard_normal((rows, cols)) * SCALE).astype(np.int32).tofile(str(path))
+        rng_local = np.random.default_rng(42)
+        (rng_local.standard_normal((rows, cols)) * SCALE).astype(np.int32).tofile(str(path))
 
 
-def prove_conv3d(workdir: Path) -> tuple[int, str]:
-    """运行 conv3d-embed，生成 IPA proof。"""
-    prefix = "conv3d"
-    n_patches, patch_dim, out_dim = 32, 1176, 1280
-    patches = workdir / f"{prefix}-patches.bin"
-    output  = workdir / f"{prefix}-tamper-out.bin"
-    rng = np.random.default_rng(42)
-    (rng.standard_normal((n_patches, patch_dim)) * SCALE).astype(np.int32).tofile(str(patches))
-    rc, err = _run([_bin("conv3d-embed"),
-                    str(patches), str(n_patches), str(patch_dim), str(out_dim),
-                    str(workdir), prefix, str(output)])
-    patches.unlink(missing_ok=True)
-    output.unlink(missing_ok=True)
-    return rc, err
-
+# ── ViT prover functions ────────────────────────────────────────────────────────
 
 def prove_vit_ffn(block: int, workdir: Path) -> tuple[int, str]:
     prefix = f"vit-block-{block}"
     bdir   = workdir / f"vit-b{block}"
-    inp    = bdir / f"{prefix}-tamper-ffn-inp.bin"
-    out    = bdir / f"{prefix}-tamper-ffn-out.bin"
-    _rand_input(inp, 1024, 1280)
-    rc, err = _run([_bin("ffn"), str(inp), "1024", "1280", "3420",
+    inp    = bdir / f"{prefix}-c3b-ffn-inp.bin"
+    out    = bdir / f"{prefix}-c3b-ffn-out.bin"
+    _rand_input(inp, VIT_SEQ, VIT_HID)
+    rc, err = _run([_bin("ffn"), str(inp), str(VIT_SEQ), str(VIT_HID), str(VIT_FFN),
                     str(bdir), prefix, str(out)], cwd=CWD)
-    inp.unlink(missing_ok=True); out.unlink(missing_ok=True)
+    inp.unlink(missing_ok=True)
+    out.unlink(missing_ok=True)
     return rc, err
 
 
 def prove_vit_attn(block: int, workdir: Path) -> tuple[int, str]:
     prefix = f"vit-block-{block}"
     bdir   = workdir / f"vit-b{block}"
-    inp    = bdir / f"{prefix}-tamper-attn-inp.bin"
-    out    = bdir / f"{prefix}-tamper-attn-out.bin"
-    _rand_input(inp, 1024, 1280)
-    for tmp in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
-        (CWD / tmp).unlink(missing_ok=True)
-    rc, err = _run([_bin("self-attn"), "linear", str(inp), "1024", "1280",
-                    str(bdir), prefix, str(out), "1280"], cwd=CWD)
-    inp.unlink(missing_ok=True); out.unlink(missing_ok=True)
+    inp    = bdir / f"{prefix}-c3b-attn-inp.bin"
+    out    = bdir / f"{prefix}-c3b-attn-out.bin"
+    _rand_input(inp, VIT_SEQ, VIT_HID)
+    rc, err = _run([_bin("self-attn"), "linear", str(inp), str(VIT_SEQ), str(VIT_HID),
+                    str(bdir), prefix, str(out), str(VIT_KV)], cwd=CWD)
+    inp.unlink(missing_ok=True)
+    out.unlink(missing_ok=True)
+    # clean up temp Q/K/V written by linear mode
+    for sfx in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
+        (bdir / f"{prefix}-{sfx}").unlink(missing_ok=True)
     return rc, err
 
 
-def prove_patchmerger(weight_key: str, workdir: Path) -> tuple[int, str]:
-    """运行 patch-merger，只验证 fc1 或 fc2（通过完整 binary 覆盖）。"""
-    prefix = "patchmerger"
-    n_patches, vit_dim, merged_dim, out_dim = 256, 1280, 5120, 2048
-    inp     = workdir / f"{prefix}-tamper-input.bin"
-    rms_inv = workdir / f"{prefix}-tamper-rms_inv.bin"
-    out     = workdir / f"{prefix}-tamper-output.bin"
-    rng = np.random.default_rng(42)
-    X   = (rng.standard_normal((n_patches, vit_dim)) * SCALE).astype(np.int32)
-    X.tofile(str(inp))
-    X_f = X / SCALE
-    inv = 1.0 / np.sqrt((X_f**2).mean(axis=1) + 1e-6)
-    (inv * SCALE).round().astype(np.int32).tofile(str(rms_inv))
-    rc, err = _run([_bin("patch-merger"),
-                    str(inp), str(n_patches), str(vit_dim),
-                    str(merged_dim), str(out_dim),
-                    str(workdir), prefix, str(out), str(rms_inv)])
-    for p in [inp, rms_inv, out]:
-        p.unlink(missing_ok=True)
-    return rc, err
-
+# ── LLM prover functions ────────────────────────────────────────────────────────
 
 def prove_llm_ffn(layer: int, workdir: Path) -> tuple[int, str]:
     prefix = f"layer-{layer}"
-    inp = workdir / f"{prefix}-tamper-ffn-inp.bin"
-    out = workdir / f"{prefix}-tamper-ffn-out.bin"
-    _rand_input(inp, 512, 2048)
-    rc, err = _run([_bin("ffn"), str(inp), "512", "2048", "11008",
+    inp = workdir / f"{prefix}-c3b-ffn-inp.bin"
+    out = workdir / f"{prefix}-c3b-ffn-out.bin"
+    _rand_input(inp, LLM_SEQ, LLM_HID)
+    rc, err = _run([_bin("ffn"), str(inp), str(LLM_SEQ), str(LLM_HID), str(LLM_FFN),
                     str(workdir), prefix, str(out)])
-    inp.unlink(missing_ok=True); out.unlink(missing_ok=True)
+    inp.unlink(missing_ok=True)
+    out.unlink(missing_ok=True)
     return rc, err
 
 
 def prove_llm_attn(layer: int, workdir: Path) -> tuple[int, str]:
     prefix = f"layer-{layer}"
-    inp = workdir / f"{prefix}-tamper-attn-inp.bin"
-    out = workdir / f"{prefix}-tamper-attn-out.bin"
-    _rand_input(inp, 512, 2048)
-    for tmp in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
-        (CWD / tmp).unlink(missing_ok=True)
-    rc, err = _run([_bin("self-attn"), "linear", str(inp), "512", "2048",
-                    str(workdir), prefix, str(out), "256"])
-    inp.unlink(missing_ok=True); out.unlink(missing_ok=True)
+    inp = workdir / f"{prefix}-c3b-attn-inp.bin"
+    out = workdir / f"{prefix}-c3b-attn-out.bin"
+    _rand_input(inp, LLM_SEQ, LLM_HID)
+    rc, err = _run([_bin("self-attn"), "linear", str(inp), str(LLM_SEQ), str(LLM_HID),
+                    str(workdir), prefix, str(out), str(LLM_KV)])
+    inp.unlink(missing_ok=True)
+    out.unlink(missing_ok=True)
+    for sfx in ["temp_Q.bin", "temp_K.bin", "temp_V.bin"]:
+        (workdir / f"{prefix}-{sfx}").unlink(missing_ok=True)
     return rc, err
 
 
-# ── 组件定义 ───────────────────────────────────────────────────────────────────
-#
-# 每个条目：
-#   label       : 显示名称
-#   weight_file : 原始权重文件路径（相对 workdir 或绝对）
-#   proof_file  : IPA proof 文件路径
-#   prove_fn    : 调用 prover 的函数 (workdir) -> (rc, err)
-#   side        : "image" | "text"
+# ── component builder ──────────────────────────────────────────────────────────
 
-def build_components(workdir: Path) -> list[dict]:
+def build_components(workdir: Path, vit_blocks: list[int], llm_layers: list[int],
+                     n_weights: int, rng: np.random.Generator) -> list[dict]:
+    """
+    For each selected block/layer, randomly pick up to n_weights weight keys.
+    Weight keys include FFN (gate/up/down) and Attn-QKV (q/k/v).
+    Entries are skipped if the weight-int.bin file doesn't exist.
+    """
     components = []
 
-    # ── Conv3d ────────────────────────────────────────────────────────────────
-    components.append({
-        "label":       "conv3d_embed",
-        "side":        "image",
-        "weight_file": workdir / "conv3d-conv3d_embed.weight-int.bin",
-        "proof_file":  workdir / "conv3d-conv3d_embed-ipa-proof.bin",
-        "prove_fn":    lambda wd=workdir: prove_conv3d(wd),
-    })
-
-    # ── ViT blocks（抽样 4 个）────────────────────────────────────────────────
-    for block in [0, 7, 15, 31]:
-        bdir = workdir / f"vit-b{block}"
+    for block in sorted(vit_blocks):
+        bdir   = workdir / f"vit-b{block}"
         prefix = f"vit-block-{block}"
-        for wkey, prove_fn in [
-            ("mlp.gate_proj",    lambda b=block, wd=workdir: prove_vit_ffn(b, wd)),
-            ("self_attn.q_proj", lambda b=block, wd=workdir: prove_vit_attn(b, wd)),
-        ]:
+        if not bdir.exists():
+            print(f"  [skip] vit-b{block} directory not found")
+            continue
+
+        chosen = rng.choice(ALL_WEIGHT_KEYS, min(n_weights, len(ALL_WEIGHT_KEYS)),
+                             replace=False).tolist()
+        for wkey in chosen:
+            wf = bdir / f"{prefix}-{wkey}.weight-int.bin"
+            pf = bdir / f"{prefix}-{wkey}-ipa-proof.bin"
+            if not wf.exists():
+                print(f"  [skip] {wf.name} not found")
+                continue
+            pfn = (lambda b=block, wd=workdir: prove_vit_ffn(b, wd)
+                   if wkey.startswith("mlp.") else
+                   lambda b=block, wd=workdir: prove_vit_attn(b, wd))
+            # Need correct lambda capture per wkey
+            if wkey.startswith("mlp."):
+                pfn = lambda b=block, wd=workdir: prove_vit_ffn(b, wd)
+            else:
+                pfn = lambda b=block, wd=workdir: prove_vit_attn(b, wd)
             components.append({
-                "label":       f"vit_b{block}_{wkey}",
+                "label":       f"vit_b{block}/{wkey}",
+                "component":   f"vit_block_{block}/{wkey}",
                 "side":        "image",
-                "weight_file": bdir / f"{prefix}-{wkey}.weight-int.bin",
-                "proof_file":  bdir / f"{prefix}-{wkey}-ipa-proof.bin",
-                "prove_fn":    prove_fn,
+                "weight_file": wf,
+                "proof_file":  pf,
+                "prove_fn":    pfn,
             })
 
-    # ── PatchMerger ───────────────────────────────────────────────────────────
-    for wkey in ["patchmerger_fc1", "patchmerger_fc2"]:
-        components.append({
-            "label":       wkey,
-            "side":        "image",
-            "weight_file": workdir / f"patchmerger-{wkey}.weight-int.bin",
-            "proof_file":  workdir / f"patchmerger-{wkey}-ipa-proof.bin",
-            "prove_fn":    lambda k=wkey, wd=workdir: prove_patchmerger(k, wd),
-        })
-
-    # ── LLM decoder layers（抽样 6 层）────────────────────────────────────────
-    for layer in [0, 7, 14, 21, 28, 35]:
+    for layer in sorted(llm_layers):
         prefix = f"layer-{layer}"
-        for wkey, prove_fn in [
-            ("mlp.gate_proj",    lambda l=layer, wd=workdir: prove_llm_ffn(l, wd)),
-            ("self_attn.q_proj", lambda l=layer, wd=workdir: prove_llm_attn(l, wd)),
-        ]:
+        chosen = rng.choice(ALL_WEIGHT_KEYS, min(n_weights, len(ALL_WEIGHT_KEYS)),
+                             replace=False).tolist()
+        for wkey in chosen:
+            wf = workdir / f"{prefix}-{wkey}.weight-int.bin"
+            pf = workdir / f"{prefix}-{wkey}-ipa-proof.bin"
+            if not wf.exists():
+                print(f"  [skip] {wf.name} not found")
+                continue
+            if wkey.startswith("mlp."):
+                pfn = lambda l=layer, wd=workdir: prove_llm_ffn(l, wd)
+            else:
+                pfn = lambda l=layer, wd=workdir: prove_llm_attn(l, wd)
             components.append({
-                "label":       f"llm_l{layer}_{wkey}",
+                "label":       f"llm_l{layer}/{wkey}",
+                "component":   f"llm_layer_{layer}/{wkey}",
                 "side":        "text",
-                "weight_file": workdir / f"{prefix}-{wkey}.weight-int.bin",
-                "proof_file":  workdir / f"{prefix}-{wkey}-ipa-proof.bin",
-                "prove_fn":    prove_fn,
+                "weight_file": wf,
+                "proof_file":  pf,
+                "prove_fn":    pfn,
             })
 
     return components
 
 
-# ── 单次实验 ───────────────────────────────────────────────────────────────────
+# ── single trial ───────────────────────────────────────────────────────────────
 
-def run_one(comp: dict, ratio: float | None, rng: np.random.Generator) -> dict:
-    weight_src  = Path(comp["weight_file"])
-    proof_path  = str(comp["proof_file"])
+def run_one(comp: dict, ratio: float | None, rep: int,
+            rng: np.random.Generator) -> dict:
+    weight_src = Path(comp["weight_file"])
+    proof_path = str(comp["proof_file"])
 
     if not weight_src.exists():
         return {"error": f"weight not found: {weight_src}"}
 
-    # 可选篡改
-    tmp_weight = weight_src.parent / (weight_src.name + ".tamper_bak")
+    tmp_weight  = weight_src.parent / (weight_src.name + ".tamper_bak")
     tamper_info = None
     if ratio is not None:
         shutil.copy(str(weight_src), str(tmp_weight))
@@ -263,49 +245,89 @@ def run_one(comp: dict, ratio: float | None, rng: np.random.Generator) -> dict:
 
     if rc != 0:
         return {
-            "ratio": ratio, "prover_ok": False,
+            "ratio": ratio, "rep": rep, "prover_ok": False,
             "elapsed_ms": elapsed_ms,
-            "stderr_tail": stderr[-200:],
+            "stderr_tail": stderr[-300:],
         }
 
     ipa = _verify_ipa(proof_path)
     detected = (ratio is not None) and not ipa.get("binding_ok", True)
 
     return {
-        "ratio":        ratio,
-        "tamper_info":  tamper_info,
-        "prover_ok":    True,
-        "elapsed_ms":   elapsed_ms,
-        "fold_ok":      ipa.get("fold_ok"),
-        "binding_ok":   ipa.get("binding_ok"),
-        "detected":     detected,
+        "ratio":       ratio,
+        "rep":         rep,
+        "tamper_info": tamper_info,
+        "prover_ok":   True,
+        "elapsed_ms":  elapsed_ms,
+        "fold_ok":     ipa.get("fold_ok"),
+        "binding_ok":  ipa.get("binding_ok"),
+        "detected":    detected,
     }
 
 
-# ── 主流程 ─────────────────────────────────────────────────────────────────────
+# ── main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--workdir",  default="zkllm-workdir/jina-v4")
-    parser.add_argument("--repeats",  type=int,   default=3)
-    parser.add_argument("--ratios",   nargs="+",  type=float, default=[0.001, 0.01, 0.05])
-    parser.add_argument("--out",      default=str(OUT_FILE))
+    parser = argparse.ArgumentParser(description="C3b v2 随机化篡改检测率实验")
+    parser.add_argument("--workdir",    default="zkllm-workdir/jina-v4")
+    parser.add_argument("--mode",       choices=["grid", "random"], default="grid",
+                        help="grid: 固定比例 × 重复；random: 对数均匀采样")
+    parser.add_argument("--vit-blocks", type=int, default=8,
+                        help="随机抽取的 ViT 块数（从 0-31）")
+    parser.add_argument("--llm-layers", type=int, default=12,
+                        help="随机抽取的 LLM 层数（从 0-35）")
+    parser.add_argument("--n-weights",  type=int, default=3,
+                        help="每个块/层随机选取的权重矩阵数（最多 6）")
+    parser.add_argument("--ratios",     nargs="+", type=float,
+                        default=[0.001, 0.01, 0.05],
+                        help="grid 模式篡改比例")
+    parser.add_argument("--repeats",    type=int, default=3,
+                        help="grid 模式每个比例的重复次数")
+    parser.add_argument("--n-random",   type=int, default=30,
+                        help="random 模式每个组件的随机采样次数")
+    parser.add_argument("--seed",       type=int, default=42)
+    parser.add_argument("--out",        default=str(OUT_FILE))
     args = parser.parse_args()
 
-    workdir    = (ROOT / args.workdir).resolve()
-    ratios     = args.ratios
-    n_repeats  = args.repeats
-    rng        = np.random.default_rng(42)
-    components = build_components(workdir)
+    rng     = np.random.default_rng(args.seed)
+    workdir = (ROOT / args.workdir).resolve()
 
-    print("=" * 60)
-    print(f"C3b 全组件篡改检测率实验")
-    print(f"  组件数  : {len(components)}")
-    print(f"  篡改比例: {ratios}")
-    print(f"  重复次数: {n_repeats}")
-    print("=" * 60)
+    # 随机抽取块/层
+    n_vit = min(args.vit_blocks, 32)
+    n_llm = min(args.llm_layers, 36)
+    vit_blocks = sorted(rng.choice(32, n_vit, replace=False).tolist())
+    llm_layers = sorted(rng.choice(36, n_llm, replace=False).tolist())
 
-    all_results = []
+    print("=" * 64)
+    print("C3b v2  随机化全组件篡改检测率实验")
+    print(f"  模式        : {args.mode}")
+    print(f"  ViT 块      : {vit_blocks}")
+    print(f"  LLM 层      : {llm_layers}")
+    print(f"  权重/组件   : {args.n_weights}")
+    if args.mode == "grid":
+        print(f"  篡改比例    : {args.ratios}  × {args.repeats} repeats")
+    else:
+        print(f"  随机采样    : {args.n_random} 次，对数均匀 [0.001, 0.1]")
+    print("=" * 64)
+
+    components = build_components(workdir, vit_blocks, llm_layers, args.n_weights, rng)
+    print(f"\n有效组件数: {len(components)}\n")
+    if not components:
+        print("没有找到有效组件，请检查 workdir 路径和已提取的权重文件。")
+        return
+
+    # 构建 (ratio, rep) 列表
+    if args.mode == "grid":
+        ratio_reps: list[tuple[float, int]] = [
+            (r, rep) for r in args.ratios for rep in range(args.repeats)
+        ]
+    else:
+        sampled = np.exp(
+            rng.uniform(np.log(0.001), np.log(0.1), args.n_random)
+        ).tolist()
+        ratio_reps = [(float(r), i) for i, r in enumerate(sampled)]
+
+    all_results: list[dict] = []
     t_total = time.perf_counter()
 
     for comp in components:
@@ -313,70 +335,77 @@ def main():
         side  = comp["side"]
         print(f"\n[{label}]  ({side})")
 
-        # 1. 正常权重验证
-        r = run_one(comp, ratio=None, rng=rng)
-        r.update({"label": label, "side": side, "tamper": False})
+        # 正常权重验证
+        r = run_one(comp, ratio=None, rep=0, rng=rng)
+        r.update({"label": label, "component": comp["component"],
+                  "side": side, "tamper": False})
         all_results.append(r)
         status = "✓" if r.get("binding_ok") else "✗"
-        print(f"  clean     {status}  ({r.get('elapsed_ms',0)}ms)")
+        print(f"  clean      {status}  ({r.get('elapsed_ms', 0)}ms)")
 
-        # 2. 各比例 × 重复
-        for ratio in ratios:
-            detected_count = 0
-            for rep in range(n_repeats):
-                r = run_one(comp, ratio=ratio, rng=rng)
-                r.update({"label": label, "side": side, "tamper": True, "rep": rep})
-                all_results.append(r)
-                if r.get("detected"):
-                    detected_count += 1
-            rate = detected_count / n_repeats
-            print(f"  ratio={ratio:<6}  detected={detected_count}/{n_repeats}  ({rate*100:.0f}%)")
+        # 篡改验证
+        for ratio, rep in ratio_reps:
+            r = run_one(comp, ratio=ratio, rep=rep, rng=rng)
+            r.update({"label": label, "component": comp["component"],
+                      "side": side, "tamper": True})
+            all_results.append(r)
+            flag = "✓det" if r.get("detected") else "✗miss"
+            print(f"  ratio={ratio:.4f}  rep={rep}  {flag}  ({r.get('elapsed_ms', 0)}ms)")
 
-    elapsed_total = round((time.perf_counter() - t_total))
+    elapsed_total = round(time.perf_counter() - t_total)
 
     # ── 汇总 ──────────────────────────────────────────────────────────────────
-    clean_pass   = sum(1 for r in all_results if not r["tamper"] and r.get("binding_ok"))
-    clean_total  = sum(1 for r in all_results if not r["tamper"])
-    detect_total = sum(1 for r in all_results if r["tamper"] and r.get("detected"))
-    tamper_total = sum(1 for r in all_results if r["tamper"])
+    clean_pass   = sum(1 for r in all_results if not r.get("tamper") and r.get("binding_ok"))
+    clean_total  = sum(1 for r in all_results if not r.get("tamper"))
+    detect_total = sum(1 for r in all_results if r.get("tamper") and r.get("detected"))
+    tamper_total = sum(1 for r in all_results if r.get("tamper"))
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 64)
     print("汇总")
     print(f"  正常权重通过率: {clean_pass}/{clean_total}")
-    print(f"  篡改总检出率:   {detect_total}/{tamper_total}  ({detect_total/max(tamper_total,1)*100:.1f}%)")
+    print(f"  篡改总检出率:   {detect_total}/{tamper_total}"
+          f"  ({detect_total / max(tamper_total, 1) * 100:.1f}%)")
 
-    # 按 side 分组
     for side in ["image", "text"]:
-        det = sum(1 for r in all_results if r["tamper"] and r.get("side")==side and r.get("detected"))
-        tot = sum(1 for r in all_results if r["tamper"] and r.get("side")==side)
-        print(f"  {side} 检出率:  {det}/{tot}  ({det/max(tot,1)*100:.1f}%)")
+        det = sum(1 for r in all_results
+                  if r.get("tamper") and r.get("side") == side and r.get("detected"))
+        tot = sum(1 for r in all_results
+                  if r.get("tamper") and r.get("side") == side)
+        print(f"  {side} 检出率:  {det}/{tot}  ({det / max(tot, 1) * 100:.1f}%)")
 
-    # 按比例分组
-    for ratio in ratios:
-        det = sum(1 for r in all_results if r["tamper"] and r.get("ratio")==ratio and r.get("detected"))
-        tot = sum(1 for r in all_results if r["tamper"] and r.get("ratio")==ratio)
-        print(f"  ratio={ratio}  {det}/{tot}  ({det/max(tot,1)*100:.1f}%)")
+    if args.mode == "grid":
+        for ratio in args.ratios:
+            det = sum(1 for r in all_results
+                      if r.get("tamper") and abs(r.get("ratio", -1) - ratio) < 1e-9
+                      and r.get("detected"))
+            tot = sum(1 for r in all_results
+                      if r.get("tamper") and abs(r.get("ratio", -1) - ratio) < 1e-9)
+            print(f"  ratio={ratio}  {det}/{tot}  ({det / max(tot, 1) * 100:.1f}%)")
 
     print(f"\n总耗时: {elapsed_total}s")
-    print("=" * 60)
+    print("=" * 64)
 
     summary = {
-        "experiment":    "C3b",
-        "description":   "全组件 zkLLM 权重篡改检测率（IPA 承诺绑定，图像+文字侧）",
-        "components":    [c["label"] for c in components],
-        "tamper_ratios": ratios,
-        "n_repeats":     n_repeats,
-        "clean_pass":    clean_pass,
-        "clean_total":   clean_total,
-        "detect_total":  detect_total,
-        "tamper_total":  tamper_total,
-        "detection_rate": round(detect_total / max(tamper_total, 1), 4),
-        "elapsed_s":     elapsed_total,
-        "results":       all_results,
+        "experiment":              "C3b_v2",
+        "description":             "随机化全组件 zkLLM 权重篡改检测率（图像+文字侧，IPA 承诺绑定）",
+        "mode":                    args.mode,
+        "vit_blocks":              vit_blocks,
+        "llm_layers":              llm_layers,
+        "n_weights_per_component": args.n_weights,
+        "tamper_ratios":           args.ratios if args.mode == "grid" else "log-uniform[0.001,0.1]",
+        "n_repeats":               args.repeats if args.mode == "grid" else args.n_random,
+        "seed":                    args.seed,
+        "clean_pass":              clean_pass,
+        "clean_total":             clean_total,
+        "detect_total":            detect_total,
+        "tamper_total":            tamper_total,
+        "detection_rate":          round(detect_total / max(tamper_total, 1), 4),
+        "elapsed_s":               elapsed_total,
+        "results":                 all_results,
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(summary, indent=2))
+    out.write_text(json.dumps(summary, indent=2, ensure_ascii=False))
     print(f"结果已保存: {out}")
 
 

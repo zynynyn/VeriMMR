@@ -5,22 +5,56 @@
 
 加载 jina-v4 模型...
 `torch_dtype` is deprecated! Use `dtype` instead!
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.80it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.76it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.93it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.89it/s]
   ✓ 模型加载完成
 
 本 worker 处理 1 张图像
 
 [nikon_page_0.jpg] 开始全量证明  gpu=0
-  [hook] 激活捕获完成  2822ms
-Conv3d embed proof: ✓ PASS  (849ms  fold=✓  binding=✓)
-  [conv3d] ✓  849ms
-  Block 0: ✓ PASS  (22005ms  fold=9/9  binding=9/9)
-  Block 1: ✓ PASS  (22096ms  fold=9/9  binding=9/9)
-  Block 2: ✓ PASS  (22040ms  fold=9/9  binding=9/9)
-  Block 3: ✓ PASS  (21854ms  fold=9/9  binding=9/9)
-  Block 4: ✓ PASS  (22240ms  fold=9/9  binding=9/9)
-  Block 5: ✓ PASS  (22400ms  fold=9/9  binding=9/9)
-    [Step3 FAIL] terminate called after throwing an instance of 'std::runtime_error'
-  what():  tLookup_phase2: claim != p(0) + p(1)
+  [hook] 激活捕获完成  1996ms
+Conv3d embed proof: ✓ PASS  (837ms  fold=✓  binding=✓)
+  [conv3d] ✓  837ms
+  Block 0: ✓ PASS  (22199ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (22274ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (21707ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (22496ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (21818ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (22047ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (21567ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (37688ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (22644ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (22043ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (22169ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (21891ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (21985ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (21878ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (22323ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (21731ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (38675ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (21977ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (22387ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (22036ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (22098ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (21906ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (22125ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (22307ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (22261ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (37878ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (22508ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (22496ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (21921ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (22885ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (21628ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (36525ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+PatchMerger proof: ✓ PASS  (2957ms  fold=3/3  binding=3/3)
+  [patchmerger] ✓  2957ms
+  [pooling] ✓
+  [LLM 36 layers] 36/36 通过
+  [nikon_page_0.jpg] ✓ PASS  总耗时 682885ms
+  进度: 1/1  通过: 1  均值: 683s/图  预计剩余: 0h0m
 
-  Block 7: ✗ FAIL  (12300ms  fold=0/0  binding=0/0)  failed=['zkAttn']
+============================================================
+全量证明完成  通过 1/1
+总耗时: 683s
+============================================================

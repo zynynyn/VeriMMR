@@ -392,7 +392,7 @@ def main():
     parser.add_argument("--workdir",    default="zkllm-workdir/jina-v4")
     parser.add_argument("--model-path", default="/root/autodl-tmp/models/jina-embeddings-v4")
     parser.add_argument("--out-dir",    default="zkllm-workdir/jina-v4",
-                        help="corpus_full_proof_*.json 输出目录（默认与 workdir 相同）")
+                        help="corpus_proof_*.json 输出目录（默认与 workdir 相同）")
     parser.add_argument("--worker-id",   type=int, default=0)
     parser.add_argument("--num-workers", type=int, default=1)
     parser.add_argument("--limit",       type=int, default=-1)
@@ -440,7 +440,7 @@ def main():
         image_id   = item["image_id"]
         image_path = str(corpus_path.parent / item["image_path"])
         sid        = safe_id(image_id)
-        out_path   = out_dir / f"corpus_full_proof_{sid}.json"
+        out_path   = out_dir / f"corpus_proof_{sid}.json"
 
         if out_path.exists() and not args.overwrite:
             print(f"[{idx+1}/{len(items)}] 跳过（已存在）: {sid[:40]}", flush=True)

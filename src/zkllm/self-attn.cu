@@ -133,12 +133,14 @@ int main(int argc, char *argv[])
         uint seq_sq = seq_len * seq_len;
         vector<uint>   softmax_bs;
         vector<double> softmax_thetas;
-        if (seq_sq == (1U << 20)) {
-            // Full attention (seq=1024): seq²=2^20.  K=3, bs={256,2^20,2^20}.
+        if (seq_sq > (1U << 12)) {
+            // Full attention (seq≥1024, e.g. 1024 or 4096): K=3, bs={256,2^20,2^20}.
+            // bs={256,1M,1M} covers [0,2^32) for any seq: v2 actual range [0,16) << 1M table.
+            // Avoids degenerate 16M-entry tables that the else branch would produce for seq=4096.
             softmax_bs     = {1U<<8, 1U<<20, 1U<<20};
             softmax_thetas = {double(1<<18), double(1<<22)};
         } else {
-            // Window attention (seq≤64): K=4, range 256×seq²³≥2^44 covers real activations.
+            // Window attention (seq≤64): K=4, 256×seq²³≥2^44 covers real activations.
             softmax_bs     = {256U, seq_sq, seq_sq, seq_sq};
             softmax_thetas = {double(1<<18), double(1<<22), double(1<<22)};
         }
