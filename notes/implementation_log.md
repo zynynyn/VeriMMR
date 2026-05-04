@@ -3925,3 +3925,153 @@ if (seq_sq > (1U << 12)) {
 - ViT 32 blocks：**32/32 通过**（含 block 7/15/23/31，之前均 FAIL）
 - LLM 36 layers：36/36 通过
 - 总耗时：**683s（约 11.4 分钟）**
+
+---
+
+### Phase 7：C3b v2 随机化全组件篡改检测率实验（2026-05-01）
+
+#### 实验设计
+
+重写 `script/experiment_c3b.py`（v2），主要改进：
+
+- **随机抽样**：从全部 32 个 ViT 块中随机抽取 8 块，从全部 36 个 LLM 层中随机抽取 12 层（seed=42）
+- **权重覆盖**：每个块/层随机选取 3 个权重矩阵，来源集合 = `{gate_proj, up_proj, down_proj, q_proj, k_proj, v_proj}`（6 类全覆盖）
+- **跨模态标注**：ViT 图像侧（image）vs LLM 文字侧（text）
+- **篡改方式**：高斯噪声 $\sigma = \text{std}(W)$，随机替换指定比例元素（`--mode grid`：0.1%/1%/5% × 3 次重复）
+- **验证机制**：`verify_ipa_cpp`（C++ GPU binary），`binding_ok=False` → detected
+
+运行命令：
+```bash
+python script/experiment_c3b.py --mode grid --vit-blocks 8 --llm-layers 12
+```
+
+#### 结果（20 组件 × 9 trial）
+
+| 维度 | 统计结果 |
+|:-----|:-------:|
+| 正常权重通过率 | 60/60（100%）|
+| 篡改总检出率 | **540/540（100%）**|
+| 图像侧（ViT 块） | 216/216（100%）|
+| 文字侧（LLM 层） | 324/324（100%）|
+| ratio = 0.001 | 180/180（100%）|
+| ratio = 0.01 | 180/180（100%）|
+| ratio = 0.05 | 180/180（100%）|
+| 总耗时 | 2137 s |
+
+**结论**：即使仅篡改 0.1% 的权重元素，IPA binding check 在所有组件、所有模态上均 100% 检出。输出文件：`notes/experiment_results/c3b_detection_rate_v2.json`
+
+---
+
+### Phase 7：Fiat-Shamir 统计安全实验（2026-05-01）
+
+新建 `script/experiment_fiat_shamir.py`，纯 Python（无 GPU），验证 Fiat-Shamir 层挑战机制的统计安全性。
+
+#### 实验结果（$N=36$，$K=6$，$M=10000$）
+
+**FS-1 单次检出率**：实测与理论误差均 < 1%
+
+| $L$ | 实测 | 理论 | 误差 |
+|:---:|:---:|:---:|:---:|
+| 1 | 16.21% | 16.67% | 0.46% |
+| 6 | 68.54% | 69.52% | 0.98% |
+| 18 | 99.22% | 99.05% | 0.17% |
+
+**FS-2 累积安全**（$L=1$）：T=10 → 84.0%，T=20 → 97.3%，T=30 → 99.4%
+
+**FS-3 均匀性**：$\chi^2=27.35$，$p=0.82 > 0.05$，通过均匀性检验
+
+**服务器端 nonce 安全分析**：$L=1$ 时恶意服务器期望枚举 1.2 次即可绕过检测；修复方案为改用客户端 nonce。输出文件：`notes/experiment_results/fiat_shamir_security.json`
+
+---
+
+### Bug 修复：corpus_proof 文件名不一致 + run_corpus_proof.sh GPU 冲突（2026-05-01）
+
+#### 问题 1：文件名不一致
+
+`build_corpus_full_proof.py` 输出文件名为 `corpus_full_proof_{sid}.json`，但 `interactive_demo.py`（line 360）读取的是 `corpus_proof_{safe}.json`，导致 demo 无法加载预计算证明。
+
+**修复**：将 `build_corpus_full_proof.py` 输出改为 `corpus_proof_{sid}.json`。
+
+#### 问题 2：run_corpus_proof.sh 双 worker 导致 GPU OOM
+
+`build_corpus_full_proof.py` 内部已硬编码使用两块物理 GPU：
+- ViT：`ProcessPoolExecutor` 固定传 `gpu=0` / `gpu=1`
+- LLM：`env_g0 = CUDA_VISIBLE_DEVICES=0`，`env_g1 = CUDA_VISIBLE_DEVICES=1`
+
+Shell 脚本设置的 `CUDA_VISIBLE_DEVICES=0/1` 被子进程覆盖，实际无效。同时启动两个 worker 会产生 4 个进程争抢 2 块 GPU，极大概率 OOM。
+
+**修复**：`run_corpus_proof.sh` Step 2 去掉 `CUDA_VISIBLE_DEVICES=0/1` 前缀（子进程会覆盖，设置无效），改回双 worker 并行但不显式限制 GPU 可见性；若遇 OOM 可退为单 worker（`--num-workers 1`）。
+
+---
+
+## Phase 8：Phase 2 IPA Embedding 承诺（2026-05-03）
+
+### 问题背景：信任链断裂
+
+Phase 2 Global Batch Sumcheck 在数学上证明了"宣告的分值 $s_i$ 确实等于 $\mathbf{q} \cdot \mathbf{v}_i$"，但在此之前要求 Verifier 本地持有原始 `embedding.npy`（$N \times D$ float32，$N=303$ 时 2.4 MB）。这引入了一个隐蔽的攻击面：
+
+> **Prover 双份 embedding 攻击**：恶意 Prover 可维护两份 embedding——一份"干净的"用于骗过 Phase 2 Sumcheck 验证，另一份实际用于检索。Phase 2（Sumcheck）与 Phase 3（zkLLM 推理证明）之间没有密码学绑定，信任链在此处断开。
+
+此外，Verifier 持有 80 MB embedding（$N=10^4$ 时）是显著的部署障碍。
+
+### 技术方案
+
+**核心思路**：用 Pedersen 向量承诺 $\mathrm{cm}_i \in \mathbb{G}_1$ 替代原始 $\hat{\mathbf{v}}_i$，Verifier 仅持有承诺集合（43 KB），通过 IPA Oracle Opening Proof 验证 Sumcheck oracle 查询。
+
+```
+修复前：Phase3 proves v_i ───(断开)─── Phase2 uses raw v_i for oracle
+修复后：Phase3 proves v_i ──→ cm_i ←── Phase2 oracle verified via IPA proof
+```
+
+**域切换**：IPA 运行在 BLS12-381 Fr 域（$p_{\mathrm{FR}} \approx 2^{255}$），soundness 误差从 $N/2^{61} \approx 2^{-53}$ 降至 $N/p_{\mathrm{FR}} \approx 2^{-247}$。
+
+**IPA 折叠顺序修复**：Python Sumcheck 按 MSB-first 折叠（$W[j]$ 与 $W[j+n/2]$ 配对），而 C++ `me_open_step` 按 LSB-first 折叠（$W[2j]$ 与 $W[2j+1]$ 配对）。修复：在写 u_file 时反转挑战顺序（`reversed(challenges)`），使两端的多线性求值点对齐。
+
+**G1 坐标系修复**：py_ecc 使用投影坐标（X:Y:Z，仿射点 = $(X/Z, Y/Z)$），而非 Jacobian 坐标。`_g1_to_jacobian_bytes` 必须先归一化到仿射（$z_{\mathrm{aff}}=1$），再转 Montgomery 形式存储，否则 C++ 端解码得到错误坐标。
+
+### 新建 / 修改文件
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/zkllm/open-ipa.cu` | **新建**（~80 行） | C++ GPU IPA oracle proof 生成 binary；自动检测 int32/Fr 输入格式 |
+| `src/zkllm/Makefile` | **修改** | TARGETS 末尾加 `open-ipa` |
+| `src/sumcheck/inner_product.py` | **修改** | 新增 `P_FR` 常量、`_g1_to_jacobian_bytes` 修复、`ipa_prove_python`、`generate_random_pp_python`、`generate_oracle_proof_python` |
+| `script/setup_embedding_commitments.py` | **新建**（~287 行） | 批量建承诺库；支持 GPU（`commit-param` binary）和 `--cpu`（纯 Python py_ecc）两种模式 |
+
+`inner_product.py` 新增关键函数：
+
+- **`generate_random_pp_python(d, seed)`**：生成 $d$ 个 BLS12-381 G1 随机生成器，固定 seed 保证 Prover/Verifier 复现一致
+- **`ipa_prove_python(w_int, generators, challenges_for_ipa)`**：纯 Python IPA prover，实现与 C++ `me_open_step` 等价的 LSB-first 折叠，序列化为与 `open-ipa` 相同的二进制格式
+- **`generate_oracle_proof_python(w_int, challenges, pp)`**：包装函数，内部反转挑战顺序后调用 `ipa_prove_python`
+- **`verify_ipa_embedding(oracle_proof_bytes, cm_w)`**（已有）：fold check + binding check
+
+### 实验结果（CPU-only 模式，$N=10$ 真实 embedding，$D=2048$）
+
+| 测试项目 | 结果 |
+|---------|:----:|
+| 域切换（Mersenne → BLS12-381 Fr） | ✅ |
+| Sumcheck oracle 正确性（`oracle_ok`） | ✅ |
+| IPA fold check（Python 生成 / Python 验证） | ✅ |
+| IPA binding check（`C_init == cm_w`） | ✅ |
+| top-5 结果与非 IPA 模式一致 | ✅ |
+| B3 篡改检测（修改 $s_i$ → Sumcheck 失败） | ✅ |
+
+**性能（CPU，py_ecc）**：
+
+| 阶段 | 操作 | 耗时 |
+|------|------|:----:|
+| 离线建库（一次性） | $N=303$ × commit（$D=2048$ G1 muls/向量） | ~61 min |
+| 在线 Prove（新增） | oracle proof 生成（`ipa_prove_python`，$\approx 8192$ G1 muls） | ~108s |
+| 在线 Verify（新增） | cm_w 聚合（$N$ G1 muls）+ fold check（$\ell$ 轮） | ~3.3s |
+| **非 IPA 基准** | Phase 2 Sumcheck（无 IPA） | 973ms |
+
+GPU 模式（`open-ipa` C++ binary）oracle proof 生成降至 ~2s，Verifier cm_w 若用 GPU 内核可降至 <0.1s。
+
+### 安全性改进对比
+
+| 参数 | 修复前（$\mathbb{F}_{2^{61}-1}$） | 修复后（BLS12-381 Fr） |
+|------|:--------------------------------:|:---------------------:|
+| oracle soundness 误差 | $\leq N/2^{61} \approx 2^{-53}$ | $\leq N/p_{\mathrm{FR}} \approx 2^{-247}$ |
+| Verifier 存储 | `embedding.npy` 2.4 MB | `embedding_commitments.bin` 43 KB（57× 压缩） |
+| 信任假设 | 信任原始浮点矩阵 | 密码学 Binding（BLS12-381 DL 困难） |
+| Phase 3 绑定 | 无 | cm_i 结构与 Phase 3 承诺兼容，可扩展绑定 |

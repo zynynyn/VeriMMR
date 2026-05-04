@@ -243,11 +243,14 @@ $$\Pr[\text{cheat undetected}] \leq \frac{N + 22}{p} \approx 2^{-53} \quad (N=30
 
 **实验设计**：在 Nikon Z8 语料库（$N = 303$）上，取 10 条 query，每条从非 top-$k$ 池中随机选 5 个 victim 图像，将其分值改为 $\max_j s_j + 1$（确保进入 top-$k$），共 50 次篡改，对每次篡改运行 Global Batch Sumcheck 验证。
 
-**Nikon Z8 语料库结果**：
+**Nikon Z8 语料库结果（non-IPA 与 IPA 双模式）**：
 
-| 攻击类型 | 拦截 Phase | 测试次数 | 检测次数 | 检测率 |
-|---------|:--------:|:------:|:------:|:----:|
-| 排名操控（B3） | Phase 2 Sumcheck | 50 | 50 | **100%** |
+| 模式 | 域 | 测试次数 | 检测次数 | 检测率 | 总耗时 |
+|------|:--:|:------:|:------:|:----:|:----:|
+| non-IPA（$\mathbb{F}_{2^{61}-1}$） | Mersenne | 50 | 50 | **100%** | ~2s |
+| IPA/GPU（BLS12-381 Fr，`open-ipa`） | BLS12-381 | 50 | 50 | **100%** | 53.3s |
+
+两种模式均实现 100% 检测率；IPA/GPU 模式在更强的密码学安全保障（$2^{-247}$ vs $2^{-53}$）下附加约 5.3s/query 的开销。
 
 **多数据集检测率**：
 
@@ -363,16 +366,17 @@ $N$ 从 50 增至 1000（$\times 20$），Sumcheck 延迟从 166ms 增至 3,172m
 
 ## 2.6 设计选项与局限性
 
-### 2.6.1 Verifier 需持有语料库副本
+### 2.6.1 Verifier 需持有语料库副本（已通过 §2.6.3 IPA 承诺解决）
 
-**当前限制**：Verifier 在重建聚合向量 $\mathbf{w} = \sum_i \rho^i \hat{\mathbf{v}}_i$ 时，需本地持有完整的 embedding 矩阵（$N \times D \times 4$ 字节，$N=303$ 时约 2.4 MB，$N=10^4$ 时约 80 MB）。这意味着：
+**原始限制**：Verifier 在重建聚合向量 $\mathbf{w} = \sum_i \rho^i \hat{\mathbf{v}}_i$ 时，需本地持有完整的 embedding 矩阵（$N \times D \times 4$ 字节，$N=303$ 时约 2.4 MB，$N=10^4$ 时约 80 MB）。这意味着：
 
 - Verifier 实际上拥有全部语料 embedding，但 Sumcheck 本身不证明这些向量的**来源正确性**（即"$v_i$ 确实由 jina-v4 对 $I_i$ 正确推理得到"），该问题由 Phase 3 zkLLM 预计算证明覆盖；
+- 更严重的是，若 Prover 恶意维护"两份 embedding"——一份用于骗过 Phase 2 Sumcheck，另一份实际用于检索——信任链在 Phase 2 与 Phase 3 之间断裂；
 - 在 Verifier 资源受限或通信带宽受限的场景下，持有 80MB embedding 是显著的部署障碍。
 
-这是**实用性约束**而非**安全性漏洞**——三个 Phase 共同构成完整信任链，embedding 的来源正确性已由 Phase 3 的语料库侧 zkLLM 预计算证明（离线，每张图像约 76 秒）独立覆盖。
+**已实现的修复（§2.6.3）**：本系统已为每个 embedding 向量生成 IPA 向量承诺 $\mathrm{cm}_i$，Verifier 仅需持有承诺集合（$N \times 144$ 字节 $\approx$ 43KB），无需原始向量，Sumcheck oracle 查询通过密码学绑定验证。详见 §2.6.3。
 
-### 2.6.2 KZG 承诺方案（优化方向，未实现）
+### 2.6.2 KZG 承诺方案（已被 IPA 方案替代，未单独实现）
 
 KZG 多项式承诺 \[[Kate et al., 2010](https://link.springer.com/chapter/10.1007/978-3-642-17373-8_11)\] 可从根本上消除 Verifier 持有 embedding 副本的假设：
 
@@ -391,7 +395,108 @@ $$\mathrm{cm}_{\mathbf{w}} = \sum_{i=1}^N \rho^i \cdot \mathrm{cm}_i \in \mathbb
 
 BLS12-381 G1 标量乘法在纯 Python（py_ecc）实现下比 Mersenne 域运算慢约 3000×：$N=303$ 时 Verifier 时间 649ms 反而比当前方案 442ms 更慢。KZG 的真实价值体现于 $N \gg 10^4$ 的大规模场景（域运算扩展快于 G1 运算），或有 GPU 加速的配对运算环境。
 
-KZG 与 Pointproofs（Phase 1 所用）共享 BLS12-381 底层基础设施，技术可行性已具备；当前 Demo 场景下 Verifier 持有语料副本的假设成立，留作后续工程优化方向。
+KZG 与 Pointproofs（Phase 1 所用）共享 BLS12-381 底层基础设施，技术可行性已具备，留作大规模场景（$N \gg 10^4$）的后续优化方向。当前系统已选用 IPA 向量承诺方案解决 Verifier 存储问题，见 §2.6.3。
+
+---
+
+### 2.6.3 IPA Embedding 承诺方案（已实现）
+
+本系统已实现基于 Pedersen 向量承诺的 IPA（Inner Product Argument）方案，彻底消除 Verifier 持有原始 embedding 矩阵的假设。
+
+#### 密码学构建块
+
+**Pedersen 向量承诺**：给定公开参数 $\mathbf{G} = (G_1, \ldots, G_D) \in \mathbb{G}_1^D$（随机生成的 BLS12-381 G1 点），对量化向量 $\hat{\mathbf{v}}_i \in \mathbb{Z}^D$ 的承诺为：
+
+$$\mathrm{cm}_i = \sum_{j=1}^D \hat{v}_{ij} \cdot G_j \in \mathbb{G}_1$$
+
+承诺满足 **Binding 性质**（计算意义下）：在离散对数困难假设下，不存在有效算法使同一 $\mathrm{cm}_i$ 对应两个不同的向量。
+
+**IPA Oracle Opening**：对聚合向量 $\mathbf{w} = \sum_i \rho^i \hat{\mathbf{v}}_i \in \mathbb{Z}_p^D$，IPA 协议在 $\ell = \lceil \log_2 D \rceil$ 轮内证明：
+
+$$\mathbf{w} \text{ 的 MLE 在 Sumcheck 挑战点 } (r_1, \ldots, r_\ell) \text{ 处的求值}$$
+
+与承诺 $\mathrm{cm}_{\mathbf{w}} = \sum_i \rho^i \cdot \mathrm{cm}_i$ 密码学一致。
+
+#### 协议架构
+
+**离线阶段（一次性，建库）**：
+
+1. 生成公开参数：`ppgen D embedding-pp.bin` → $D$ 个 BLS12-381 G1 随机生成器（CPU 模式：`generate_random_pp_python(D, seed=42)`）
+2. 对每个 $\hat{\mathbf{v}}_i$：量化为 int32 → `commit-param` → 144 字节 Jacobian G1 点 $\mathrm{cm}_i$
+3. 输出 `embedding_commitments.bin`（$N \times 144$ 字节）
+
+**在线 Prove 阶段（每次检索，新增步骤）**：
+
+在原有 Global Batch Sumcheck 证明（§2.2.2 Step 1–4）的基础上，Prover 执行第 5 步：
+
+5. 调用 `open-ipa pp.bin w.bin u.bin oracle_proof.bin D`：将 Sumcheck 挑战向量 $\mathbf{r} = (r_1, \ldots, r_\ell)$ 与聚合向量 $\mathbf{w}$ 传入，生成 IPA Oracle opening proof $\pi_{\mathrm{ipa}}$
+
+**在线 Verify 阶段（Verifier 新增步骤）**：
+
+原来"重建聚合向量 $\mathbf{w}$"的步骤（需要原始 embedding.npy）替换为：
+
+5a. 加载承诺集合 $\{\mathrm{cm}_i\}$（43 KB），在 BLS12-381 G1 上聚合：
+$$\mathrm{cm}_{\mathbf{w}} = \sum_{i=1}^N \rho^i \cdot \mathrm{cm}_i \in \mathbb{G}_1$$
+
+5b. 调用 `verify_ipa_embedding(π_ipa, cm_w)` 执行两项检查：
+- **Binding check**：$C_{\mathrm{init}} \stackrel{?}{=} \mathrm{cm}_{\mathbf{w}}$（IPA proof 内嵌的初始承诺与 Verifier 聚合结果一致）
+- **Fold check**：$\ell$ 轮 IPA 折叠链验证，确认 $w_{\mathrm{final}} = \tilde{\mathbf{w}}(r_1, \ldots, r_\ell)$
+
+5c. 用 $w_{\mathrm{final}}$ 完成 Sumcheck 最终 oracle 验证（替代原来的 `q_final × w_final_py`）
+
+#### 证明规模与安全参数
+
+| 参数 | 值（$D=2048$，$\ell=11$，$N=303$） |
+|------|:----------------------------------:|
+| IPA proof 结构 | header（12B）+ $C_{\mathrm{init}}$（144B）+ $\ell \times 32$B $u_{\mathrm{in}}$ + $\ell \times 2 \times 144$B 折叠轮 + $g_{\mathrm{final}}$（144B）+ $w_{\mathrm{final}}$（32B）|
+| **Oracle proof 大小** | $12 + 144 + 11\times32 + 11\times2\times144 + 144 + 32 = \mathbf{3{,}852}$ **字节** |
+| **Verifier 存储** | $\{\mathrm{cm}_i\}$：$303 \times 144 = 43{,}632$ **字节（43 KB）** |
+| 非 IPA 模式 Verifier 存储 | `embedding.npy`：$303 \times 2048 \times 4 = 2{,}482{,}176$ **字节（2.4 MB）** |
+| 存储压缩比 | **57×** |
+
+#### 安全性分析
+
+IPA 方案将 Sumcheck oracle 查询的安全基础从 Mersenne 域的有限域可靠性提升至 BLS12-381 Fr 域（$|\mathbb{F}| = p_{\mathrm{FR}} \approx 2^{255}$）的离散对数困难假设：
+
+| 安全参数 | 非 IPA 模式（$\mathbb{F}_{2^{61}-1}$） | IPA 模式（BLS12-381 Fr，$p_{\mathrm{FR}} \approx 2^{255}$） |
+|---------|:-----------------------------------:|:----------------------------------------------------------:|
+| Oracle 欺骗概率（单次） | $\leq N / (2^{61}-1) \approx 2^{-53}$ | $\leq N / p_{\mathrm{FR}} \approx 2^{-247}$ |
+| 安全基础 | 有限域 Schwartz-Zippel | BLS12-381 Fr 离散对数困难 |
+| Verifier 信任假设 | 信任 embedding.npy 原始矩阵 | 密码学绑定（binding check） |
+| Phase 3 绑定 | 无（信任链在 Phase 2–3 间断开） | cm_i 与 Phase 3 承诺结构共享，可扩展绑定 |
+
+**综合 soundness 误差**（IPA 模式）：
+
+$$\Pr[\text{cheat undetected}] \leq \frac{N + \ell_{\mathrm{SC}} + \ell_{\mathrm{IPA}}}{p_{\mathrm{FR}}} \approx \frac{303 + 11 + 11}{2^{255}} \approx 2^{-247}$$
+
+其中 $\ell_{\mathrm{SC}} = 11$（Sumcheck 轮次）、$\ell_{\mathrm{IPA}} = 11$（IPA 折叠轮次）。
+
+#### 性能开销（CPU 实现，py_ecc）
+
+IPA 模式新增如下在线开销：
+
+| 新增步骤 | 操作 | 测量耗时（CPU，$N=303$，$D=2048$） |
+|---------|------|:----------------------------------:|
+| Prover：oracle proof 生成 | `ipa_prove_python`（$\approx 8192$ 次 G1 scalar mul） | $\approx 108$s |
+| Verifier：$\mathrm{cm}_{\mathbf{w}}$ 聚合 | $N$ 次 G1 scalar mul | $\approx 3$s |
+| Verifier：IPA fold check | $\ell$ 轮 × 3 次 G1 操作 | $\approx 0.3$s |
+| **Verifier 新增合计** | — | **$\approx 3.3$s** |
+
+注：GPU 模式（`open-ipa` C++ binary）oracle proof 生成降至 $\approx 2$s（实测），Verifier cm_w 聚合约 3s（py_ecc Python，若用 zkLLM G1 kernel 可降至 $<0.1$s）。实测 GPU 模式总开销约 $5.3$s/query（10 条 query 合计 53.3s）；CPU 模式总开销约 $111$s/query。Phase 2 非 IPA 基准为 973ms/query（§2.5.1），IPA 模式以额外时间换取 $2^{194}$ 倍安全性提升。
+
+#### 实验验证（C2b：IPA 模式正确性；B3：IPA 攻击检测）
+
+**C2b 测试设计**：取 $N=10$ 条真实 jina-v4 embedding（从 `embedding.npy` 中读取，$D=2048$），CPU-only 模式（`generate_random_pp_python` + `ipa_prove_python`），对 5 条 query 执行完整 IPA 验证流程。
+
+| 测试项目 | 结果 |
+|---------|:----:|
+| Sumcheck oracle 正确性（`oracle_ok`） | ✅ True |
+| IPA fold check 通过 | ✅ True |
+| IPA binding check 通过 | ✅ True |
+| top-5 结果与非 IPA 模式一致 | ✅ True |
+| 篡改检测（修改 $s_i$ → Sumcheck 失败） | ✅ True |
+
+**B3-IPA 全语料实验**：在 Nikon Z8 全语料库（$N=303$）上以 GPU IPA 模式（`open-ipa` binary + `embedding_commitments.bin`）运行 B3 排名操控攻击检测实验（10 条 query × 5 个篡改位置 = 50 次）：50/50 = **100% 检测率**，总耗时 53.3s（$\approx 5.3$s/query）。
 
 ---
 

@@ -203,7 +203,7 @@ $$y = f_W(x) \quad \text{（在 } W \text{ 的公开承诺约束下）}$$
 │  ━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
 │       │  ⑤ Pooling Head (MeanPool + L2Norm)                                    │
 │       │    MeanPool: Sumcheck 证明 sum(H[mask]) = K × p                        │
-│       │    L2Norm: Rescaling 证明（等价单行 RMSNorm）                           │
+│       │    L2Norm: 量化约束检查（无正式 ZK 证明，见 §2.6.2）                    │
 │  ━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
 │  [输出]                                                                         │
 │  embedding y ∈ ℝ²⁰⁴⁸                                                           │
@@ -268,8 +268,31 @@ seq_len 统一 pad 到 1024（补零）。Hook 非侵入性已由实验 3.H.2 �
 
 **⑤ Pooling Head（MeanPool + L2Norm）**
 
-- **MeanPool**：公开 mask 向量（无可学习参数），用 Sumcheck 证明 $\sum_{t:\text{mask}[t]=1} H_t = K \cdot \mathbf{p}$，Verifier 直接验证求和；
-- **L2Norm**：等价于无可学习 $\gamma$ 的单行 RMSNorm，用 Rescaling 证明（Prover 声称 $1/\|p\|_2$，Verifier 验证 $\|p\|_2^2 \cdot \text{inv}^2 \approx 1$）。
+**为何使用 Sumcheck 而非 IPA？**
+
+MeanPool 是纯线性聚合——对图像侧，在所有图像 token 位置（mask[t]=1）的隐藏状态求均值：
+
+$$\mathbf{p} = \frac{1}{K} \sum_{t:\,\text{mask}[t]=1} H_t \in \mathbb{R}^{d}$$
+
+mask 向量完全公开（由 Tokenizer 产生，Verifier 可自行获取），**无可学习参数**。IPA 权重承诺的设计动机是"Verifier 无法访问模型权重"；MeanPool 的"权重"（mask/K）公开可知，无需密码学承诺保护。因此直接用 Sumcheck 证明聚合求和正确性：
+
+$$\text{Prover 声称：} \sum_{t=0}^{T-1} \text{mask}[t] \cdot H_{t} = K \cdot \mathbf{p}$$
+
+对整个向量用多线性扩展（MLE）一次性证明全部 $d$ 个维度，proof 大小 $O(\log T)$，Prover 复杂度 $O(T \cdot d)$——与 Phase 2 内积 Sumcheck（证明 $\langle \hat{q}, \hat{w} \rangle = s$）的构造完全对称。
+
+**为何不使用 tLookup？**
+
+tLookup 处理的是非线性激活函数（$\exp$、SiLU、GELU 等量化查表场景）。MeanPool 是纯加权求和，无任何非线性，无需查表。
+
+L2Norm（$\mathbf{e} = \mathbf{p}/\|\mathbf{p}\|_2$）的代数约束在形式上可与 §1.2.3 RMSNorm 的 Rescaling 处理对称——Prover 声称 $\hat{r} = \lfloor 2^{16}/\|\mathbf{p}\|_2 \rfloor$，Verifier 用 Sumcheck 验证 $\hat{r}^2 \cdot \sum_j p_j^2 \approx 2^{32}$。然而，**当前实现（`prove_pooling.py` 的 `_l2norm_prove`）仅执行量化误差界检查**（验证 $\|\hat{e} - e\|_\infty \leq \delta$），而非上述正式 Sumcheck 协议——Verifier 只能依赖 Prover 诚实计算 L2Norm，无法独立密码学验证。这一实现缺口将在 §2.6.2 中单独说明。
+
+**"Batch"与 Pooling Sumcheck 的关系辨析**
+
+三种"批量"语义不同，不可混淆：
+
+- **Batch Sumcheck**（§2.4.5）：FFN gate/up 共享输入 $X$，随机线性组合将两条 zkip 归约为一条——针对**同一激活共享多个权重矩阵**的优化。
+- **Global Batch Sumcheck**（Phase 2）：将 $N$ 个检索内积 $\{s_i\}$ 通过 Fiat-Shamir 聚合为单次 Sumcheck——针对**多条独立查询**的批量化。
+- **Pooling Sumcheck**（本节）：单条 Sumcheck 证明 $T$ 个 token 的 mask 加权求和——针对**单一公开权重线性聚合**的直接 Sumcheck 证明，三者适用场景完全不同。
 
 ---
 
@@ -314,6 +337,23 @@ $$P(\text{caught} \mid L \text{ 层被篡改}) = 1 - \frac{\binom{36-L}{K}}{\bin
 | 篡改后 | $W_\text{gate} + \Delta W$（$\pm 2^{20}$，100% 元素受影响） | **−6** | ✅ 检测到 |
 
 篡改后 $\widetilde{W_\text{tampered}}(\mathbf{u}_W) \neq \widetilde{W_\text{original}}(\mathbf{u}_W)$，IPA 开放值与承诺不匹配，Sumcheck 拒绝。检测率：1/1 = **100%**。
+
+**C3b 随机化全组件篡改检测率实验**（v2，覆盖 ViT 图像侧 + LLM 文字侧）：
+
+实验从全部 32 个 ViT 块中随机抽取 8 块、从全部 36 个 LLM 层中随机抽取 12 层，每个块/层随机选取 3 个权重矩阵（从 gate/up/down/q/k/v 共 6 类中任选），在 3 档篡改比例（0.1%/1%/5%，高斯噪声 $\sigma = \text{std}(W)$）× 3 次重复下测试 IPA binding check 检测率，共 20 个组件 × 9 次 trial。
+
+| 维度 | 统计结果 |
+|:-----|:-------:|
+| 正常权重通过率 | 60/60（100%）|
+| **篡改总检出率** | **540/540（100%）**|
+| 图像侧（ViT 块，image） | 216/216（100%）|
+| 文字侧（LLM 层，text） | 324/324（100%）|
+| ratio = 0.001（0.1% 元素篡改） | 180/180（100%）|
+| ratio = 0.01（1% 元素篡改） | 180/180（100%）|
+| ratio = 0.05（5% 元素篡改） | 180/180（100%）|
+| 总耗时 | 2137 s（含证明生成 + IPA 验证）|
+
+即使仅篡改 **0.1%** 的权重元素，IPA binding check 在 ViT 图像侧和 LLM 文字侧全部 540 个 trial 上均以 100% 概率检出，跨模态检测能力完全一致。
 
 **Fiat-Shamir 随机层挑战统计实验**（10,000 次模拟，$N=36$，$K=6$，Python `random.Random(SHA256)`）：
 
@@ -497,7 +537,7 @@ tLookup "prep" 阶段频次直方图统计改用 CUB `DeviceHistogram::Histogram
 | Conv3d embed | IPA | 1 | **1/1 PASS** |
 | ViT 32 blocks | IPA × 9/块 | 288 | **288/288 PASS** |
 | PatchMerger | IPA × 3 | 3 | **3/3 PASS** |
-| Pooling head | Sumcheck + Rescaling | — | **PASS** |
+| Pooling head | MeanPool Sumcheck | — | **PASS**（L2Norm 见注） |
 | LLM 36 layers（离线）| IPA × 6/层 | 216 | **216/216 PASS** |
 | **总计** | — | **508** | **全部通过** |
 
@@ -515,20 +555,24 @@ tLookup "prep" 阶段频次直方图统计改用 CUB `DeviceHistogram::Histogram
 
 ## 2.6 设计选项与局限性
 
-### 2.6.1 已实现的优化
+### 2.6.1 系统总体优化与适配汇总
 
-| 优化 | 效果 | 节 |
-|------|------|:--:|
-| LoRA 量化前合并 | 消除 3% LoRA 额外 Sumcheck 开销 | §2.4.2 |
-| seq_len padding 到 1024 | 满足 zkAttn NTT 约束，比 seq=512 少 ~13% 耗时 | §2.2.2 |
-| C++ GPU verify-ipa | IPA 验证 700× 加速，全量从 103min 降至 ~11min | §2.4.6 |
-| Batch Sumcheck（gate+up，q/k/v）| 单层耗时降低 23% | §2.4.5 |
-| 层间并行（2-GPU）| K=6 在线证明从 89s 降至 ~45s | §2.4.4 |
-| per-block 独立子目录 | 消除并行时临时文件冲突，支持 2-GPU 并发 | §2.2.2 |
-| Window/Full Attention 精确区分（Phase 6）| 窗口块 seq=64，全局块 seq=4096；修复 tLookup 参数 bug | §2.4.7 |
-| 跨窗口批量 tLookup（Phase 6）| 40×16 头的 K 次 tLookup → K 次批量，~40× kernel launch 减少 | §2.4.7 |
-| CUB DeviceHistogram（Phase 6）| tLookup prep D=8M：3.5s → 0.4s | §2.4.7 |
-| verify-ipa 批量模式（Phase 6）| 9 proofs/block：900ms → 150ms（~16ms/proof） | §2.4.7 |
+本文在 zkLLM 基础框架之上，针对多模态嵌入模型全链路可验证推理提出十项工程优化与架构适配，涵盖三个证明阶段：
+
+| # | 优化/适配 | 面向问题 | 技术方案 | 量化效果 |
+|:-:|---------|---------|---------|---------|
+| ① | **GQA 转置适配** | jina-v4 LLM 使用 GQA（$n_{kv}=2$，$n_q=16$），原 MHA 代码 KV 广播映射与内存布局均错误 | per-head 显式循环 + KV 转置 + 动态 Rescaling 因子（防 int32 溢出） | LLM 36 层 GQA zkAttn 全量通过（216/216 IPA PASS） |
+| ② | **Window Attention NTT 切分** | ViT 前 28 块为窗口注意力（64 patches/window），全局 seq=1024 不满足 NTT 约束 $\text{seq}^2=2^k$ | Python 预切分 1024 patches → 16 组各 64，分别调用 zkAttn（$\text{seq}^2=2^{12}$） | ViT 32/32 块全量证明通过，NTT 约束严格满足 |
+| ③ | **CUB DeviceHistogram 并行** | tLookup prep 直方图统计 D=8M 时串行 atomicAdd 耗时 ~3.5s/批 | 替换为 GPU CUB `DeviceHistogram::HistogramEven` 设备级 kernel | ~0.4s/批（~8.75× 加速） |
+| ④ | **Batch Sumcheck（gate+up）** | FFN gate/up 共享输入 $X$，独立两次 zkip 重复计算 $X_\text{reduced}$，浪费 ~40% FFN 时间 | Schwartz-Zippel 随机线性组合，共享 $X_\text{reduced}$，合并为一次 zkip | 单层总耗时 −23%（22.5s→17.3s），IPA 验证结果不变 |
+| ⑤ | **C++ GPU verify-ipa 批量** | Python py\_ecc G1 乘法 7ms/次，ViT 288 个 proof 验证需 76 分钟 | CUDA GPU 加速 G1 MLE，9 proofs/二进制调用共享一次 CUDA 初始化 | ViT 单块验证 288s→16.7s（17×），全量 103min→11.4min |
+| ⑥ | **2-GPU 层间并行** | 各层证明无数据依赖，串行调度 GPU 利用率低 | GPU0：偶数层，GPU1：奇数层，`ProcessPoolExecutor` 并发调度 | K=6 在线证明 89s→~46s；全量 LLM 36 层 ~5.5min |
+| ⑦ | **IPA Embedding 承诺** | Phase 2 Verifier 需持有 embedding.npy（2.4MB）且无密码学绑定，Prover 可维护两套 embedding | `commit-param` 离线建库（{$cm_i$}，43KB），`open-ipa` 在线生成 oracle proof | Verifier 持有量 2.4MB→43KB；soundness 误差 $2^{-53}$→$2^{-247}$ |
+| ⑧ | **语料侧全量预计算** | 图像编码全量证明（5 组件）生成需 ~22min/张，无法实时响应 | 离线预计算 `corpus_proof`，查询时直接读取 | 语料侧查询延迟 <1ms；系统总响应（含查询侧异步证明）<6s |
+| ⑨ | **Fiat-Shamir 随机层挑战** | 固定 $K$ 层时攻击者仅需保持那 $K$ 层权重不变即可绕过检测 | $\text{challenge}=\mathrm{SHA256}(\text{query}\|\text{nonce})$ 非交互随机选 $K=6$ 层 | 整模型替换 100% 确定性检出；单层篡改累积 $T=20$ 次→97.4% |
+| ⑩ | **级联双层 BF + Pointproofs** | 单层 Bloom Filter 误判率 $\varepsilon\approx0.01$；Merkle 成员证明大小 $O(\log N)$ | 二级串联 BF（$\varepsilon^2\approx10^{-4}$）+ Pointproofs 聚合（固定大小） | 虚假成员率 $10^{-4}$，成员证明 48B（$O(1)$，不随 $N$ 增长） |
+
+> 说明：①–⑥ 为 Phase 3 zkLLM 工程优化；⑦ 为 Phase 2 Verifier 轻量化；⑧⑨ 为系统架构层设计；⑩ 为 Phase 1 ZAC 密码学构造。各项详细描述见对应章节（§2.4.2–§2.4.7、Phase 1/2 文档）。
 
 ### 2.6.2 当前局限性
 
@@ -548,7 +592,11 @@ Phase 6 已实现精确区分：窗口块（28/32）使用 seq=64（seq²=2¹²�
 
 IPA 方案要求权重承诺 $\{\mathrm{cm}_{W_i}\}$ 事先通过可信渠道公开发布（类似代码签名）。若承诺本身被伪造或建库时权重与公开承诺不一致，协议安全性无法保证。在实际部署中，承诺文件应由可信第三方（如模型原始发布方）签署并独立分发，与服务商的承诺文件相互印证。
 
-**⑤ 不支持 ANN 索引**
+**⑤ L2Norm 未作正式 ZK 证明**
+
+当前实现（`prove_pooling.py` 的 `_l2norm_prove`）对 Pooling head 最终的 L2Norm 步骤（$\mathbf{e} = \mathbf{p}/\|\mathbf{p}\|_2$）仅执行量化误差界验证，而非正式 Sumcheck 协议。在 C3b 实验与 interactive demo 的端到端验证中，Verifier 对该步骤的判断依赖 Prover 诚实性而非密码学约束。技术上，可参照 §1.2.3 RMSNorm Rescaling 的方式，用一条 Sumcheck 验证 $\hat{r}^2 \cdot \sum_j p_j^2 \approx 2^{32}$（额外开销极小）。该扩展已留作后续工作，当前系统满足半诚实（honest-but-curious）对手假设。
+
+**⑥ 不支持 ANN 索引**
 
 当前系统依赖 FAISS IndexFlatIP（精确搜索），Phase 2 Sumcheck 的正确性依赖精确内积计算。在 $N > 10^6$ 的大规模语料库场景下，需要 HNSW 或 IVF-PQ 等近似最近邻索引，与精确 Sumcheck 存在根本矛盾。未来可探索在 ANN 候选集内部做精确重排序阶段的 Sumcheck（"两阶段验证"），或引入支持近似性误差显式建模的可验证 ANN 框架。
 

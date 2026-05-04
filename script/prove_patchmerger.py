@@ -77,7 +77,7 @@ def verify_ipa(proof_path: str, gpu_id: int = 1) -> dict:
     com_path = proof_path.replace("-ipa-proof.bin", ".weight-commitment.bin")
     if cpp_bin.exists() and os.path.exists(com_path):
         import subprocess as _sp
-        env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
+        env = ({**os.environ} if "CUDA_VISIBLE_DEVICES" in os.environ else {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)})
         r = _sp.run([str(cpp_bin), proof_path, com_path],
                     capture_output=True, env=env)
         if r.returncode in (0, 1):
@@ -149,7 +149,7 @@ def prove_patchmerger(n_patches=256, workdir=None, gpu_id: int = 1,
     (rms_inv * SCALE).round().astype(np.int32).tofile(str(rms_inv_path))
 
     # 调用 patch-merger binary
-    env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
+    env = ({**os.environ} if "CUDA_VISIBLE_DEVICES" in os.environ else {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)})
     t0 = time.perf_counter()
     r = subprocess.run(
         [str(BIN_DIR / "patch-merger"),

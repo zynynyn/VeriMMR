@@ -62,7 +62,7 @@ def safe_id(image_id: str) -> str:
 # 全管道 hook 捕获（单次前向传播）
 # ─────────────────────────────────────────────────────────────────────────────
 def capture_all_hooks(model, image_path: str, sid: str,
-                      workdir: Path) -> dict:
+                      workdir: Path, vit_workdir: Path = None) -> dict:
     """
     对一张图像运行 jina-v4 前向传播，捕获所有中间激活并保存为 int32 binary。
 
@@ -175,12 +175,13 @@ def capture_all_hooks(model, image_path: str, sid: str,
         meta["n_conv3d_patches"] = patches_int32.shape[0]
 
     # ── ViT block inputs ─────────────────────────────────────────────────────
+    _vit_wd = vit_workdir if vit_workdir is not None else workdir
     for bi in range(VIT_N_BLOCKS):
         key = f"vit_{bi}"
         if key not in captured:
             continue
-        vit_wd = workdir / f"vit-b{bi}"   # 与 verify_vit.py _setup_vit_workdir 保持一致
-        vit_wd.mkdir(exist_ok=True)
+        vit_wd = _vit_wd / f"vit-b{bi}"   # worker 专属目录（多 worker 时不冲突）
+        vit_wd.mkdir(parents=True, exist_ok=True)
         path = vit_wd / f"vit-block-{bi}-h_in.bin"
         n_real = _save_full(captured[key], path)   # Step A: 保存全量，不截断
         meta[f"vit_b{bi}_n_patches"] = n_real
@@ -226,7 +227,8 @@ def capture_all_hooks(model, image_path: str, sid: str,
 # 全管道证明（单张图像）
 # ─────────────────────────────────────────────────────────────────────────────
 def prove_full_image(image_id: str, image_path: str, workdir: Path,
-                     model, gpu_id: int = 0) -> dict:
+                     model, gpu_id: int = 0,
+                     vit_workdir: Path = None) -> dict:
     """
     对单张图像运行完整 5 组件证明。
     返回汇总结果 dict。
@@ -235,12 +237,14 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
     t_all = time.perf_counter()
     print(f"\n[{sid[:40]}] 开始全量证明  gpu={gpu_id}", flush=True)
 
-    env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
+    # 不覆盖 CUDA_VISIBLE_DEVICES：shell 已为每个 worker 分配了正确的物理 GPU。
+    env = {**os.environ}
     results = {}
 
     # ── Step 0: 捕获所有激活 ───────────────────────────────────────────────
     t0 = time.perf_counter()
-    meta = capture_all_hooks(model, image_path, sid, workdir)
+    meta = capture_all_hooks(model, image_path, sid, workdir,
+                             vit_workdir=vit_workdir)
     print(f"  [hook] 激活捕获完成  {round((time.perf_counter()-t0)*1000)}ms", flush=True)
 
     # ── Step 1: Conv3d embed ───────────────────────────────────────────────
@@ -254,18 +258,12 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
     results["conv3d"] = r_conv
     print(f"  [conv3d] {'✓' if r_conv['all_ok'] else '✗'}  {r_conv['elapsed_ms']}ms", flush=True)
 
-    # ── Step 2: ViT 32 blocks（2-GPU 并行：偶数块→GPU0，奇数块→GPU1）──────
-    # 各 block 的 h_in 已由 capture_all_hooks 保存至独立子目录，无文件冲突。
-    from concurrent.futures import ProcessPoolExecutor
+    # ── Step 2: ViT 32 blocks（单 GPU 串行，由 shell 的 CUDA_VISIBLE_DEVICES 决定用哪块卡）──
+    # 多 worker 并行时每个 worker 只用分配给它的 1 块 GPU，避免 4 进程抢 2 GPU 导致计算错误。
+    # 单 worker 模式（num_workers=1）也走此路径，行为不变。
     from script.verify_vit import _run_blocks_on_gpu
-    blocks_0 = list(range(0, VIT_N_BLOCKS, 2))   # 0,2,4,...,30
-    blocks_1 = list(range(1, VIT_N_BLOCKS, 2))   # 1,3,5,...,31
-    with ProcessPoolExecutor(max_workers=2) as ex:
-        f0 = ex.submit(_run_blocks_on_gpu, blocks_0, workdir, 0)
-        f1 = ex.submit(_run_blocks_on_gpu, blocks_1, workdir, 1)
-        res_0 = f0.result()
-        res_1 = f1.result()
-    vit_results = sorted(res_0 + res_1, key=lambda r: r["block"])
+    _vit_wd = vit_workdir if vit_workdir is not None else workdir
+    vit_results = _run_blocks_on_gpu(list(range(VIT_N_BLOCKS)), _vit_wd, gpu_id, workdir)
     for r in vit_results:
         if not r.get("all_pass", False):
             print(f"  [ViT block {r['block']}] ✗", flush=True)
@@ -299,19 +297,12 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
     results["pooling"] = r_pool
     print(f"  [pooling] {'✓' if r_pool.get('all_ok') else '✗'}", flush=True)
 
-    # ── Step 5: LLM 36 layers（2-GPU 并行：偶数层→GPU0，奇数层→GPU1）────────
-    # 各层 proof 完全独立（输入激活已由 hook 捕获），无执行顺序依赖，可并发运行。
-    # ThreadPoolExecutor(max_workers=2) 令 GPU0/GPU1 始终各有一层在执行，
-    # 将 ~590s 串行缩短至 ~300s。
-    from concurrent.futures import ThreadPoolExecutor
-
+    # ── Step 5: LLM 36 layers（串行，同一 GPU）────────────────────────────────
     cwd = str(ZKLLM_CWD)
-    # 使用物理 GPU 编号，不受 CUDA_VISIBLE_DEVICES 的 worker 限制影响
-    env_g0 = {**os.environ, "CUDA_VISIBLE_DEVICES": "0"}
-    env_g1 = {**os.environ, "CUDA_VISIBLE_DEVICES": "1"}
+    env_gpu = {**os.environ}  # 继承 shell 的 CUDA_VISIBLE_DEVICES，不覆盖
 
     def _prove_llm_layer(li: int) -> dict:
-        layer_env   = env_g0 if li % 2 == 0 else env_g1
+        layer_env   = env_gpu
         prefix      = f"layer-{li}"
         attn_inp    = workdir / f"{prefix}-corpus-{sid}-attn-input.bin"
         ffn_inp     = workdir / f"{prefix}-corpus-{sid}-ffn-input.bin"
@@ -343,13 +334,21 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
             r_sfx = _Fail()
 
         ok = (r_ffn.returncode == 0 and r_lin.returncode == 0 and r_sfx.returncode == 0)
+        if not ok:
+            err_ffn = r_ffn.stderr.decode(errors="replace")[-200:] if r_ffn.returncode != 0 else ""
+            err_lin = r_lin.stderr.decode(errors="replace")[-200:] if r_lin.returncode != 0 else ""
+            err_sfx = r_sfx.stderr.decode(errors="replace")[-200:] if r_sfx.returncode != 0 else ""
+            print(f"  [LLM layer {li}] ✗  ffn_rc={r_ffn.returncode} lin_rc={r_lin.returncode} sfx_rc={r_sfx.returncode}", flush=True)
+            if err_ffn: print(f"    ffn stderr: {err_ffn}", flush=True)
+            if err_lin: print(f"    lin stderr: {err_lin}", flush=True)
+            if err_sfx: print(f"    sfx stderr: {err_sfx}", flush=True)
+        else:
+            print(f"  [LLM layer {li}] ✓", flush=True)
         for p in [ffn_out, attn_out, attn_sfx, attn_inp, ffn_inp]:
             Path(p).unlink(missing_ok=True)
         return {"layer": li, "ok": ok}
 
-    with ThreadPoolExecutor(max_workers=2) as ex:
-        futs = [ex.submit(_prove_llm_layer, li) for li in range(LLM_N_LAYERS)]
-        layer_results = [f.result() for f in futs]
+    layer_results = [_prove_llm_layer(li) for li in range(LLM_N_LAYERS)]
 
     n_layer_pass = sum(1 for r in layer_results if r["ok"])
     results["llm_layers"] = {"n_pass": n_layer_pass, "n_total": LLM_N_LAYERS}
@@ -359,8 +358,9 @@ def prove_full_image(image_id: str, image_path: str, workdir: Path,
     for p in meta.get("files", []):
         Path(p).unlink(missing_ok=True)
     # 清理 ViT block h_in 文件（下一张图会重写）
+    _vit_wd = vit_workdir if vit_workdir is not None else workdir
     for bi in range(VIT_N_BLOCKS):
-        h_in = workdir / f"vit-b{bi}" / f"vit-block-{bi}-h_in.bin"
+        h_in = _vit_wd / f"vit-b{bi}" / f"vit-block-{bi}-h_in.bin"
         h_in.unlink(missing_ok=True)
 
     # ── 汇总 ────────────────────────────────────────────────────────────────
@@ -397,6 +397,8 @@ def main():
     parser.add_argument("--num-workers", type=int, default=1)
     parser.add_argument("--limit",       type=int, default=-1)
     parser.add_argument("--overwrite",   action="store_true")
+    parser.add_argument("--ids", nargs="+", type=int, default=None,
+                        help="仅处理指定 corpus ID（忽略 worker 分片逻辑）")
     args = parser.parse_args()
 
     workdir  = (ROOT / args.workdir).resolve()
@@ -404,6 +406,15 @@ def main():
     # GPU selection: shell script sets CUDA_VISIBLE_DEVICES to restrict to one GPU,
     # so logical cuda:0 is always the intended GPU for this worker.
     gpu_id = 0
+
+    # 多 worker 并行时，每个 worker 使用独立的 ViT scratch 目录，
+    # 避免 vit-b{bi}/h_in.bin / h_mid.bin 等中间文件冲突。
+    # 权重文件通过 symlink 指向主 workdir，不占额外存储。
+    if args.num_workers > 1:
+        vit_workdir = workdir / f"_w{args.worker_id}"
+        vit_workdir.mkdir(exist_ok=True)
+    else:
+        vit_workdir = workdir  # 单 worker 直接使用主目录
 
     print(f"\n语料库全量证明  worker={args.worker_id}/{args.num_workers}  gpu={gpu_id}")
     print(f"  workdir : {workdir}")
@@ -427,7 +438,12 @@ def main():
         items = [json.loads(l) for l in f if l.strip()]
 
     # 分配 worker 任务
-    items = [it for i, it in enumerate(items) if i % args.num_workers == args.worker_id]
+    if args.ids is not None:
+        id_set = set(args.ids)
+        items = [it for it in items if it["id"] in id_set]
+        print(f"[--ids 模式] 仅处理 {len(items)} 个指定 ID", flush=True)
+    else:
+        items = [it for i, it in enumerate(items) if i % args.num_workers == args.worker_id]
     if args.limit > 0:
         items = items[:args.limit]
 
@@ -452,7 +468,8 @@ def main():
             continue
 
         try:
-            result = prove_full_image(image_id, image_path, workdir, model, gpu_id)
+            result = prove_full_image(image_id, image_path, workdir, model,
+                                      gpu_id, vit_workdir=vit_workdir)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             with open(out_path, "w") as f:
                 json.dump(result, f, indent=2, default=str)

@@ -9,11 +9,22 @@ python script/phase2_sumcheck.py --demo \
     --corpus-jsonl   corpora/image.jsonl \
     --k 5
 
+# IPA 模式 Demo（不依赖原始 embedding）
+python script/phase2_sumcheck.py --demo --ipa \
+    --commitment-path embedding/embedding_commitments.bin \
+    --workdir         zkllm-workdir/jina-v4 \
+    --embedding-npy   embedding/embedding.npy --k 5
+
 # 实验：生成不同 k 下的性能指标表
 python script/phase2_sumcheck.py --experiment \
     --embedding-npy  embedding/embedding.npy \
-    --corpus-jsonl   corpora/image.jsonl \
     --output         output/phase2/sumcheck_experiment.json
+
+# IPA 实验（额外测量 cm_w 聚合 + oracle proof 开销）
+python script/phase2_sumcheck.py --experiment --ipa \
+    --commitment-path embedding/embedding_commitments.bin \
+    --workdir zkllm-workdir/jina-v4 \
+    --output  output/phase2/sumcheck_experiment_ipa.json
 
 功能
 ----
@@ -50,6 +61,7 @@ from sumcheck.inner_product import (
     prove_global_batch,
     verify_global_batch,
     _field_to_signed,
+    P_FR,
 )
 
 
@@ -162,12 +174,16 @@ def run_experiment(
     k_values: List[int] = None,
     n_trials: int = 3,
     scale: int = 256,
+    ipa_mode: bool = False,
+    commitment_path: str = None,
+    workdir: str = None,
+    pp_path: str = None,
 ):
     if k_values is None:
         k_values = [1, 3, 5, 10]
 
     print("=" * 60)
-    print("Phase 2 — Sumcheck 性能实验")
+    print(f"Phase 2 — Sumcheck 性能实验{'（IPA 模式）' if ipa_mode else ''}")
     print("=" * 60)
 
     embeddings = np.load(embedding_npy).astype(np.float32)
@@ -179,24 +195,40 @@ def run_experiment(
 
     for k in k_values:
         prove_times, verify_times, proof_sizes = [], [], []
+        oracle_proof_sizes, cm_agg_times, oracle_verify_times = [], [], []
         all_pass = True
 
         for trial in range(n_trials):
             q_idx = int(rng.integers(0, N))
             query = embeddings[q_idx]
-            indices, _ = top_k_by_ip(query, embeddings, k)
-            corpus_vecs = [embeddings[i].tolist() for i in indices]
+            # Global batch: use all N corpus vectors
+            corpus_vecs = embeddings.tolist()
             q_list = query.tolist()
 
             t0 = time.perf_counter()
-            proof = prove_retrieval(q_list, corpus_vecs, scale=scale)
+            if ipa_mode:
+                proof = prove_global_batch(q_list, corpus_vecs, scale=scale,
+                                           ipa_mode=True, pp_path=pp_path,
+                                           workdir=workdir)
+            else:
+                proof = prove_global_batch(q_list, corpus_vecs, scale=scale)
             prove_ms = (time.perf_counter() - t0) * 1000
 
             t0 = time.perf_counter()
-            ok = verify_retrieval(q_list, corpus_vecs, proof)
+            if ipa_mode:
+                # Measure cm_w aggregation time
+                t_cm = time.perf_counter()
+                vr = verify_global_batch(q_list, None, proof, top_k=k,
+                                         commitment_path=commitment_path)
+                cm_agg_ms = round((time.perf_counter() - t_cm) * 1000, 1)
+                oracle_verify_times.append(cm_agg_ms)
+                op_bytes = len(proof.get("oracle_proof", b""))
+                oracle_proof_sizes.append(op_bytes)
+            else:
+                vr = verify_global_batch(q_list, corpus_vecs, proof, top_k=k)
             verify_ms = (time.perf_counter() - t0) * 1000
 
-            if not ok:
+            if not vr.get("verified", False):
                 all_pass = False
 
             prove_times.append(prove_ms)
@@ -207,25 +239,30 @@ def run_experiment(
         med_verify = round(sorted(verify_times)[n_trials // 2], 1)
         med_size   = sorted(proof_sizes)[n_trials // 2]
 
-        # Merkle 对比：每条路径 ceil(log2(N))×32B，k 条互相独立
         import math
         merkle_bytes = k * math.ceil(math.log2(max(N, 2))) * 32
 
-        print(
-            f"  k={k:2d}  prove={med_prove:7.1f} ms  verify={med_verify:7.1f} ms  "
-            f"proof={med_size} B  Merkle={merkle_bytes} B  {'✓' if all_pass else '✗'}"
-        )
-        results.append({
-            "k": k,
-            "N": N,
-            "D": D,
-            "scale": scale,
+        row = {
+            "k": k, "N": N, "D": D, "scale": scale,
+            "ipa_mode": ipa_mode,
             "prove_ms_median": med_prove,
             "verify_ms_median": med_verify,
             "proof_bytes": med_size,
             "merkle_bytes": merkle_bytes,
             "all_pass": all_pass,
-        })
+        }
+        line = (
+            f"  k={k:2d}  prove={med_prove:7.1f} ms  verify={med_verify:7.1f} ms  "
+            f"proof={med_size} B  Merkle={merkle_bytes} B  {'✓' if all_pass else '✗'}"
+        )
+        if ipa_mode and oracle_proof_sizes:
+            med_op   = sorted(oracle_proof_sizes)[n_trials // 2]
+            med_ovm  = round(sorted(oracle_verify_times)[n_trials // 2], 1)
+            row["oracle_proof_bytes"] = med_op
+            row["verifier_ipa_ms"]    = med_ovm
+            line += f"  oracle={med_op}B  ipa_verify={med_ovm}ms"
+        print(line)
+        results.append(row)
 
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
     with open(output, "w", encoding="utf-8") as f:
@@ -247,15 +284,15 @@ def run_unit_tests():
     passed = 0
     total = 0
 
+    from sumcheck.inner_product import quantize, _m
     for d in [4, 16, 128, 256, 2048]:
         q = rand_vec(d)
         v = rand_vec(d)
         proof = prove_inner_product(q, v, scale=65536)
         ok = verify_inner_product(q, v, proof, scale=65536)
-        # Check claimed H matches direct computation
-        from sumcheck.inner_product import quantize, _m
-        q_int = quantize(q, 256)
-        v_int = quantize(v, 256)
+        # Check claimed H matches direct computation (same scale as prove)
+        q_int = quantize(q, 65536)
+        v_int = quantize(v, 65536)
         expected_H = _m(sum(_m(qi * vi) for qi, vi in zip(q_int, v_int)))
         H_ok = proof["H"] == expected_H
         status = "PASS" if (ok and H_ok) else "FAIL"
@@ -339,8 +376,171 @@ def run_unit_tests():
     passed += gb_score_ok
     total += 1
 
+    # ── IPA mode unit tests ─────────────────────────────────────────────────
+    print("\n--- IPA Oracle 模式单元测试 ---")
+
+    bin_dir = Path(__file__).resolve().parents[1] / "src" / "zkllm"
+    ppgen_ok = (bin_dir / "ppgen").exists() and (bin_dir / "commit-param").exists() \
+               and (bin_dir / "open-ipa").exists()
+
+    if not ppgen_ok:
+        print("  [SKIP] IPA binary 未找到（ppgen/commit-param/open-ipa），跳过 IPA 测试")
+    else:
+        import subprocess
+        import tempfile as _tmpmod
+        import numpy as _np
+
+        d_ipa = 16   # small dim for speed (D=16 → ell=4 rounds)
+        N_ipa = 5
+
+        with _tmpmod.TemporaryDirectory() as td:
+            td = Path(td)
+
+            # Generate pp
+            pp_f = str(td / "pp.bin")
+            subprocess.run([str(bin_dir / "ppgen"), str(d_ipa), pp_f],
+                           capture_output=True, check=True)
+
+            # Generate corpus vectors and commitments
+            corpus_ipa = [rand_vec(d_ipa) for _ in range(N_ipa)]
+            q_ipa = rand_vec(d_ipa)
+            cm_all = []
+            for v in corpus_ipa:
+                v_int = _np.round(_np.array(v) * 65536).astype(_np.int32)
+                vf = str(td / "v.bin"); cmf = str(td / "cm.bin")
+                v_int.tofile(vf)
+                subprocess.run([str(bin_dir / "commit-param"), pp_f, vf, cmf, "1", str(d_ipa)],
+                               capture_output=True, check=True)
+                with open(cmf, "rb") as f:
+                    cm_all.append(f.read())
+            cm_path = str(td / "coms.bin")
+            with open(cm_path, "wb") as f:
+                for cm in cm_all:
+                    f.write(cm)
+
+            # Test IPA prove+verify (correct)
+            proof_ipa = prove_global_batch(q_ipa, corpus_ipa, scale=65536,
+                                           ipa_mode=True,
+                                           pp_path=pp_f,
+                                           workdir=str(td))
+            r_ipa = verify_global_batch(q_ipa, None, proof_ipa, top_k=3,
+                                        commitment_path=cm_path)
+            ipa_ok = r_ipa["verified"] and r_ipa.get("oracle_ok")
+            print(f"  IPA prove+verify (N={N_ipa}, d={d_ipa}): "
+                  f"{'PASS' if ipa_ok else 'FAIL'}  "
+                  f"oracle_proof_bytes={len(proof_ipa.get('oracle_proof', b''))}")
+            passed += ipa_ok
+            total += 1
+
+            # Test IPA tamper: corrupt commitment → binding_ok should fail
+            cm_bad_path = str(td / "coms_bad.bin")
+            import shutil
+            shutil.copy(cm_path, cm_bad_path)
+            with open(cm_bad_path, "r+b") as f:
+                f.seek(10)
+                f.write(b"\xff\xff\xff\xff")
+            r_ipa_bad = verify_global_batch(q_ipa, None, proof_ipa, top_k=3,
+                                            commitment_path=cm_bad_path)
+            ipa_tamper_ok = not r_ipa_bad["verified"]
+            print(f"  IPA tamper (corrupt commitment): "
+                  f"{'PASS (rejected)' if ipa_tamper_ok else 'FAIL (accepted!)'}")
+            passed += ipa_tamper_ok
+            total += 1
+
+            # Consistency: IPA top-k should match non-IPA top-k
+            proof_nipa = prove_global_batch(q_ipa, corpus_ipa, scale=65536)
+            r_nipa = verify_global_batch(q_ipa, corpus_ipa, proof_nipa, top_k=3)
+            topk_consistent = set(r_ipa["top_k_indices"]) == set(r_nipa["top_k_indices"])
+            print(f"  IPA vs non-IPA top-k consistency: "
+                  f"{'PASS' if topk_consistent else 'FAIL'}  "
+                  f"ipa={r_ipa['top_k_indices']} nipa={r_nipa['top_k_indices']}")
+            passed += topk_consistent
+            total += 1
+
     print(f"\n结果：{passed}/{total} 通过")
     return passed == total
+
+# ── main ───────────────────────────────────────────────────────────────────────
+    top_k: int = 5,
+    output: str = "output/phase2/b3_detection.json",
+):
+    """
+    B3 攻击检测实验：Prover 将非 top-k 向量的分值改为 max+1 注入到 top-k。
+
+    对每个 query：
+      1. 正常计算 top-k（FAISS）
+      2. 从非 top-k 随机选 n_victims 个 victim
+      3. 将 victim 的分值改为 max_score+1，注入到 proof.scores
+      4. 验证篡改后的 proof — 期望 verified=False（检测成功）
+
+    报告检测率（应为 100%）。
+    """
+    print("=" * 60)
+    print("Phase 2 — B3 篡改检测实验")
+    print("=" * 60)
+
+    embeddings = np.load(embedding_npy).astype(np.float32)
+    N, D = embeddings.shape
+    print(f"语料库：N={N}，D={D}，n_queries={n_queries}，n_victims={n_victims}\n")
+
+    rng = np.random.default_rng(7)
+    records = []
+    detected = 0
+    total_victims = 0
+
+    for qi in range(n_queries):
+        q_idx = int(rng.integers(0, N))
+        query = embeddings[q_idx]
+        corpus_vecs = embeddings.tolist()
+        q_list = query.tolist()
+
+        # 正常证明
+        proof_ok = prove_global_batch(q_list, corpus_vecs, scale=65536)
+        vr_before = verify_global_batch(q_list, corpus_vecs, proof_ok, top_k=top_k)
+        topk_set = set(vr_before["top_k_indices"])
+        non_topk = [i for i in range(N) if i not in topk_set]
+
+        victims = rng.choice(non_topk, size=min(n_victims, len(non_topk)), replace=False).tolist()
+        max_score = max(proof_ok["scores"])
+
+        for victim in victims:
+            # 篡改：把 victim 的分值改为 max+1
+            proof_bad = dict(proof_ok)
+            proof_bad["scores"] = list(proof_ok["scores"])
+            proof_bad["scores"][victim] = (max_score + 1) % ((1 << 61) - 1)
+
+            vr_after = verify_global_batch(q_list, corpus_vecs, proof_bad, top_k=top_k)
+            det = not vr_after["verified"]
+            detected += det
+            total_victims += 1
+            records.append({
+                "query_idx": q_idx,
+                "victim_idx": victim,
+                "detected": det,
+            })
+
+        print(f"  query {qi+1}/{n_queries}  q_idx={q_idx}  "
+              f"victims={len(victims)}  "
+              f"检测率={detected}/{total_victims}={detected/max(total_victims,1)*100:.1f}%")
+
+    detection_rate = detected / max(total_victims, 1)
+    print(f"\n总检测率: {detected}/{total_victims} = {detection_rate*100:.2f}%")
+
+    result = {
+        "n_queries": n_queries,
+        "n_victims": n_victims,
+        "top_k": top_k,
+        "N": N,
+        "total_attacks": total_victims,
+        "detected": detected,
+        "detection_rate": detection_rate,
+        "records": records,
+    }
+    os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
+    with open(output, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
+    print(f"结果保存至: {output}")
+    return result
 
 
 # ── main ───────────────────────────────────────────────────────────────────────
@@ -352,12 +552,26 @@ def main():
     parser.add_argument("--demo",       action="store_true")
     parser.add_argument("--experiment", action="store_true")
     parser.add_argument("--test",       action="store_true", help="运行单元测试（无需语料库）")
+    parser.add_argument("--ipa",        action="store_true", help="启用 IPA oracle 模式")
+    parser.add_argument("--commitment-path", default=None,
+                        help="embedding_commitments.bin 路径（IPA 模式必需）")
+    parser.add_argument("--workdir",    default="zkllm-workdir/jina-v4",
+                        help="IPA 临时文件目录，需含 embedding-pp.bin")
     parser.add_argument("--embedding-npy",  default="embedding/embedding.npy")
     parser.add_argument("--corpus-jsonl",   default="corpora/image.jsonl")
     parser.add_argument("--k",          type=int, default=5)
     parser.add_argument("--scale",      type=int, default=65536)
-    parser.add_argument("--output",     default="output/phase2/sumcheck_experiment.json")
+    parser.add_argument("--output",     default=None)
     args = parser.parse_args()
+
+    _ROOT = Path(__file__).resolve().parents[1]
+
+    # Resolve IPA paths
+    pp_path = str((_ROOT / args.workdir / "embedding-pp.bin").resolve()) \
+              if args.ipa else None
+    commitment_path = str((_ROOT / args.commitment_path).resolve()) \
+                      if args.commitment_path else None
+    workdir = str((_ROOT / args.workdir).resolve()) if args.ipa else None
 
     if args.test:
         ok = run_unit_tests()
@@ -367,11 +581,17 @@ def main():
         run_demo(args.embedding_npy, args.corpus_jsonl, args.k, args.scale)
 
     if args.experiment:
+        default_out = "output/phase2/sumcheck_experiment_ipa.json" if args.ipa \
+                      else "output/phase2/sumcheck_experiment.json"
         run_experiment(
             args.embedding_npy,
             args.corpus_jsonl,
-            args.output,
+            output=args.output or default_out,
             scale=args.scale,
+            ipa_mode=args.ipa,
+            commitment_path=commitment_path,
+            workdir=workdir,
+            pp_path=pp_path,
         )
 
     if not (args.demo or args.experiment or args.test):

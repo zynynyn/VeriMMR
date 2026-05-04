@@ -208,8 +208,13 @@ def _rms_inv(input_path, out_path, seq_len, embed_dim):
     (rms_inv * SCALE).round().astype(np.int32).tofile(str(out_path))
 
 def _run(cmd, cwd, gpu_id=0, env=None):
-    r = subprocess.run(cmd, capture_output=True, cwd=cwd,
-                       env=env or {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)})
+    if env is None:
+        env = {**os.environ}
+        # 只在父进程没有设置 CUDA_VISIBLE_DEVICES 时才设置（standalone 模式）。
+        # 多 worker 并行时 shell 已通过 CUDA_VISIBLE_DEVICES 指定物理 GPU，不能覆盖。
+        if "CUDA_VISIBLE_DEVICES" not in os.environ:
+            env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    r = subprocess.run(cmd, capture_output=True, cwd=cwd, env=env)
     return r.returncode, r.stderr.decode(errors="replace")
 
 
@@ -269,14 +274,20 @@ def _verify_proofs(proof_specs, workdir: Path, gpu_id: int = 0):
     return results
 
 
-def _setup_vit_workdir(workdir: Path, block_idx: int) -> Path:
+def _setup_vit_workdir(workdir: Path, block_idx: int,
+                       weight_dir: Path = None) -> Path:
     """
     为每个 block 创建独立的 workdir/vit-b{N}/ 子目录（避免并行时 symlink 冲突）。
     包含指向 ViT pp、权重、承诺文件的 symlinks，与 LLM pp 文件隔离。
+
+    weight_dir: 权重/PP 文件所在目录（默认与 workdir 相同）。
+                多 worker 并行时传入主 workdir，workdir 用 worker 专属 scratch 目录。
     返回 vit workdir 路径。
     """
+    if weight_dir is None:
+        weight_dir = workdir
     vit_wd = workdir / f"vit-b{block_idx}"
-    vit_wd.mkdir(exist_ok=True)
+    vit_wd.mkdir(parents=True, exist_ok=True)
 
     # PP 文件：binary 期望 self_attn.q_proj.weight-pp.bin，但 ViT 的是 vit_self_attn.q_proj.weight-pp.bin
     pp_links = {
@@ -292,13 +303,13 @@ def _setup_vit_workdir(workdir: Path, block_idx: int) -> Path:
     }
     for link_name, target_name in pp_links.items():
         link   = vit_wd / link_name
-        target = workdir / target_name
+        target = weight_dir / target_name
         if not link.exists() and target.exists():
             link.symlink_to(target.resolve())
 
-    # 权重 + 承诺文件：vit-block-N-*.bin
+    # 权重 + 承诺文件：vit-block-N-*.bin（从 weight_dir 找）
     prefix = f"vit-block-{block_idx}"
-    for src in workdir.glob(f"{prefix}-*.bin"):
+    for src in weight_dir.glob(f"{prefix}-*.bin"):
         link = vit_wd / src.name
         if not link.exists():
             link.symlink_to(src.resolve())
@@ -308,14 +319,15 @@ def _setup_vit_workdir(workdir: Path, block_idx: int) -> Path:
 
 # ── 单 block 完整 8 步证明 ────────────────────────────────────────────────────
 
-def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
+def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0,
+                     weight_dir: Path = None) -> dict:
     prefix = f"vit-block-{block_idx}"
     cwd    = str(ZKLLM_CWD)
     step_ms = {}
     step_rc = {}
 
     # 每个 block 独立子目录，并行时互不冲突
-    vit_wd = _setup_vit_workdir(workdir, block_idx)
+    vit_wd = _setup_vit_workdir(workdir, block_idx, weight_dir=weight_dir)
     wd = str(vit_wd)
 
     # 激活文件放在 vit_wd 中（有 prefix，不与 LLM 冲突）
@@ -487,9 +499,10 @@ def verify_vit_block(block_idx: int, workdir: Path, gpu_id: int = 0) -> dict:
 
 # ── 主入口 ────────────────────────────────────────────────────────────────────
 
-def _run_blocks_on_gpu(block_list, workdir, gpu_id):
+def _run_blocks_on_gpu(block_list, workdir, gpu_id, weight_dir=None):
     """在指定 GPU 上串行跑一批 blocks（供 ProcessPoolExecutor 调用）。"""
-    return [verify_vit_block(bi, workdir, gpu_id=gpu_id) for bi in block_list]
+    return [verify_vit_block(bi, workdir, gpu_id=gpu_id, weight_dir=weight_dir)
+            for bi in block_list]
 
 
 def main():

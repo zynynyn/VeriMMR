@@ -1,0 +1,461 @@
+{
+  "B3": {
+    "detected": 50,
+    "total": 50,
+    "detection_rate": 1.0,
+    "pass": true,
+    "ipa_mode": true,
+    "detail": [
+      {
+        "query_idx": 0,
+        "victim": 233,
+        "orig_score": 2413284655,
+        "tampered_score": 4295027699,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 0,
+        "victim": 135,
+        "orig_score": 2280664393,
+        "tampered_score": 4295027699,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 0,
+        "victim": 198,
+        "orig_score": 2214122965,
+        "tampered_score": 4295027699,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 0,
+        "victim": 31,
+        "orig_score": 2605383430,
+        "tampered_score": 4295027699,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 0,
+        "victim": 134,
+        "orig_score": 2951051874,
+        "tampered_score": 4295027699,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 30,
+        "victim": 293,
+        "orig_score": 1578098124,
+        "tampered_score": 4294946537,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 30,
+        "victim": 27,
+        "orig_score": 3191290960,
+        "tampered_score": 4294946537,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 30,
+        "victim": 160,
+        "orig_score": 2789176104,
+        "tampered_score": 4294946537,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 30,
+        "victim": 231,
+        "orig_score": 2626259309,
+        "tampered_score": 4294946537,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 30,
+        "victim": 223,
+        "orig_score": 2502841978,
+        "tampered_score": 4294946537,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 60,
+        "victim": 152,
+        "orig_score": 2336570813,
+        "tampered_score": 4294949113,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 60,
+        "victim": 251,
+        "orig_score": 2441405563,
+        "tampered_score": 4294949113,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 60,
+        "victim": 136,
+        "orig_score": 2100173876,
+        "tampered_score": 4294949113,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 60,
+        "victim": 113,
+        "orig_score": 2408058697,
+        "tampered_score": 4294949113,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 60,
+        "victim": 54,
+        "orig_score": 2917104292,
+        "tampered_score": 4294949113,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 90,
+        "victim": 163,
+        "orig_score": 2507642062,
+        "tampered_score": 4294909424,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 90,
+        "victim": 67,
+        "orig_score": 2712405794,
+        "tampered_score": 4294909424,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 90,
+        "victim": 136,
+        "orig_score": 3023496609,
+        "tampered_score": 4294909424,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 90,
+        "victim": 134,
+        "orig_score": 2542569651,
+        "tampered_score": 4294909424,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 90,
+        "victim": 246,
+        "orig_score": 2027773859,
+        "tampered_score": 4294909424,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 121,
+        "victim": 49,
+        "orig_score": 1722543044,
+        "tampered_score": 4294910327,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 121,
+        "victim": 257,
+        "orig_score": 2180954819,
+        "tampered_score": 4294910327,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 121,
+        "victim": 249,
+        "orig_score": 1763663239,
+        "tampered_score": 4294910327,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 121,
+        "victim": 81,
+        "orig_score": 2634229392,
+        "tampered_score": 4294910327,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 121,
+        "victim": 192,
+        "orig_score": 2651616663,
+        "tampered_score": 4294910327,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 151,
+        "victim": 269,
+        "orig_score": 2258625395,
+        "tampered_score": 4294979088,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 151,
+        "victim": 236,
+        "orig_score": 2090917076,
+        "tampered_score": 4294979088,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 151,
+        "victim": 135,
+        "orig_score": 2723557289,
+        "tampered_score": 4294979088,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 151,
+        "victim": 290,
+        "orig_score": 1592276349,
+        "tampered_score": 4294979088,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 151,
+        "victim": 206,
+        "orig_score": 3019080194,
+        "tampered_score": 4294979088,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 181,
+        "victim": 12,
+        "orig_score": 2145330131,
+        "tampered_score": 4294964802,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 181,
+        "victim": 148,
+        "orig_score": 2888667678,
+        "tampered_score": 4294964802,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 181,
+        "victim": 163,
+        "orig_score": 2559089032,
+        "tampered_score": 4294964802,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 181,
+        "victim": 226,
+        "orig_score": 2355460280,
+        "tampered_score": 4294964802,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 181,
+        "victim": 46,
+        "orig_score": 3124199394,
+        "tampered_score": 4294964802,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 212,
+        "victim": 273,
+        "orig_score": 1909687222,
+        "tampered_score": 4294947934,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 212,
+        "victim": 110,
+        "orig_score": 2704861621,
+        "tampered_score": 4294947934,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 212,
+        "victim": 96,
+        "orig_score": 2769039414,
+        "tampered_score": 4294947934,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 212,
+        "victim": 121,
+        "orig_score": 2319350042,
+        "tampered_score": 4294947934,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 212,
+        "victim": 289,
+        "orig_score": 1823317751,
+        "tampered_score": 4294947934,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 242,
+        "victim": 136,
+        "orig_score": 2562803685,
+        "tampered_score": 4294933158,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 242,
+        "victim": 98,
+        "orig_score": 2579877925,
+        "tampered_score": 4294933158,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 242,
+        "victim": 141,
+        "orig_score": 2156889978,
+        "tampered_score": 4294933158,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 242,
+        "victim": 205,
+        "orig_score": 2514580075,
+        "tampered_score": 4294933158,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 242,
+        "victim": 38,
+        "orig_score": 2946997256,
+        "tampered_score": 4294933158,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 272,
+        "victim": 209,
+        "orig_score": 2431891473,
+        "tampered_score": 4295040681,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 272,
+        "victim": 188,
+        "orig_score": 2163099107,
+        "tampered_score": 4295040681,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 272,
+        "victim": 249,
+        "orig_score": 2137776675,
+        "tampered_score": 4295040681,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 272,
+        "victim": 47,
+        "orig_score": 2254379651,
+        "tampered_score": 4295040681,
+        "before": true,
+        "after": false,
+        "detected": true
+      },
+      {
+        "query_idx": 272,
+        "victim": 128,
+        "orig_score": 2148734891,
+        "tampered_score": 4295040681,
+        "before": true,
+        "after": false,
+        "detected": true
+      }
+    ]
+  }
+}

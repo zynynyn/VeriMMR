@@ -115,7 +115,7 @@ def verify_ipa_cpp(proof_path: str, com_path: str, gpu_id: int = 0) -> dict:
     r = subprocess.run(
         [str(bin_path), proof_path, com_path],
         capture_output=True,
-        env={**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)},
+        env=({**os.environ} if "CUDA_VISIBLE_DEVICES" in os.environ else {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}),
     )
     if r.returncode not in (0, 1):
         return {"fold_ok": False, "binding_ok": False,
@@ -182,7 +182,7 @@ def _rms_inv(input_path: Path, out_path: Path):
 
 
 def _run(cmd: list, cwd: str, gpu_id: int = 0) -> tuple:
-    env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}
+    env = ({**os.environ} if "CUDA_VISIBLE_DEVICES" in os.environ else {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)})
     r = subprocess.run(cmd, capture_output=True, cwd=cwd, env=env)
     return r.returncode, r.stderr.decode(errors="replace")
 
@@ -222,7 +222,7 @@ def _verify_proofs(proof_paths: list, gpu_id: int = 0) -> dict:
         cmd += [path, com_path]
     try:
         r = subprocess.run(cmd, capture_output=True,
-                           env={**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)})
+                           env=({**os.environ} if "CUDA_VISIBLE_DEVICES" in os.environ else {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu_id)}))
         out = r.stdout.decode().strip()
         parsed = json.loads(out)
         if len(valid) == 1:

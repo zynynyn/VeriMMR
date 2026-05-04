@@ -1,0 +1,157 @@
+nohup: ignoring input
+========================================================
+  语料库完整证明流水线
+  2026-05-01 20:32:51
+========================================================
+
+[Step 1] ZAC 串联证明（n=2 filters）
+  输出: output/phase1/fingerprint.json
+  日志: logs/zac_cascade.log
+
+[ZAC] Building accumulator ...
+      embeddings : embedding/embedding.npy
+      corpus     : corpora/image.jsonl
+      base_dir   : corpora
+
+[ZAC] Done in 377.53s
+      items      : 303
+      n_filters  : 2
+      ZAC root   : a2fac9584af6662596e49ed301e7456ca4d3703cebf9d1cb82c3fba3a966414fd3419b76e6f01b7a9032aa310ec0851096f2d42dd549cd4498386533f789ca810ecc2bb13da4ac608ace998aab967f0a0d7244696c42a00f47dc72badfa3da95  (96 bytes)
+      BF params  : q=2905, k=7
+
+[ZAC] Fingerprint saved    → output/phase1/fingerprint.json
+[ZAC] Prover state saved   → output/phase1/prover_state.json
+[ZAC] Sample membership proof → output/phase1/proof_sample_0.json
+[ZAC] Self-verify proof[0]: PASS
+[Step 1] ✓ ZAC 证明完成  20:39:13
+
+[Step 2] zkLLM 全量证明（Conv3d + ViT 32blocks + PatchMerger + Pooling + LLM 36层）
+  GPU0 → worker 0（偶数图）: logs/corpus_full_gpu0.log
+  GPU1 → worker 1（奇数图）: logs/corpus_full_gpu1.log
+  预计耗时：~29 h（双 worker，各 ~152 图 × ~683s/图）
+  worker 0 PID=432215,  worker 1 PID=432217
+  等待两个 worker 完成...
+
+语料库全量证明  worker=0/2  gpu=0
+  workdir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+  out_dir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+
+加载 jina-v4 模型...
+
+语料库全量证明  worker=1/2  gpu=0
+  workdir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+  out_dir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
+
+加载 jina-v4 模型...
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.16it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.12it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.52it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 18.48it/s]
+  ✓ 模型加载完成
+
+本 worker 处理 152 张图像
+
+[nikon_page_0.jpg] 开始全量证明  gpu=0
+  ✓ 模型加载完成
+
+本 worker 处理 151 张图像
+
+[nikon_page_1.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  4452ms
+  [hook] 激活捕获完成  4466ms
+Conv3d embed proof: ✓ PASS  (948ms  fold=✓  binding=✓)
+  [conv3d] ✓  948ms
+Conv3d embed proof: ✓ PASS  (1002ms  fold=✓  binding=✓)
+  [conv3d] ✓  1002ms
+  Block 0: ✓ PASS  (22182ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (22930ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (22911ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (22906ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (23202ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (23079ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (23331ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (37614ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (23501ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (22967ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (23018ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (23251ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (22884ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (23195ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (22906ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (37958ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (23407ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (23187ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (22820ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (23356ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (23068ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (23429ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (22746ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (37803ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (24108ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (23560ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (23335ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (23291ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (22302ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (24532ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (22552ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (37958ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+  Block 0: ✓ PASS  (23298ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (22811ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (22912ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (22781ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (22925ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (23041ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (23225ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (37896ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (22741ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (23137ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (22984ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (23115ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (22812ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (23021ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (22836ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (38090ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (22968ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (23054ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (22756ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (23219ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (22907ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (23158ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (22730ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (38067ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (23306ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (23619ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (23302ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (22780ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (22637ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (23497ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (23424ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (38121ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+PatchMerger proof: ✓ PASS  (4284ms  fold=3/3  binding=3/3)
+  [patchmerger] ✓  4284ms
+  [pooling] ✓
+PatchMerger proof: ✓ PASS  (3320ms  fold=3/3  binding=3/3)
+  [patchmerger] ✓  3320ms
+  [pooling] ✓
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_0.jpg] ✗ FAIL  总耗时 1180653ms
+  进度: 1/152  通过: 0  均值: 1181s/图  预计剩余: 49h32m
+
+[nikon_page_2.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2706ms
+Conv3d embed proof: ✓ PASS  (907ms  fold=✓  binding=✓)
+  [conv3d] ✓  907ms
+  [LLM 36 layers] 0/36 通过
+  [nikon_page_1.jpg] ✗ FAIL  总耗时 1195081ms
+  进度: 1/151  通过: 0  均值: 1195s/图  预计剩余: 49h47m
+
+[nikon_page_3.jpg] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  2448ms
+Conv3d embed proof: ✓ PASS  (886ms  fold=✓  binding=✓)
+  [conv3d] ✓  886ms
+run_corpus_proof.sh: line 81: 432214 Killed                  CUDA_VISIBLE_DEVICES=0 python script/build_corpus_full_proof.py --worker-id 0 --num-workers 2 --corpus "$CORPUS_JSONL" --workdir "$WORKDIR" --overwrite 2>&1
+     432215 Done                    | tee "$LOG_DIR/corpus_full_gpu0.log"
+run_corpus_proof.sh: line 81: 432216 Killed                  CUDA_VISIBLE_DEVICES=1 python script/build_corpus_full_proof.py --worker-id 1 --num-workers 2 --corpus "$CORPUS_JSONL" --workdir "$WORKDIR" --overwrite 2>&1
+     432217 Done                    | tee "$LOG_DIR/corpus_full_gpu1.log"
