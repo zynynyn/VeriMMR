@@ -5,7 +5,7 @@
 **[中文](#中文) | [English](#english)**
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.8.0%2Bcu128-ee4c2c?logo=pytorch&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.9.0%2Bcu128-ee4c2c?logo=pytorch&logoColor=white)
 ![CUDA](https://img.shields.io/badge/CUDA-12.8-76b900?logo=nvidia&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Third Party](https://img.shields.io/badge/Includes-Apache%202.0%20%7C%20MIT-lightgrey)
@@ -62,7 +62,7 @@ conda env create -f environment_no_builds.yml
 conda activate ultrarag
 ```
 
-主要依赖：`torch 2.8.0+cu128`、`faiss-gpu`、`sentence-transformers`、`pymupdf`、`py_ecc`、`mmh3`、`gradio`
+主要依赖：`torch 2.9.0+cu128`、`faiss-gpu`、`sentence-transformers`、`pymupdf`、`py_ecc`、`mmh3`、`gradio`
 
 **模型路径**（默认）：
 - 检索模型：`/path/to/models/jina-embeddings-v4`
@@ -209,7 +209,7 @@ conda env create -f environment_no_builds.yml
 conda activate ultrarag
 ```
 
-Key dependencies: `torch 2.8.0+cu128`, `faiss-gpu`, `sentence-transformers`, `pymupdf`, `py_ecc`, `mmh3`, `gradio`
+Key dependencies: `torch 2.9.0+cu128`, `faiss-gpu`, `sentence-transformers`, `pymupdf`, `py_ecc`, `mmh3`, `gradio`
 
 **Model paths** (defaults):
 - Retrieval encoder: `/path/to/models/jina-embeddings-v4`

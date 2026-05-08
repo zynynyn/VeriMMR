@@ -14,7 +14,6 @@ pretrained_models/
 embedding/
 index/
 output/
-# logs/
 test/
 corpora/
 data/chat_sessions/
@@ -59,3 +58,6 @@ notes/
 # 实验日志
 logs/
 nohup.out
+
+# 开发辅助脚本（本地保留，不上传）
+run_corpus_proof.sh
