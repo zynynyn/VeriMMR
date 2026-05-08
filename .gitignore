@@ -21,6 +21,7 @@ data/
 
 # Environment variables and secrets
 .env
+.env.dev
 
 # Example configuration files
 examples/parameter/*.yaml

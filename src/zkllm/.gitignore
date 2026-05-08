@@ -1,4 +1,19 @@
 # Compiled CUDA binaries - platform-specific (sm_89, CUDA 12.8)
-# Rebuild with: cd /path/to/zkllm-ccs2024 && make <target>
+# Rebuild with: cd src/zkllm && make all -j$(nproc)
 bin/
 swiglu-table.bin
+
+# Compiled binaries built directly in source directory
+commit-param
+conv3d-embed
+ffn
+ffn_dlto_backup
+ffn_nodlto
+main
+open-ipa
+patch-merger
+ppgen
+rmsnorm
+self-attn
+skip-connection
+verify-ipa
