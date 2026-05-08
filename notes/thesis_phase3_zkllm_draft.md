@@ -1,25 +1,25 @@
 # Phase 3 — 多模态嵌入推理完整性证明
 
-> 章节定位：本章处理"编码可信性"问题——即检索服务器声称使用某多模态嵌入模型推理，实际上可能使用了低参数替代模型或篡改权重的模型。第一部分（理论基础）介绍 zkLLM 框架的三个核心协议（tlookup、zkAttn、IPA 权重承诺）及 GQA、LoRA 两个模型架构特性，Sumcheck 与 Fiat-Shamir 已在 Phase 2 中详述，此处不再重复。第二部分（框架设计）描述本文对 zkLLM 从纯语言模型扩展至多模态嵌入模型全链路的适配工作，以及 Fiat-Shamir 随机层挑战、GPU 并行调度、Batch Sumcheck 等工程优化。
+> 章节定位：本章处理"编码可信性"问题——即检索服务器声称使用某多模态嵌入模型推理，实际上可能使用了低参数替代模型或篡改权重的模型。第一部分（理论基础）按大模型推理的运算类型分类介绍相关 ZKP 证明技术：线性运算（矩阵乘法、卷积展开）对应 Sumcheck 协议与 IPA 权重承诺；非线性激活函数对应 tlookup 查表协议（zkLLM \[Sun et al., CCS 2024\] §4）；注意力机制中的 Softmax 对应 zkAttn 协议（zkLLM §5）；归一化（RMSNorm）对应 Rescaling 代数约束（zkGPT \[Qu et al., USENIX Security 2024\] §5）。LoRA 量化合并与 GQA 适配属工程设计，见第二部分（§2.4.2、§2.2.2）。Sumcheck 与 Fiat-Shamir 已在 Phase 2 中详述，此处不再重复。第二部分（框架设计）描述本文对 zkLLM 从纯语言模型扩展至多模态嵌入模型全链路的适配工作，以及 Fiat-Shamir 随机层挑战、GPU 并行调度、Batch Sumcheck 等工程优化。
 
 ---
 
 # 第一部分：理论基础
 
-## 1.1 zkLLM 框架概述
+## 1.1 大模型推理的可验证化：ZKP 技术体系概述
 
-zkLLM \[[Sun et al., CCS 2024](https://dl.acm.org/doi/10.1145/3658644.3670391)\] 是第一个针对大语言模型推理过程的零知识证明框架，解决如下问题：Prover（AI 服务商）持有模型权重（可视为知识产权，不对外公开），Verifier（监管方或用户）提交输入 $x$，并要求对返回输出 $y$ 进行形式化验证——即在不暴露权重的前提下证明 $y = f_W(x)$。
+Transformer 模型的前向传播可分解为若干类基本运算，每类运算对应一套特定的 ZKP 证明技术：
 
-zkLLM 的核心观察是：Transformer 的前向传播由**线性操作**（矩阵乘法）和**非线性操作**（激活函数、Softmax、LayerNorm）两类组成，可分别用两套不同的证明协议处理：
+| 运算类型 | 代表操作 | ZKP 证明技术 | 文献来源 |
+|---------|---------|------------|---------|
+| 线性运算（矩阵乘、卷积展开）| $Y = XW^\top$ | Sumcheck（Phase 2 已述）+ IPA 权重承诺（§1.4）| \[Thaler, 2022; Bootle et al., 2016\] |
+| 非线性激活 | SiLU、GELU、ReLU | tlookup 查表协议（§1.2）| \[Sun et al., CCS 2024\] §4 |
+| 注意力（Softmax）| $\mathrm{Softmax}(QK^\top/\sqrt{d})V$ | zkAttn（§1.3）| \[Sun et al., CCS 2024\] §5 |
+| 归一化（RMSNorm）| $h = x/\mathrm{rms}(x) \cdot \gamma$ | Rescaling 代数约束（§1.2.3）| \[Qu et al., 2024\] §5 |
 
-| 操作类型 | 代表操作 | 证明协议 |
-|---------|---------|---------|
-| 线性（矩阵乘法）| $Y = XW^\top$ | Sumcheck（第 Phase 2 已述） |
-| 非线性（激活函数）| SiLU、GELU、ReLU | tlookup（§1.2） |
-| 注意力（Softmax）| $\mathrm{Softmax}(QK^\top/\sqrt{d})V$ | zkAttn（§1.3） |
-| 权重绑定（承诺）| $W$ 与公开承诺一致 | IPA（§1.4） |
+所有计算在整数量化域（int32，scale=$2^{16}$）上进行，对应有限域 $\mathbb{Z}_p$（$p = 2^{61}-1$ 或 BLS12-381 曲线标量域）。
 
-权重量化至 int32（scale=$2^{16}$），所有计算在 $\mathbb{Z}_p$ 有限域上进行（$p = 2^{61}-1$ 或 BLS12-381 曲线标量域）。zkLLM 已在 LLaMA-2-13B（A100，803s/次）上完成验证，证明框架在十亿参数规模 LLM 上的实用可行性。
+本文实现在整体框架上参考了 zkLLM \[[Sun et al., CCS 2024](https://dl.acm.org/doi/10.1145/3658644.3670391)\]，将上述证明协议组合为覆盖多模态嵌入模型完整推理链路的可验证系统。其中 tlookup（§1.2）与 zkAttn（§1.3）是 zkLLM 专门为大语言模型推理设计的协议；Rescaling 代数约束（§1.2.3）来自 zkGPT \[[Qu et al., USENIX Security 2024]\] §5 的约束融合（Constraint Fusion）技术；IPA 权重承诺（§1.4）是独立于特定框架的通用密码学协议（Bulletproofs 家族）。
 
 ---
 
@@ -45,9 +45,42 @@ SiLU 的量化版本：$\sigma_{\text{SiLU}}(x) = \lfloor x \cdot \mathrm{sigmoi
 
 **复杂度**：Prover $O(SD)$（线性于激活张量大小），Verifier $O(M)$（线性于表大小，一次性预处理）。证明大小为 $O(\log(SD))$ 个域元素，与 Sumcheck 同阶。
 
-### 1.2.3 RMSNorm 处理（Rescaling）
+### 1.2.3 RMSNorm 归一化：Rescaling 代数约束（zkGPT §5）
 
-RMSNorm 包含按 token 归一化（$h_i = x_i / \mathrm{rms}(x)$），其中 $\mathrm{rms}(x) = \sqrt{\frac{1}{d}\sum_j x_j^2}$ 涉及浮点平方根。zkLLM 将其处理为**可验证的 Rescaling 操作**：Prover 声称 $\mathrm{rms\_inv} = 1/\mathrm{rms}(x)$（量化整数），Verifier 用 Sumcheck 验证 $\mathrm{rms\_inv}^2 \cdot \sum_j x_j^2 \approx d$（允许量化误差 $\delta$），从而无需 ZK 电路内部做平方根运算。
+**zkGPT 约束四分类**
+
+zkGPT \[[Qu et al., USENIX Security 2024]\] §5 将大模型推理中涉及的非算术运算归纳为四类约束：
+
+| 类型 | 包含运算 | 代表场景 |
+|:---:|--------|---------|
+| **Type-I** | 纯算术（加、乘）| 矩阵乘法、残差连接 |
+| **Type-II** | 除法 | 量化 Rescaling（整数缩放） |
+| **Type-III** | 平方根 + 除法 | RMSNorm（$1/\sqrt{\Sigma x^2}$）、L2Norm |
+| **Type-IV** | 指数 / 查表 | Softmax $\exp$、SiLU、GELU |
+
+约束融合（Constraint Fusion）的可行性取决于相邻约束的类型组合：Type-I↔II 与 Type-II↔III 之间的合并通常**有利（Profitable）**；而与 Type-IV（查表）的合并通常**无利（Unprofitable）**——因为查表输入必须为整数，rounding 误差无法在融合后消除。
+
+**本文各操作的约束类型与处理方式**
+
+| 操作 | 约束类型 | 处理方式 |
+|------|:-------:|---------|
+| 量化 Rescaling（中间层缩放）| **Type-II** | 相邻两次 Type-II 融合（`prove_chain_with()`，Profitable） |
+| RMSNorm（$1/\sqrt{\Sigma x^2}$）| **Type-III** | 代数约束替换 → 降为 Type-I（见下） |
+| L2Norm（$1/\|\mathbf{p}\|_2$）| **Type-III** | 同上，`algebraic_constraint_v2` |
+| $\exp(S)$（zkAttn Softmax）| **Type-IV** | tlookup 单独处理，**不与相邻除法融合** |
+| Softmax 行归一化（$1/\text{rowsum}$）| **Type-II** | 独立 Rescaling，与 exp（Type-IV）分离 |
+
+**Type-III → Type-I 代数降阶**
+
+RMSNorm 和 L2Norm 均属 Type-III 约束，核心难点在于平方根。本文采用变量替换将其降阶为 Type-I 的整数乘法检查：Prover 声称 $\hat{r} = \lfloor S / \sqrt{q} \rceil$（量化整数，$S$ 为缩放因子，$q$ 为整数范数），Verifier 验证：
+
+$$\bigl|\hat{r}^2 \cdot q - S^2\bigr| \leq 2S$$
+
+此约束完全由整数乘法与比较构成（Type-I），无需在 ZK 电路内构造平方根或除法电路。这也意味着该约束可与相邻 Type-I/II 约束进一步融合，而不受 Type-IV 的 rounding 限制。
+
+**为何不与 tlookup（Type-IV）融合**
+
+zkAttn 中 $\exp$ 通过 tlookup（Type-IV）处理，其后续行归一化为 Type-II（除法）。按 zkGPT 的分析，二者融合无利：查表要求输入为精确整数索引，若将除法约束合并进来，rounding 误差会破坏整数性，导致查表失效。本文实现将二者严格分离：tlookup 证明 $\exp$ 的正确性，Rescaling 单独证明行归一化，与 zkGPT 的无利融合结论完全一致。
 
 ---
 
@@ -80,9 +113,13 @@ zkAttn \[[Sun et al., CCS 2024](https://dl.acm.org/doi/10.1145/3658644.3670391),
 
 ## 1.4 IPA 权重承诺
 
-### 1.4.1 承诺方案选择
+### 1.4.1 IPA 协议概述
 
-zkLLM 使用 **IPA（Inner Product Argument）** \[[Bootle et al., 2016](https://link.springer.com/chapter/10.1007/978-3-662-49896-5_21); [Bünz et al., 2018](https://eprint.iacr.org/2017/1066.pdf)\] 作为权重承诺方案。对每个权重矩阵 $W \in \mathbb{Z}^{m \times n}$，离线计算其多线性扩展（MLE）在生成元集上的承诺 $\mathrm{cm}_W \in \mathbb{G}_1$（BLS12-381）。
+**IPA（Inner Product Argument）** \[[Bootle et al., 2016](https://link.springer.com/chapter/10.1007/978-3-662-49896-5_21); [Bünz et al., 2018](https://eprint.iacr.org/2017/1066.pdf)\] 是 Bulletproofs 密码学体系中的向量承诺与内积开放协议，工作在**无可信设置（transparent setup）**的离散对数困难性假设下。IPA 与 Sumcheck 协议互补：Sumcheck 将多元多项式的求值归约为对证人的单点查询，IPA 则提供对承诺值的开放证明，使 Verifier 无需访问原始证人即可验证该查询结果。
+
+本文实现以 IPA 作为模型权重矩阵的承诺方案：对每个权重矩阵 $W \in \mathbb{Z}^{m \times n}$，离线计算其多线性扩展（MLE）在生成元集上的承诺 $\mathrm{cm}_W \in \mathbb{G}_1$（BLS12-381）。
+
+> **注**：IPA 是独立的密码学技术，不特定于某一 ZKP 框架。zkLLM 原文（\[Sun et al., CCS 2024\] §3.4）实际采用 Hyrax 的 Pedersen 承诺变体；本文实现改用 Bulletproofs 家族 IPA，同样基于离散对数困难性，但无需可信设置。
 
 IPA 的核心性质：Verifier 可在不访问 $W$ 本身的前提下，通过 $k = \lceil \log_2 n \rceil$ 轮折叠协议（每轮发送 2 个 $\mathbb{G}_1$ 点）验证 $W$ 在任意随机点 $\mathbf{r}$ 处的 MLE 值：
 
@@ -113,24 +150,6 @@ $$C_\text{new} = (1-u)^2 \cdot L_0 + u(1-u) \cdot C + u^2 \cdot L_1$$
 1. Prover 对 $Y$ 做 Sumcheck，将证明归约至 $\widetilde{X}(\mathbf{u}_X) \cdot \widetilde{W}(\mathbf{u}_W) = c$（两个多线性 MLE 的点积）；
 2. Prover 用 IPA 开放 $\widetilde{W}(\mathbf{u}_W)$，验证与承诺 $\mathrm{cm}_W$ 一致；
 3. Verifier 独立计算 $\widetilde{X}(\mathbf{u}_X)$（Verifier 持有激活 $X$），验证 $\widetilde{X}(\mathbf{u}_X) \cdot y_W = c$。
-
----
-
-## 1.5 LoRA 低秩适配（Hu et al., 2022）
-
-LoRA（Low-Rank Adaptation）\[[Hu et al., 2022](https://arxiv.org/abs/2106.09685)\] 将权重更新分解为低秩矩阵乘：
-
-$$W_\text{eff} = W_0 + \frac{\alpha}{r} \mathbf{B}\mathbf{A}, \quad \mathbf{A} \in \mathbb{R}^{r \times d_\text{in}},\; \mathbf{B} \in \mathbb{R}^{d_\text{out} \times r}$$
-
-对于可验证推理，直接证明 $Y = X W_\text{eff}^\top$ 等价于证明 $Y = X W_0^\top + \frac{\alpha}{r} X \mathbf{A}^\top \mathbf{B}^\top$，需要额外的两条 Sumcheck 链（$X\mathbf{A}^\top$ 和 $(X\mathbf{A}^\top)\mathbf{B}^\top$），开销约为原层的 $2r/d = 2 \times 32/2048 \approx 3\%$。
-
----
-
-## 1.6 GQA：分组查询注意力（Ainslie et al., 2023）
-
-GQA（Grouped Query Attention）\[[Ainslie et al., 2023](https://arxiv.org/abs/2305.13245)\] 通过让多个 Q-head 共享同一组 KV-head 来减少 KV cache 占用：$n_Q$ 个 Query head 分为 $g$ 组，每组共享 $n_K = n_Q / g$ 个 KV head。对 jina-v4 语言塔：$n_Q = 16$，$n_K = 2$，group size $g = 8$（即 8 个 Q-head 共享 1 个 KV-head），$d_k = 256$（$=2048/8$）。
-
-GQA 的注意力公式与 MHA 一致（$\mathrm{Softmax}(\mathbf{Q}_i\mathbf{K}_{i/g}^\top/\sqrt{d_k})\mathbf{V}_{i/g}$），但 K/V 矩阵尺寸从 $d$ 降至 $d/g=256$，这对 zkAttn 的 NTT 约束产生影响（见 §2.2.2）。
 
 ---
 
@@ -203,7 +222,7 @@ $$y = f_W(x) \quad \text{（在 } W \text{ 的公开承诺约束下）}$$
 │  ━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
 │       │  ⑤ Pooling Head (MeanPool + L2Norm)                                    │
 │       │    MeanPool: Sumcheck 证明 sum(H[mask]) = K × p                        │
-│       │    L2Norm: 量化约束检查（无正式 ZK 证明，见 §2.6.2）                    │
+│       │    L2Norm: 代数约束 r̂²·sq_norm ≈ S_R²·SCALE²（algebraic_v2）          │
 │  ━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
 │  [输出]                                                                         │
 │  embedding y ∈ ℝ²⁰⁴⁸                                                           │
@@ -284,7 +303,7 @@ $$\text{Prover 声称：} \sum_{t=0}^{T-1} \text{mask}[t] \cdot H_{t} = K \cdot 
 
 tLookup 处理的是非线性激活函数（$\exp$、SiLU、GELU 等量化查表场景）。MeanPool 是纯加权求和，无任何非线性，无需查表。
 
-L2Norm（$\mathbf{e} = \mathbf{p}/\|\mathbf{p}\|_2$）的代数约束在形式上可与 §1.2.3 RMSNorm 的 Rescaling 处理对称——Prover 声称 $\hat{r} = \lfloor 2^{16}/\|\mathbf{p}\|_2 \rfloor$，Verifier 用 Sumcheck 验证 $\hat{r}^2 \cdot \sum_j p_j^2 \approx 2^{32}$。然而，**当前实现（`prove_pooling.py` 的 `_l2norm_prove`）仅执行量化误差界检查**（验证 $\|\hat{e} - e\|_\infty \leq \delta$），而非上述正式 Sumcheck 协议——Verifier 只能依赖 Prover 诚实计算 L2Norm，无法独立密码学验证。这一实现缺口将在 §2.6.2 中单独说明。
+L2Norm（$\mathbf{e} = \mathbf{p}/\|\mathbf{p}\|_2$）采用代数约束方案（`algebraic_constraint_v2`）：Prover 声称 $\hat{r} = \lfloor S_R \cdot 2^{16} / \|\mathbf{p}_\text{int}\|_2 \rceil$（$S_R = 2^{48}$），Verifier 检查 $|\hat{r}^2 \cdot \mathrm{sq\_norm} - S_R^2 \cdot 2^{32}| \leq 2 S_R \cdot 2^{32}$（误差容限约 $2^{97}$，来自 $\hat{r}$ 的单位量化误差）。全量语料库 303 张 PASS（§9.2），当前实现满足代数可验证性。技术上进一步的扩展是接入完整 Sumcheck 协议（与 §1.2.3 RMSNorm Rescaling 一致），但代数约束已覆盖 Verifier 的独立验证需求，详见 §2.6.2 ⑤。
 
 **"Batch"与 Pooling Sumcheck 的关系辨析**
 
@@ -408,7 +427,7 @@ FS-3 层选择均匀性：$\chi^2=27.35$，$p=0.82 > 0.05$，各层被选中频�
 
 ### 2.4.2 LoRA 量化合并（消除 3% 额外开销）
 
-理论上，LoRA 适配器每层需要额外两条 Sumcheck 链，开销约 3%。本文采用**量化前合并**方案：
+LoRA \[[Hu et al., 2022](https://arxiv.org/abs/2106.09685)\]（Low-Rank Adaptation）将权重更新分解为低秩矩阵乘 $W_\text{eff} = W_0 + \frac{\alpha}{r}\mathbf{BA}$，理论上每层需要额外两条 Sumcheck 链（$X\mathbf{A}^\top$ 和 $(X\mathbf{A}^\top)\mathbf{B}^\top$），开销约 $2r/d \approx 3\%$。本文采用**量化前合并**方案彻底消除此开销：
 
 $$W_\text{eff} = W_0 + \frac{\alpha}{r}\mathbf{BA} \quad \text{（float32 精确计算）}$$
 
@@ -537,11 +556,48 @@ tLookup "prep" 阶段频次直方图统计改用 CUB `DeviceHistogram::Histogram
 | Conv3d embed | IPA | 1 | **1/1 PASS** |
 | ViT 32 blocks | IPA × 9/块 | 288 | **288/288 PASS** |
 | PatchMerger | IPA × 3 | 3 | **3/3 PASS** |
-| Pooling head | MeanPool Sumcheck | — | **PASS**（L2Norm 见注） |
+| Pooling head | MeanPool Sumcheck + L2Norm 代数约束 | — | **PASS** |
 | LLM 36 layers（离线）| IPA × 6/层 | 216 | **216/216 PASS** |
 | **总计** | — | **508** | **全部通过** |
 
-> **实测全量证明耗时**（Phase 6，jina-v4 真实语料，双 GPU RTX 4090 D）：**683s（11.4 min）**，32/32 ViT blocks + 36/36 LLM layers 全部 PASS（fold_ok=True，binding_ok=True）。
+> **实测全量证明耗时**（Phase 6，jina-v4 真实语料，双 GPU RTX 4090 D）：**683s（11.4 min）**，32/32 ViT blocks + 36/36 LLM layers 全部 PASS（fold\_ok=True，binding\_ok=True）。
+
+### 2.5.1 端到端语料库全量验证（20 张图像）
+
+为验证系统在真实语料规模下的可靠性，从 303 张图像语料库中对 20 张（含 17 张尼康相机产品文档页面 + 3 张 zkLLM 论文页面）运行完整 5 组件证明，测量单 GPU worker 模式下的逐张耗时与各组件通过率。
+
+**实验环境**：RTX 4090 D，jina-embeddings-v4（真实权重，含 LoRA 合并），`script/build_corpus_full_proof.py`，`--num-workers 1`（单 GPU 串行）。
+
+**逐张耗时分布**（ms）：
+
+| 图像 | 总耗时 | ViT 32 块 | PatchMerger | LLM 36 层 |
+|------|:-----:|:---------:|:-----------:|:---------:|
+| nikon\_page\_12 | 1337.9s | ~796s | 3.2s | ~530s |
+| nikon\_page\_48 | 1307.7s | — | 3.1s | — |
+| nikon\_page\_54 | 1315.0s | — | 3.1s | — |
+| … | … | … | … | … |
+| zkLLM\_paper\_p1 | 1379.8s | — | — | — |
+| zkLLM\_paper\_p2 | 1369.2s | — | — | — |
+| zkLLM\_paper\_p3 | 1376.8s | — | — | — |
+| **均值** | **1330.5s（22.2 min）** | ~796s | ~3.2s | ~528s |
+| **总 wall clock** | **26609s（7.4h）** | — | — | — |
+
+> zkLLM 论文页面（755 tokens，K=755）略慢于尼康文档页面���641 tokens，K=641），两者 ViT 输入 patch 数相同（均为 2520 tokens pad 至 4096），耗时差异来自 LLM 侧激活文件读写。
+
+**组件通过率汇总**（20 张 × 全组件）：
+
+| 组件 | 通过率 |
+|------|:-----:|
+| Conv3d embed（IPA） | **20/20 PASS** |
+| ViT 32 blocks（IPA × 9/块）| **20 × 32/32 PASS**（共 5760 个 IPA proof） |
+| PatchMerger（IPA × 3）| **20/20 PASS** |
+| Pooling head（Sumcheck + 代数约束）| **20/20 PASS** |
+| LLM 36 layers（IPA × 6/层）| **20 × 36/36 PASS**（共 4320 个 IPA proof） |
+| **端到端（all\_ok=True）** | **20/20（100%）** |
+
+**激活捕获耗时**：第一张图（冷启动）约 3038ms，后续图像约 400–500ms（模型已加载于 GPU）。
+
+**全量语料库外推**：单 GPU worker 均值 1330s/图，303 张分配给 2 个 worker（各约 152 张）→ 预计墙钟约 **56h**，与 §2.6.2 ① 估算一致。
 
 **系统全组件覆盖**（三层证明联合）：
 
@@ -550,6 +606,58 @@ tLookup "prep" 阶段频次直方图统计改用 CUB `DeviceHistogram::Histogram
 | Phase 1 | 图像来源 + embedding 绑定 | ZAC（Bloom Filter + Pointproofs）| 100%（B1/B2）|
 | Phase 2 | 相似度分值 + 排名 | Global Batch Sumcheck | 100%（B3）|
 | Phase 3 | 推理权重完整性 | zkLLM IPA + Fiat-Shamir 随机挑战 | 100%（B4，整模型替换）|
+
+### 2.5.2 端到端在线检索实验 E3（真实查询激活 · Fiat-Shamir 随机层挑战）
+
+为验证三阶段联合证明在真实在线查询场景下的端到端表现，设计实验 E3：使用 5 条真实文本查询（中英文混合），对完整可验证检索流水线进行逐查询延迟与验证通过率测量。
+
+**实验配置**：
+- 查询数：5 条（4 条英文 + 1 条中文，涵盖传感器、ISO、续航、AF、防抖等主题）
+- Fiat-Shamir 参数：$K=6$（从 36 层随机抽取），挑战 = $\mathrm{SHA256}(\text{query}\|\text{nonce})$
+- TOP\_K=5，corpus N=303，D=2048
+- GPU：双 RTX 4090 D（jina-v4 模型占用 GPU0 ~7.6GB，GPU1 空闲）
+- Phase 3Q：层间双 GPU 并行（GPU0:3 层 ‖ GPU1:3 层，各自串行 FFN+Attn）
+
+**延迟分解（均值 ± 标准差，ms，N=5 条 query）**：
+
+| 阶段 | 均值 (ms) | 标准差 (ms) | 说明 |
+|------|:---------:|:----------:|------|
+| 向量编码 + hook 激活捕获 | **339** | ±138 | jina-v4 前向 + 12 个 hook（K=6 层 × 2 类型）|
+| FAISS 检索（CPU） | **1** | ±0.7 | IndexFlatIP，N=303 |
+| Phase 2 Sumcheck | **1022** | ±67 | Global Batch IP，N=303，D=2048 |
+| Phase 1 ZAC 成员证明 | **9260** | ±104 | k=5 结果聚合验证（Pointproofs） |
+| Phase 3C 语料证明读取 | **4** | ±2 | 预计算 JSON 磁盘读取（303/303 已完成）|
+| **同步流水线合计** | **10627** | ±198 | 编码→检索→Sumcheck→ZAC→3C 读取 |
+| Phase 3Q query proof | **36543** | ±127 | K=6 层，2-GPU 并行，后台异步 |
+| **端到端总计（用户感知）** | **36543** | ±127 | $\max(\text{同步}, \text{Phase3Q})$ |
+
+**验证通过率（5 条 query）**：
+
+| 阶段 | 通过率 | 备注 |
+|------|:------:|------|
+| Phase 2：Global Sumcheck | **5/5（100%）** | 相似度计算可验证 |
+| Phase 1：ZAC 成员证明 | **5/5（100%）** | 图像 embedding 绑定 |
+| Phase 3C：语料侧 corpus proof | **5/5（100%）** | 303/303 预计算全覆盖，读取 <5ms |
+| Phase 3Q：query 激活 Fiat-Shamir | **5/5（100%）** | K=6 随机层，6/6 层全通过 |
+| **四阶段联合（Phase1+2+3C+3Q）** | **5/5（100%）** | ALL\_OK=True |
+
+**各查询的 Fiat-Shamir 挑战层选择**（challenge = SHA256(query‖nonce) → sample(range(36), 6)）：
+
+| 查询（摘要） | nonce | 选中层（$K=6$） |
+|------------|-------|--------------|
+| "sensor resolution of the Nikon Z8" | `8141803b` | 0, 3, 5, 6, 7, 29 |
+| "ISO sensitivity in manual exposure mode" | `d7b8c3ef` | 0, 5, 6, 12, 30, 35 |
+| "Battery life and USB-C charging specifications" | `a8940890` | 1, 7, 23, 27, 30, 31 |
+| "AF tracking for 4K 60fps video" | `3b04b568` | 0, 1, 10, 13, 19, 22 |
+| "尼康Z7电子减震功能不可用场景" | `b0c8b9ca` | 3, 11, 18, 26, 28, 33 |
+
+5 次挑战覆盖 36 层中的 22 个不同层（0–35 全范围），分布均匀。
+
+**已实现端到端关键性质**：
+1. **真实激活可证明**：hook 捕获的前向激活（非合成数据）经 Fiat-Shamir 挑战的 K=6 层均通过 FFN + Attn-linear + zkAttn 三段 IPA 验证，被选层分布于 layer 0–35 全范围。
+2. **语料侧全量覆盖**：303/303 张语料图像预计算证明已完成（双 GPU 并行，~56h），查询时直接读取，延迟 <5ms。
+3. **异步流水线**：Phase 3Q（~36.5s）后台运行，与同步流水线（~10.6s）并行，用户感知延迟由 Phase 3Q 主导；同步流水线与 Phase 3Q 重叠执行比率 = 10.6/36.5 ≈ 29%。
+4. **GPU 资源隔离**：FAISS 检索采用 CPU 模式（IndexFlatIP，N=303 时 <2ms），避免 FAISS-GPU `StandardGpuResources` 预分配显存池与 zkLLM C++ binary CUDA 初始化冲突（后者在 GPU0 的 IPA down\_proj 公共参数加载需分配 72MB；若 FAISS-GPU 已占用 ~1.5GB 显存，CUDA malloc 失败，子进程 abort → SIGABRT）。
 
 ---
 
@@ -568,7 +676,7 @@ tLookup "prep" 阶段频次直方图统计改用 CUB `DeviceHistogram::Histogram
 | ⑤ | **C++ GPU verify-ipa 批量** | Python py\_ecc G1 乘法 7ms/次，ViT 288 个 proof 验证需 76 分钟 | CUDA GPU 加速 G1 MLE，9 proofs/二进制调用共享一次 CUDA 初始化 | ViT 单块验证 288s→16.7s（17×），全量 103min→11.4min |
 | ⑥ | **2-GPU 层间并行** | 各层证明无数据依赖，串行调度 GPU 利用率低 | GPU0：偶数层，GPU1：奇数层，`ProcessPoolExecutor` 并发调度 | K=6 在线证明 89s→~46s；全量 LLM 36 层 ~5.5min |
 | ⑦ | **IPA Embedding 承诺** | Phase 2 Verifier 需持有 embedding.npy（2.4MB）且无密码学绑定，Prover 可维护两套 embedding | `commit-param` 离线建库（{$cm_i$}，43KB），`open-ipa` 在线生成 oracle proof | Verifier 持有量 2.4MB→43KB；soundness 误差 $2^{-53}$→$2^{-247}$ |
-| ⑧ | **语料侧全量预计算** | 图像编码全量证明（5 组件）生成需 ~22min/张，无法实时响应 | 离线预计算 `corpus_proof`，查询时直接读取 | 语料侧查询延迟 <1ms；系统总响应（含查询侧异步证明）<6s |
+| ⑧ | **语料侧全量预计算** | 图像编码全量证明（5 组件）生成需 ~22min/张，无法实时响应 | 离线预计算 `corpus_proof`，查询时直接读取 | 语料侧查询延迟 ~4ms（实测 4±2ms，E3）；端到端 e2e ~36.5s（Phase 3Q 主导，同步流水线 ~10.6s 被掩盖） |
 | ⑨ | **Fiat-Shamir 随机层挑战** | 固定 $K$ 层时攻击者仅需保持那 $K$ 层权重不变即可绕过检测 | $\text{challenge}=\mathrm{SHA256}(\text{query}\|\text{nonce})$ 非交互随机选 $K=6$ 层 | 整模型替换 100% 确定性检出；单层篡改累积 $T=20$ 次→97.4% |
 | ⑩ | **级联双层 BF + Pointproofs** | 单层 Bloom Filter 误判率 $\varepsilon\approx0.01$；Merkle 成员证明大小 $O(\log N)$ | 二级串联 BF（$\varepsilon^2\approx10^{-4}$）+ Pointproofs 聚合（固定大小） | 虚假成员率 $10^{-4}$，成员证明 48B（$O(1)$，不随 $N$ 增长） |
 
@@ -592,11 +700,27 @@ Phase 6 已实现精确区分：窗口块（28/32）使用 seq=64（seq²=2¹²�
 
 IPA 方案要求权重承诺 $\{\mathrm{cm}_{W_i}\}$ 事先通过可信渠道公开发布（类似代码签名）。若承诺本身被伪造或建库时权重与公开承诺不一致，协议安全性无法保证。在实际部署中，承诺文件应由可信第三方（如模型原始发布方）签署并独立分发，与服务商的承诺文件相互印证。
 
-**⑤ L2Norm 未作正式 ZK 证明**
+**⑤ L2Norm 代数约束证明（已实现，algebraic\_constraint\_v2）**
 
-当前实现（`prove_pooling.py` 的 `_l2norm_prove`）对 Pooling head 最终的 L2Norm 步骤（$\mathbf{e} = \mathbf{p}/\|\mathbf{p}\|_2$）仅执行量化误差界验证，而非正式 Sumcheck 协议。在 C3b 实验与 interactive demo 的端到端验证中，Verifier 对该步骤的判断依赖 Prover 诚实性而非密码学约束。技术上，可参照 §1.2.3 RMSNorm Rescaling 的方式，用一条 Sumcheck 验证 $\hat{r}^2 \cdot \sum_j p_j^2 \approx 2^{32}$（额外开销极小）。该扩展已留作后续工作，当前系统满足半诚实（honest-but-curious）对手假设。
+原实现仅执行量化误差界检查（$\|\hat{e} - e\|_\infty \leq \delta$），Verifier 依赖 Prover 诚实性。已于 2026-05-04 替换为代数约束方案（参照 §1.2.3 RMSNorm Rescaling 构造）：
 
-**⑥ 不支持 ANN 索引**
+设 MeanPool 输出 $p_{\mathrm{int}} \in \mathbb{Z}^d$，令
+
+$$\mathrm{sq\_norm} = \sum_j p_{\mathrm{int}}[j]^2, \quad S_R = 2^{48}, \quad \hat{r} = \left\lfloor \frac{S_R \cdot 2^{16}}{\sqrt{\mathrm{sq\_norm}}} \right\rceil$$
+
+Verifier 检查代数约束：
+
+$$\bigl|\hat{r}^2 \cdot \mathrm{sq\_norm} - S_R^2 \cdot 2^{32}\bigr| \leq 2 S_R \cdot 2^{32}$$
+
+误差容限 $2 S_R \cdot 2^{32} \approx 2^{97}$，来自 $\hat{r}$ 的单位量化误差传播（≤1 unit → 约束误差 $\leq 2 S_R \cdot 2^{16} \cdot \mathrm{sq\_norm}^{1/2}$，量级等价）。
+
+全量语料库补丁（`script/patch_l2norm_proofs.py`，2-GPU 并行）：GPU0 处理 152 张（69s），GPU1 处理 151 张（69s），**303/303 PASS**，`scheme: "algebraic_constraint_v2"` 写入所有 `corpus_proof_*.json`。当前系统对 L2Norm 步骤的验证满足代数可验证性，无需半诚实假设。
+
+**⑥ GPU 资源隔离约束**
+
+在线证明流水线中，FAISS 检索与 zkLLM C++ binary 子进程必须严格隔离 GPU 资源。实验中发现，若使用 FAISS-GPU（`faiss.index_cpu_to_gpu()`），`StandardGpuResources` 会在 GPU0 预分配约 1.5GB 显存内存池；随后 Phase 3Q 的 FFN 子进程在同一 GPU 上加载 down\_proj IPA 公共参数（72MB，$2^{19}$ 个 G1 点）时 CUDA malloc 失败，触发 `abort()` → SIGABRT，导致 GPU0 的所有层验证全部失败。修复方案：N=303 时使用 CPU FAISS（IndexFlatIP，<2ms），彻底消除显存冲突。这一约束在更大语料库（N > $10^5$）场景下需要重新评估：CPU FAISS 线性扫描将不再可行，届时需考虑 FAISS-GPU 与 zkLLM 运行在不同 GPU 上（如 GPU0 用于 zkLLM，GPU1 用于 FAISS）或其他资源隔离方案。
+
+**⑦ 不支持 ANN 索引**
 
 当前系统依赖 FAISS IndexFlatIP（精确搜索），Phase 2 Sumcheck 的正确性依赖精确内积计算。在 $N > 10^6$ 的大规模语料库场景下，需要 HNSW 或 IVF-PQ 等近似最近邻索引，与精确 Sumcheck 存在根本矛盾。未来可探索在 ANN 候选集内部做精确重排序阶段的 Sumcheck（"两阶段验证"），或引入支持近似性误差显式建模的可验证 ANN 框架。
 
@@ -605,6 +729,8 @@ IPA 方案要求权重承诺 $\{\mathrm{cm}_{W_i}\}$ 事先通过可信渠道公
 ## 参考文献
 
 \[Sun et al., 2024\] Haochen Sun, Jason Li, and Hongyang Zhang. zkLLM: Zero Knowledge Proofs for Large Language Models. In *Proceedings of ACM CCS 2024*, pp. 4197–4211. [https://dl.acm.org/doi/10.1145/3658644.3670391](https://dl.acm.org/doi/10.1145/3658644.3670391)（长版：[https://arxiv.org/abs/2404.16109](https://arxiv.org/abs/2404.16109)）
+
+\[Qu et al., 2024\] Wenjie Qu, Yijun Sun, Xuanming Liu, Tao Lu, Yanpei Guo, Kai Chen, and Jiaheng Zhang. zkGPT: An Efficient Non-interactive Zero-knowledge Proof Framework for LLM Inference. In *USENIX Security 2024*.
 
 \[Bootle et al., 2016\] Jonathan Bootle, Andrea Cerulli, Pyrros Chaidos, Jens Groth, and Christophe Petit. Efficient Zero-Knowledge Arguments for Arithmetic Circuits in the Discrete Log Setting. In *EUROCRYPT 2016*, LNCS 9666:327–357. [https://link.springer.com/chapter/10.1007/978-3-662-49896-5_21](https://link.springer.com/chapter/10.1007/978-3-662-49896-5_21)
 

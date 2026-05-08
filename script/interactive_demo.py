@@ -75,6 +75,8 @@ _sc_embeddings: Optional[np.ndarray] = None
 _zac_acc        = None
 _zkllm_cache: Dict[str, Dict] = {}
 _zkllm_lock     = threading.Lock()
+# 全量模式 timer 回调重建 VTL 所需的查询最终状态（on_query 完成后写入）
+_query_final_state: Dict[str, Dict] = {}
 _load_errors: List[str] = []
 
 
@@ -359,11 +361,17 @@ def get_corpus_proofs(paths: List) -> List[Dict]:
         safe = image_id.replace("/", "_").replace("\\", "_").replace(" ", "_")
         pf = ZKLLM_WORKDIR / f"corpus_proof_{safe}.json"
         r = json.loads(pf.read_text()) if pf.exists() else {"status": "not_precomputed", "image_id": image_id}
-        status_tag = "✅" if r.get("verified") else ("⚠️ not_precomputed" if r.get("status") == "not_precomputed" else "❌")
-        print(f"  corpus_proof  {image_id}  {status_tag}")
+        # corpus proof 使用 all_ok 字段（不是 verified）
+        is_ok = bool(r.get("all_ok"))
+        status_tag = "✅" if is_ok else ("⚠️ not_precomputed" if r.get("status") == "not_precomputed" else "❌")
+        res = r.get("results", {})
+        vit_pass  = res.get("vit", {}).get("n_pass", "?")
+        llm_pass  = res.get("llm_layers", {}).get("n_pass", "?")
+        pool_ok   = "✓" if res.get("pooling", {}).get("all_ok") else "✗"
+        print(f"  corpus_proof  {image_id}  {status_tag}  vit={vit_pass}/32  llm={llm_pass}/36  pool={pool_ok}")
         results.append(r)
-    ok_n = sum(1 for r in results if r.get("verified"))
-    print(f"[Step 3] 完成  {ok_n}/{len(results)} 验证通过")
+    ok_n = sum(1 for r in results if r.get("all_ok"))
+    print(f"[Step 3] 完成  {ok_n}/{len(results)} 全量验证通过")
     return results
 
 
@@ -415,6 +423,8 @@ def _run_zkllm_query_bg(proof_id: str, act_ready: threading.Event = None,
     print(f"[zkLLM-Q] 后台线程启动  proof_id={proof_id}  layers={layers}  等待激活文件…")
     cwd0, env0 = _ensure_worker_cwd(0)
     cwd1, env1 = _ensure_worker_cwd(1)
+    # 查询侧 worker0 用 GPU0（jina-v4 ~8.3GB，空闲 ~15.8GB）
+    # worker1 用 GPU1（MiniCPM 静态权重 ~11.6GB，生成完毕后 KV cache 已 empty_cache，空闲 ~12+GB）
     t0 = time.perf_counter()
     layer_results, success = [], True
 
@@ -427,7 +437,7 @@ def _run_zkllm_query_bg(proof_id: str, act_ready: threading.Event = None,
 
     all_layers = layers
     half       = len(all_layers) // 2
-    # 奇数层时 GPU1 多一层
+    # 奇数层时 worker1 多一层
     gpu0_layers = all_layers[:half]
     gpu1_layers = all_layers[half:]
 
@@ -497,6 +507,9 @@ def _run_zkllm_query_bg(proof_id: str, act_ready: threading.Event = None,
         return results
 
     try:
+        # 并行执行：worker0 在 GPU0，worker1 在 GPU1（生成完毕后 KV cache 已清空）
+        # GPU0: jina-v4 ~8.3GB，空闲 ~15.8GB；GPU1: MiniCPM 静态权重 ~11.6GB，空闲 ~12+GB
+        # 各自峰值 ~5-8GB，两路互不干扰
         with _cf.ThreadPoolExecutor(max_workers=2) as ex:
             fut0 = ex.submit(_prove_layers, gpu0_layers, cwd0, env0)
             fut1 = ex.submit(_prove_layers, gpu1_layers, cwd1, env1)
@@ -541,6 +554,7 @@ def _get_zkllm_result(proof_id: str) -> Optional[Dict]:
 _STATUS_COLOR = {
     "✅": "#61d5c7", "❌": "#ff6b6b",
     "⏳": "#ffd166", "⚪": "#555",
+    "[见状态栏]": "#7aa2ff",
 }
 
 _VTL_CSS = """
@@ -613,47 +627,69 @@ _VTL_MODAL_JS = ""
 
 
 def _build_proofs_dict(zac: Dict, sc: Dict, corpus_proofs: List, proof_id: str,
-                       zkllm_result: Optional[Dict]) -> Dict:
+                       zkllm_result: Optional[Dict],
+                       fs_layers: list = None, mode: str = "random") -> Dict:
     """返回 key → {title, prover, verifier, data} 的证明详情字典，用于嵌入按钮 data 属性"""
     N = sc.get("N", len(_corpus)) if sc else len(_corpus)
+    is_full = (mode == "full")
+
+    # zkllm_query 描述：根据实际选中层动态生成
+    if fs_layers is not None:
+        if is_full:
+            layer_desc = "全量 36 层（层0-35）"
+            mode_note  = "【全量模式】后台异步验证，不阻塞检索响应"
+        else:
+            layer_desc = f"Fiat-Shamir 选中 K={len(fs_layers)} 层：{fs_layers}"
+            mode_note  = (f"【随机抽样】challenge = SHA256(query || proof_id)\n"
+                          f"安全性: P(检出 | L层被篡改) ≥ 1 - C(36-L,{K_LAYERS_TEXT})/C(36,{K_LAYERS_TEXT})")
+    else:
+        layer_desc = f"后 K={K_LAYERS_TEXT} 层"
+        mode_note  = ""
+
     proofs = {
         "zkllm_corpus": {
-            "title": "zkLLM Sumcheck 证明（语料库侧）",
+            "title": "zkLLM 证明（语料库侧·完整五组件）",
             "prover": (
                 f"离线预计算 · corpus_proof_{{image_id}}.json\n"
-                f"对每张检索图像的后 K={K_LAYERS_IMG} 层（层31-35）分别提供：\n"
-                f"  · FFN (SwiGLU) Sumcheck 证明\n"
-                f"  · Self-Attn linear 投影 Sumcheck 证明\n"
-                f"每层证明绑定权重承诺（KZG on BLS12-381），\n"
-                f"与 load_jina_weights.py 生成的 commitment 对应。"
+                f"对每张图像证明完整前向传播链：\n"
+                f"  · Conv3d Patch Embedding       (IPA on BLS12-381)\n"
+                f"  · ViT 32 Blocks               (IPA × 9/块，Window+Full Attn)\n"
+                f"  · PatchMerger                 (IPA × 3)\n"
+                f"  · Pooling: MeanPool Sumcheck + L2Norm 代数约束\n"
+                f"  · LLM 36 Decoder Layers       (IPA × 6/层)\n"
+                f"证明绑定公开权重承诺（ppgen + commit-param 离线生成）。"
             ),
             "verifier": (
-                f"验证图像 embedding 由 jina-v4 的后 {K_LAYERS_IMG} 层（层31-35）\n"
-                f"正确的前向推理产生，Prover 无法伪造。\n\n"
-                f"验证步骤：\n"
-                f"  1. 接收每层 Sumcheck 证明\n"
-                f"  2. 验证多项式求值一致性\n"
-                f"  3. 对照已发布的权重承诺"
+                f"验证图像 embedding 由 jina-v4 完整五组件正确产生：\n"
+                f"  1. Conv3d IPA binding check\n"
+                f"  2. ViT 32块 IPA binding check (批量验证 288 个 proof)\n"
+                f"  3. PatchMerger IPA binding check\n"
+                f"  4. Pooling Sumcheck + L2Norm 约束验证\n"
+                f"  5. LLM 全量36层 IPA binding check\n"
+                f"Prover 无法替换任意组件的计算结果。"
             ),
             "data": None,
         },
         "zkllm_query": {
-            "title": "zkLLM Sumcheck 证明（查询侧）",
+            "title": f"zkLLM 证明（查询侧·{'全量' if is_full else 'Fiat-Shamir'}）",
             "prover": (
                 f"实时后台计算 · zkllm_proof_{proof_id}.json\n"
-                f"对查询文本 embedding 的后 K={K_LAYERS_TEXT} 层（层33-35）提供：\n"
-                f"  · FFN (SwiGLU) Sumcheck 证明\n"
-                f"  · Self-Attn linear 投影 Sumcheck 证明\n"
-                f"  · GQA zkAttn Softmax Sumcheck 证明（16 Q头 / 2 KV头）\n"
-                f"查询激活零填充到 seq={SEQ_LEN_PAD}（与语料库侧策略对称），\n"
-                f"满足 NTT 约束 seq²=2²⁰=tLookup 表大小。\n"
-                f"使用与语料库侧相同的模型权重承诺。"
+                f"{layer_desc}\n\n"
+                f"每层证明：\n"
+                f"  · FFN (SwiGLU gate+up+down) Sumcheck\n"
+                f"  · Self-Attn linear Q/K/V 投影 Sumcheck\n"
+                f"  · GQA zkAttn Softmax Sumcheck（16 Q头 / 2 KV头）\n"
+                f"激活零填充到 seq={SEQ_LEN_PAD}，满足 NTT 约束 seq²=2²⁰。\n\n"
+                f"{mode_note}"
             ),
             "verifier": (
-                f"验证查询 embedding 由同一 jina-v4 正确推理。\n"
-                f"确保查询与文档在同一特征空间下计算相似度，\n"
-                f"Prover 无法用另一个模型替换查询编码器。\n\n"
-                f"proof_id = {proof_id}"
+                f"验证查询 embedding 由同一 jina-v4 正确推理，\n"
+                f"确保查询与文档在同一特征空间下计算相似度。\n\n"
+                + (f"Fiat-Shamir 层选择（防 Prover 预选有利层）：\n"
+                   f"  challenge = SHA256({proof_id[:8]}…)\n"
+                   f"  选中层: {fs_layers}\n" if not is_full and fs_layers else
+                   f"全量 36 层，后台异步验证，结果通过状态栏更新。\n")
+                + f"\nproof_id = {proof_id}"
             ),
             "data": None,
         },
@@ -682,14 +718,15 @@ def _build_proofs_dict(zac: Dict, sc: Dict, corpus_proofs: List, proof_id: str,
                 f"提交内容：\n"
                 f"  · ZAC Root cm_hex（G₁ 点，语料库构建时公开发布）\n"
                 f"  · 聚合成员证明 π̂（48 字节，1 个 G₁ 点）\n"
-                f"  · {TOP_K} 张图像的 SHA-256 哈希 → BF 向量 → 承诺\n\n"
+                f"  · {TOP_K} 张图像的 SHA256(image ∥ embedding) → BF → 承诺\n\n"
                 f"O(1) 证明大小，与语料库规模 N 无关。"
             ),
             "verifier": (
                 f"持有发布的 cm_hex，验证配对方程：\n\n"
                 f"  e(cm, Σ tᵢ·g₂^{{α^i}}) = e(π̂, g₂) · gT^{{...}}\n\n"
                 f"通过则确认：返回的 {TOP_K} 张图像均属于\n"
-                f"构建时已承诺的原始语料库，未被替换或篡改。"
+                f"构建时已承诺的原始语料库，未被替换或篡改。\n"
+                f"（绑定 embedding：ZAC 承诺的是 SHA256(image∥embedding)）"
             ),
             "data": None,
         },
@@ -716,23 +753,44 @@ def _build_proofs_dict(zac: Dict, sc: Dict, corpus_proofs: List, proof_id: str,
             f"prove_ms={zac.get('prove_ms')}  verify_ms={zac.get('verify_ms')}"
         )
     if corpus_proofs:
-        ok_n = sum(1 for cp in corpus_proofs if cp.get("verified"))
-        lines = [f"corpus proofs: {ok_n}/{len(corpus_proofs)} verified"]
+        ok_n = sum(1 for cp in corpus_proofs if cp.get("all_ok"))
+        lines = [f"corpus proofs: {ok_n}/{len(corpus_proofs)} 全量验证通过"]
         for i, cp in enumerate(corpus_proofs):
-            if cp.get("status") == "completed":
-                iid = cp.get("image_id", f"img{i+1}")
-                ms  = cp.get("elapsed_ms", 0)
-                lines.append(f"  [{i+1}] {iid}: {'✓' if cp.get('verified') else '✗'} {ms//1000}s")
+            if cp.get("image_id"):
+                iid  = cp.get("image_id", f"img{i+1}")
+                ms   = cp.get("elapsed_ms", 0)
+                ov   = "✓" if cp.get("all_ok") else "✗"
+                res  = cp.get("results", {})
+                c3ok = "✓" if res.get("conv3d", {}).get("all_ok") else "✗"
+                vp   = res.get("vit", {}).get("n_pass", "?")
+                vt   = res.get("vit", {}).get("n_total", 32)
+                pmok = "✓" if res.get("patchmerger", {}).get("all_ok") else "✗"
+                pool = "✓" if res.get("pooling", {}).get("all_ok") else "✗"
+                lp   = res.get("llm_layers", {}).get("n_pass", "?")
+                lt   = res.get("llm_layers", {}).get("n_total", 36)
+                lines.append(
+                    f"  [{i+1}] {iid[:35]}: {ov}  {ms//1000}s\n"
+                    f"       Conv3d:{c3ok} ViT:{vp}/{vt} PM:{pmok} Pool:{pool} LLM:{lp}/{lt}"
+                )
         proofs["zkllm_corpus"]["data"] = "\n".join(lines)
     if zkllm_result:
-        ok = zkllm_result.get("verified", False)
-        ms = zkllm_result.get("elapsed_ms", 0)
-        layers = zkllm_result.get("layers", [])
-        detail = " ".join(f"L{r['layer']}:{'✓' if r['verified'] else '✗'}" for r in layers)
+        ok  = zkllm_result.get("verified", False)
+        ms  = zkllm_result.get("elapsed_ms", 0)
+        lrs = zkllm_result.get("layers", [])
+        sel = zkllm_result.get("fiat_shamir_layers", fs_layers or [])
+        mode_line = "全量验证  层0-35" if is_full else f"Fiat-Shamir  选中层: {sel}"
+        detail_lines = []
+        for r in lrs:
+            li  = r["layer"]
+            ffn = "✓" if r.get("ffn_rc") == 0 else "✗"
+            lin = "✓" if r.get("attn_linear_rc") == 0 else "✗"
+            sfx = "✓" if r.get("attn_sfx_rc") == 0 else "✗"
+            detail_lines.append(f"  L{li:2d}: FFN {ffn}  Attn-linear {lin}  zkAttn {sfx}")
         proofs["zkllm_query"]["data"] = (
             f"proof_id={proof_id}\n"
+            f"{mode_line}\n"
             f"verified={ok}  elapsed={ms/1000:.1f}s\n"
-            f"{detail}"
+            + ("\n".join(detail_lines) if detail_lines else "(验证中…)")
         )
 
     return proofs
@@ -750,7 +808,7 @@ def _dot_style(icon: str) -> str:
 def _proof_tag_html(name: str, icon: str, detail: Dict) -> str:
     """证明 badge；将 detail dict JSON 编码后嵌入 data-proof-json 属性（由全局 JS 读取）"""
     c = _STATUS_COLOR.get(icon, "#555")
-    label = "验证中" if icon == "⏳" else ("通过" if icon == "✅" else ("失败" if icon == "❌" else "待验证"))
+    label = "验证中" if icon == "⏳" else ("通过" if icon == "✅" else ("失败" if icon == "❌" else ("见状态栏" if icon == "[见状态栏]" else "待验证")))
     spinner = '<span class="_sp"></span>' if icon == "⏳" else ""
     # HTML-escape the JSON so it's safe inside a double-quoted attribute
     data_attr = _html.escape(json.dumps(detail), quote=True) if detail else ""
@@ -809,20 +867,22 @@ def _query_steps(
     results_icon="⚪", results_t="—",
     verify_icon="⚪", verify_t="—",
     gen_icon="⚪", gen_t="—",
+    fs_info="",   # Fiat-Shamir 层信息，例 "层[3,8,15,22,29,35]" 或 "全量36层"
 ) -> List[Dict]:
+    encode_time = f"{encode_t}  ·  {fs_info}".strip(" ·") if fs_info else encode_t
     return [
-        {"icon": input_icon,    "name": "用户输入问题",      "time": input_t,    "proofs": []},
-        {"icon": encode_icon,   "name": "向量编码 (jina-v4)", "time": encode_t,
+        {"icon": input_icon,    "name": "用户输入问题",      "time": input_t,     "proofs": []},
+        {"icon": encode_icon,   "name": "向量编码 (jina-v4)", "time": encode_time,
          "proofs": [("zkLLM query", zkllm_q_icon, "zkllm_query")]},
         {"icon": retrieve_icon, "name": "精确检索 (FAISS)",   "time": retrieve_t,
          "proofs": [
-             ("zkLLM corpus", zkllm_c_icon, "zkllm_corpus"),
-             ("Sumcheck 内积", sc_icon,      "sumcheck"),
-             ("ZAC 成员证明", zac_icon,      "zac"),
+             ("zkLLM corpus (全5组件)", zkllm_c_icon, "zkllm_corpus"),
+             ("Sumcheck 内积",          sc_icon,       "sumcheck"),
+             ("ZAC 成员证明",           zac_icon,      "zac"),
          ]},
-        {"icon": results_icon, "name": "返回检索结果",        "time": results_t,  "proofs": []},
-        {"icon": verify_icon,  "name": "等待全部验证通过",    "time": verify_t,   "proofs": []},
-        {"icon": gen_icon,     "name": "大模型生成回答",      "time": gen_t,      "proofs": []},
+        {"icon": results_icon, "name": "返回检索结果",        "time": results_t,   "proofs": []},
+        {"icon": verify_icon,  "name": "验证通过 / 阻止生成", "time": verify_t,    "proofs": []},
+        {"icon": gen_icon,     "name": "大模型生成回答",      "time": gen_t,       "proofs": []},
     ]
 
 
@@ -905,40 +965,55 @@ def answer_html(text: str = "", loading: bool = False, blocked: bool = False) ->
 # 主查询流程
 # Yields: (gallery, vtl_html, answer_html_str, proof_id_state)
 # ─────────────────────────────────────────────────────────────────────────────
-def on_query(query: str):
+def on_query(query: str, mode: str = "随机抽样 (K=6层, ~46s)"):
     if not query.strip():
         yield [], build_vtl_html(_query_steps()), answer_html(), ""
         return
 
+    is_full  = "全量" in mode
     proof_id = str(uuid.uuid4())[:8]
     print(f"\n{'='*60}")
-    print(f"[Query] 新查询  proof_id={proof_id}  query={query[:80]!r}")
+    print(f"[Query] 新查询  proof_id={proof_id}  "
+          f"mode={'全量36层' if is_full else 'Fiat-Shamir K=6'}  query={query[:80]!r}")
     print(f"{'='*60}")
 
-    # 共享证明数据（随步骤更新）
-    pdata = {"zac": {}, "sc": {}, "corpus_proofs": [], "zkllm_result": None}
+    # 共享证明数据（随步骤更新）；fs_layers/fs_info 在 Step 0 赋值，之后由 vtl() 读取
+    pdata     = {"zac": {}, "sc": {}, "corpus_proofs": [], "zkllm_result": None}
+    fs_layers = None
+    fs_info   = ""
 
     def vtl(**kw):
-        steps = _query_steps(**kw)
-        proofs = _build_proofs_dict(pdata["zac"], pdata["sc"], pdata["corpus_proofs"],
-                                    proof_id, pdata["zkllm_result"])
+        steps  = _query_steps(fs_info=fs_info, **kw)
+        proofs = _build_proofs_dict(
+            pdata["zac"], pdata["sc"], pdata["corpus_proofs"],
+            proof_id, pdata["zkllm_result"],
+            fs_layers=fs_layers, mode="full" if is_full else "random",
+        )
         return build_vtl_html(steps, proofs)
 
     def y(gallery_v, ah, **kw):
         return gallery_v, vtl(**kw), ah, proof_id
 
-    # ── Step 0: Fiat-Shamir 层挑战 + 启动 zkLLM query proof 后台线程
-    fs_layers = _fiat_shamir_layers(query, proof_id, K=K_LAYERS_TEXT)
-    print(f"[Fiat-Shamir] 选中层: {fs_layers}  (challenge=SHA256({query[:20]!r}|{proof_id}))")
-    act_ready = threading.Event()
+    # ── Step 0: 层挑战策略 + 启动 zkLLM query proof 后台线程 ──────────────────
+    if is_full:
+        fs_layers = list(range(36))
+        fs_info   = "全量 36层 (后台异步)"
+    else:
+        fs_layers = _fiat_shamir_layers(query, proof_id, K=K_LAYERS_TEXT)
+        fs_info   = f"Fiat-Shamir → 层{fs_layers}"
+    print(f"[Step 0] {'全量36层' if is_full else f'Fiat-Shamir层: {fs_layers}'}  proof_id={proof_id}")
+
+    act_ready    = threading.Event()
     zkllm_thread = threading.Thread(
         target=_run_zkllm_query_bg, args=(proof_id, act_ready, fs_layers), daemon=True)
-    zkllm_thread.start()
-    yield y([], answer_html(),
-            input_icon="✅", encode_icon="⏳", zkllm_q_icon="⏳")
+    # 全量模式：延迟到 MiniCPM 生成完成后再启动（避免 GPU1 内存竞争）
+    # 随机模式：立即启动，Step 6 会 join 等待完成
+    if not is_full:
+        zkllm_thread.start()
+    yield y([], answer_html(), input_icon="✅", encode_icon="⏳", zkllm_q_icon="⏳")
 
-    # ── Step 1: 向量编码（同时捕获 hook 激活并保存，完成后 act_ready.set()）
-    t0 = time.perf_counter()
+    # ── Step 1: 向量编码（同时捕获 hook 激活，完成后 act_ready.set()）──────────
+    t0    = time.perf_counter()
     q_emb = embed_query_with_hooks(query, proof_id, act_ready, layers=fs_layers)
     enc_ms = round((time.perf_counter() - t0) * 1000, 1)
     yield y([], answer_html(),
@@ -946,20 +1021,20 @@ def on_query(query: str):
             encode_icon="✅", encode_t=f"{enc_ms:.0f}ms", zkllm_q_icon="⏳",
             retrieve_icon="⏳")
 
-    # ── Step 2: FAISS 检索
+    # ── Step 2: FAISS 检索 ────────────────────────────────────────────────────
     t0 = time.perf_counter()
     paths, _, emb_ids = faiss_search(q_emb)
     faiss_ms = round((time.perf_counter() - t0) * 1000, 1)
-    images = [p for p in paths if p and Path(p).exists()]
+    images   = [p for p in paths if p and Path(p).exists()]
     yield y(images, answer_html(),
             input_icon="✅",
             encode_icon="✅", encode_t=f"{enc_ms:.0f}ms", zkllm_q_icon="⏳",
             retrieve_icon="⏳", retrieve_t=f"{faiss_ms:.0f}ms",
             zkllm_c_icon="⏳", sc_icon="⏳", zac_icon="⏳")
 
-    # ── Step 3: zkLLM corpus proof 查询（离线预计算，直接读取）
+    # ── Step 3: zkLLM corpus proof（离线预计算，直接读取）────────────────────
     pdata["corpus_proofs"] = get_corpus_proofs(paths)
-    ok_n = sum(1 for cp in pdata["corpus_proofs"] if cp.get("verified") is True)
+    ok_n = sum(1 for cp in pdata["corpus_proofs"] if cp.get("all_ok") is True)
     zkllm_c_icon = "✅" if ok_n == TOP_K else ("❌" if ok_n == 0 else "⚠️")
     yield y(images, answer_html(),
             input_icon="✅",
@@ -967,42 +1042,73 @@ def on_query(query: str):
             retrieve_icon="⏳", retrieve_t=f"{faiss_ms:.0f}ms",
             zkllm_c_icon=zkllm_c_icon, sc_icon="⏳", zac_icon="⏳")
 
-    # ── Step 4: Sumcheck
+    # ── Step 4: Sumcheck ──────────────────────────────────────────────────────
     pdata["sc"] = run_sumcheck(q_emb)
-    sc_ok = pdata["sc"].get("verified", False)
-    sc_ms = pdata["sc"].get("prove_ms", 0) + pdata["sc"].get("verify_ms", 0)
+    sc_ok  = pdata["sc"].get("verified", False)
     yield y(images, answer_html(),
             input_icon="✅",
             encode_icon="✅", encode_t=f"{enc_ms:.0f}ms", zkllm_q_icon="⏳",
             retrieve_icon="⏳", retrieve_t=f"{faiss_ms:.0f}ms",
             zkllm_c_icon=zkllm_c_icon, sc_icon="✅" if sc_ok else "❌", zac_icon="⏳")
 
-    # ── Step 5: ZAC
+    # ── Step 5: ZAC ───────────────────────────────────────────────────────────
     pdata["zac"] = run_zac(paths, emb_ids)
-    zac_ok = pdata["zac"].get("verified", False) and not pdata["zac"].get("disabled")
-    zac_ms = pdata["zac"].get("prove_ms", 0) + pdata["zac"].get("verify_ms", 0)
-    zac_icon = "✅" if zac_ok else ("⚪" if pdata["zac"].get("disabled") else "❌")
+    zac_ok      = pdata["zac"].get("verified", False) and not pdata["zac"].get("disabled")
+    zac_icon_v  = "✅" if zac_ok else ("⚪" if pdata["zac"].get("disabled") else "❌")
     yield y(images, answer_html(),
             input_icon="✅",
             encode_icon="✅", encode_t=f"{enc_ms:.0f}ms", zkllm_q_icon="⏳",
             retrieve_icon="✅", retrieve_t=f"{faiss_ms:.0f}ms",
             zkllm_c_icon=zkllm_c_icon, sc_icon="✅" if sc_ok else "❌",
-            zac_icon=zac_icon,
-            results_icon="✅", verify_icon="⏳", verify_t="等待 zkLLM query…")
+            zac_icon=zac_icon_v,
+            results_icon="✅",
+            verify_icon="⏳", verify_t=("Phase 3 后台进行中…" if is_full else "等待 zkLLM query…"))
 
-    # ── Step 6: 等待 zkLLM query proof 完成（最多 180s）
-    print(f"[Step 6] 等待 zkLLM query proof 线程（最多 180s）…")
-    zkllm_thread.join(timeout=180)
-    pdata["zkllm_result"] = _get_zkllm_result(proof_id)
-    zkllm_ok = pdata["zkllm_result"] is not None and pdata["zkllm_result"].get("verified", False)
-    zkllm_q_icon_final = "✅" if zkllm_ok else "❌"
-    zkllm_ms = pdata["zkllm_result"].get("elapsed_ms", 0) if pdata["zkllm_result"] else 0
-
-    all_ok = sc_ok and zac_ok and zkllm_ok and (ok_n == TOP_K)
-
-    verify_icon = "✅" if all_ok else "❌"
-    verify_t = f"zkLLM {zkllm_ms//1000}s · {'全部通过' if all_ok else '存在失败'}"
-    print(f"[Step 6] zkLLM_query={'✅' if zkllm_ok else '❌'}  sc={'✅' if sc_ok else '❌'}  zac={'✅' if zac_ok else '❌'}  corpus={ok_n}/{TOP_K}  all_ok={all_ok}")
+    # ── Step 6: zkLLM query proof ─────────────────────────────────────────────
+    if is_full:
+        # 全量模式：Phase 3 后台异步，不阻塞响应流程
+        # 生成阻断逻辑仅依赖 Phase 1 (ZAC) + Phase 2 (Sumcheck) + corpus proofs
+        print(f"[Step 6] 全量模式：Phase 3 后台运行中，不等待")
+        zkllm_q_icon_final = "[见状态栏]"
+        all_ok      = sc_ok and zac_ok and (ok_n == TOP_K)
+        verify_icon_v = "✅" if all_ok else "❌"
+        verify_t_str  = (
+            f"Phase 1+2 {'✅' if all_ok else '❌'} · Phase 3 全量后台异步…\n"
+            f"sc={'✅' if sc_ok else '❌'}  zac={'✅' if zac_ok else '❌'}  corpus={ok_n}/{TOP_K}"
+        )
+        print(f"[Step 6] sc={sc_ok}  zac={zac_ok}  corpus={ok_n}/{TOP_K}  all_ok={all_ok}")
+    else:
+        # 随机抽样模式：轮询等待 zkLLM（最多 180s），每 5s yield 一次保持 SSE 连接活跃。
+        # 直接 join(timeout=180) 会导致 ~90s 无 yield，Gradio SSE 超时断连 → 页面"刷新"。
+        print(f"[Step 6] Fiat-Shamir 模式：轮询等待 zkLLM query proof 线程（最多 180s）…")
+        _waited = 0
+        while zkllm_thread.is_alive() and _waited < 180:
+            zkllm_thread.join(timeout=5)
+            _waited += 5
+            if zkllm_thread.is_alive():
+                yield y(images, answer_html(),
+                        input_icon="✅",
+                        encode_icon="✅", encode_t=f"{enc_ms:.0f}ms",
+                        zkllm_q_icon="⏳",
+                        retrieve_icon="✅", retrieve_t=f"{faiss_ms:.0f}ms",
+                        zkllm_c_icon=zkllm_c_icon, sc_icon="✅" if sc_ok else "❌",
+                        zac_icon=zac_icon_v,
+                        results_icon="✅",
+                        verify_icon="⏳", verify_t=f"等待 zkLLM query… ({_waited}s)")
+        pdata["zkllm_result"] = _get_zkllm_result(proof_id)
+        zkllm_ok = (pdata["zkllm_result"] is not None
+                    and pdata["zkllm_result"].get("verified", False))
+        zkllm_q_icon_final = "✅" if zkllm_ok else "❌"
+        zkllm_ms = (pdata["zkllm_result"].get("elapsed_ms", 0)
+                    if pdata["zkllm_result"] else 0)
+        all_ok        = sc_ok and zac_ok and zkllm_ok and (ok_n == TOP_K)
+        verify_icon_v = "✅" if all_ok else "❌"
+        verify_t_str  = (
+            f"zkLLM {zkllm_ms//1000}s · {'全部通过' if all_ok else '存在失败'}\n"
+            f"层{fs_layers}  sc={'✅' if sc_ok else '❌'}  zac={'✅' if zac_ok else '❌'}  corpus={ok_n}/{TOP_K}"
+        )
+        print(f"[Step 6] zkLLM_q={'✅' if zkllm_ok else '❌'}  sc={'✅' if sc_ok else '❌'}"
+              f"  zac={'✅' if zac_ok else '❌'}  corpus={ok_n}/{TOP_K}  all_ok={all_ok}")
 
     yield y(images, answer_html(),
             input_icon="✅",
@@ -1010,11 +1116,11 @@ def on_query(query: str):
             zkllm_q_icon=zkllm_q_icon_final,
             retrieve_icon="✅", retrieve_t=f"{faiss_ms:.0f}ms",
             zkllm_c_icon=zkllm_c_icon, sc_icon="✅" if sc_ok else "❌",
-            zac_icon=zac_icon,
-            results_icon="✅", verify_icon=verify_icon, verify_t=verify_t,
+            zac_icon=zac_icon_v,
+            results_icon="✅", verify_icon=verify_icon_v, verify_t=verify_t_str,
             gen_icon="⏳")
 
-    # ── Step 7: 大模型生成（仅全部验证通过）
+    # ── Step 7: 大模型生成 ────────────────────────────────────────────────────
     if not all_ok:
         yield y(images, answer_html(blocked=True),
                 input_icon="✅",
@@ -1022,8 +1128,8 @@ def on_query(query: str):
                 zkllm_q_icon=zkllm_q_icon_final,
                 retrieve_icon="✅", retrieve_t=f"{faiss_ms:.0f}ms",
                 zkllm_c_icon=zkllm_c_icon, sc_icon="✅" if sc_ok else "❌",
-                zac_icon=zac_icon,
-                results_icon="✅", verify_icon=verify_icon, verify_t=verify_t,
+                zac_icon=zac_icon_v,
+                results_icon="✅", verify_icon=verify_icon_v, verify_t=verify_t_str,
                 gen_icon="❌", gen_t="验证未通过，已阻止")
         return
 
@@ -1033,15 +1139,43 @@ def on_query(query: str):
             zkllm_q_icon=zkllm_q_icon_final,
             retrieve_icon="✅", retrieve_t=f"{faiss_ms:.0f}ms",
             zkllm_c_icon=zkllm_c_icon, sc_icon="✅" if sc_ok else "❌",
-            zac_icon=zac_icon,
-            results_icon="✅", verify_icon=verify_icon, verify_t=verify_t,
+            zac_icon=zac_icon_v,
+            results_icon="✅", verify_icon=verify_icon_v, verify_t=verify_t_str,
             gen_icon="⏳")
 
     print(f"[Step 7] 生成回答  n_images={len(images)}")
-    t0 = time.perf_counter()
-    ans = run_generation(query, images)
+    t0     = time.perf_counter()
+    ans    = run_generation(query, images)
     gen_ms = round((time.perf_counter() - t0) * 1000, 1)
     print(f"[Step 7] 生成完成  {gen_ms/1000:.1f}s  answer_len={len(ans)}")
+
+    # 释放 MiniCPM 在 GPU1 上的 KV cache / 激活缓存池，让 CUDA 空闲内存对子进程可见
+    import torch as _torch
+    _torch.cuda.empty_cache()
+
+    # 全量模式：MiniCPM 生成完毕，GPU1 KV cache 已释放，现在启动 zkLLM 后台线程
+    if is_full:
+        print(f"[Step 7→8] 启动全量 zkLLM 后台线程（GPU1 已空闲）")
+        zkllm_thread.start()
+        # 存储查询最终状态，供 timer 回调在 zkLLM 完成后重建 VTL
+        _query_final_state[proof_id] = {
+            "pdata":       {"zac": pdata["zac"], "sc": pdata["sc"],
+                            "corpus_proofs": pdata["corpus_proofs"]},
+            "fs_info":     fs_info,
+            "fs_layers":   fs_layers,
+            "icons": {
+                "input_icon":    "✅",
+                "encode_icon":   "✅", "encode_t":   f"{enc_ms:.0f}ms",
+                "retrieve_icon": "✅", "retrieve_t": f"{faiss_ms:.0f}ms",
+                "zkllm_c_icon":  zkllm_c_icon,
+                "sc_icon":       "✅" if sc_ok else "❌",
+                "zac_icon":      zac_icon_v,
+                "results_icon":  "✅",
+                "gen_icon":      "✅", "gen_t": f"{gen_ms/1000:.1f}s",
+                "verify_icon":   verify_icon_v,
+                "verify_t":      verify_t_str,
+            },
+        }
 
     yield y(images, answer_html(ans),
             input_icon="✅",
@@ -1049,8 +1183,8 @@ def on_query(query: str):
             zkllm_q_icon=zkllm_q_icon_final,
             retrieve_icon="✅", retrieve_t=f"{faiss_ms:.0f}ms",
             zkllm_c_icon=zkllm_c_icon, sc_icon="✅" if sc_ok else "❌",
-            zac_icon=zac_icon,
-            results_icon="✅", verify_icon=verify_icon, verify_t=verify_t,
+            zac_icon=zac_icon_v,
+            results_icon="✅", verify_icon=verify_icon_v, verify_t=verify_t_str,
             gen_icon="✅", gen_t=f"{gen_ms/1000:.1f}s")
 
 
@@ -1199,8 +1333,7 @@ CSS = """
 def build_ui():
     with gr.Blocks(title="可验证多模态检索系统", js=PAGE_JS) as demo:
         gr.Markdown(
-            "# 可验证多模态检索系统\n"
-            "**ZAC + Global Batch Sumcheck + zkLLM · 端到端可验证检索**"
+            "# 面向多模态语义数据的可验证检索机制-实现示例"
         )
 
         # 静态：弹窗 overlay（只渲染一次，modal HTML + CSS）
@@ -1216,6 +1349,20 @@ def build_ui():
                     # ── 左列：检索过程 ────────────────────────────────────────
                     with gr.Column(scale=2, elem_classes="left-col"):
                         gr.Markdown("### 检索过程")
+
+                        # Phase 3 查询侧验证模式选择
+                        mode_radio = gr.Radio(
+                            choices=["随机抽样 (K=6层, ~30s)", "全量验证 (36层, ~3.5min)"],
+                            value="随机抽样 (K=6层, ~46s)",
+                            label="zkLLM 查询侧验证模式",
+                            info=(
+                                "随机：Fiat-Shamir 从36层中随机挑战K=6层，验证完成后返回结果。\n"
+                                "全量：验证全部36层，Phase 1+2通过即返回结果，Phase 3后台异步运行。"
+                            ),
+                        )
+                        # Phase 3 全量模式异步状态栏（timer 更新）
+                        phase3_status = gr.HTML("")
+
                         # submit_btn 将按钮渲染在文本框内部右侧
                         q_input = gr.Textbox(
                             placeholder="输入查询，例：尼康Z7的电子减震功能在哪些场景不可用？",
@@ -1237,19 +1384,59 @@ def build_ui():
                         # 动态：只含时间轴节点（CSS/modal 已在页面级静态组件里）
                         vtl_html = gr.HTML(build_vtl_html(_query_steps()))
 
-                # ── Timer：轮询 zkLLM 完成状态
-                zkllm_timer = gr.Timer(value=3, active=False)
+                # ── Timer：轮询 Phase 3 完成状态（全量模式异步更新）──────────
+                zkllm_timer = gr.Timer(value=4, active=False)
 
-                def _auto_refresh(proof_id: str):
+                def _phase3_status_refresh(proof_id: str):
+                    """Timer 回调：检查 Phase 3 状态，更新状态栏并控制 Timer 激活"""
                     if not proof_id:
-                        return gr.update(active=False)
-                    return gr.update(active=_get_zkllm_result(proof_id) is None)
+                        return "", gr.update(active=False), gr.update()
+                    result = _get_zkllm_result(proof_id)
+                    if result is None:
+                        return (
+                            '<div style="color:#ffd166;font-size:0.83em;padding:3px 8px">'
+                            '<span class="_sp"></span> Phase 3 全量验证后台进行中…</div>'
+                        ), gr.update(active=True), gr.update()
+                    ok  = result.get("verified", False)
+                    ms  = result.get("elapsed_ms", 0)
+                    lrs = result.get("layers", [])
+                    n_ok = sum(1 for r in lrs if r.get("verified"))
+                    sel  = result.get("fiat_shamir_layers", [])
+                    c  = "#61d5c7" if ok else "#ff6b6b"
+                    ic = "✅" if ok else "❌"
+                    mode_tag = "全量36层" if len(sel) == 36 else f"Fiat-Shamir 层{sel}"
+                    phase3_html = (
+                        f'<div style="color:{c};font-size:0.83em;padding:3px 8px">'
+                        f'{ic} Phase 3 完成  {n_ok}/{len(lrs)} 层通过  '
+                        f'耗时 {ms//1000}s  {mode_tag}</div>'
+                    )
+                    # 重建 VTL 面板（更新 zkllm_q 和 verify 图标）
+                    state = _query_final_state.get(proof_id)
+                    if state:
+                        icons = dict(state["icons"])
+                        icons["zkllm_q_icon"] = "[见状态栏]"
+                        # 重新计算综合验证图标/耗时
+                        _all_ok = ok and icons.get("sc_icon") == "✅" and icons.get("zac_icon") == "✅"
+                        icons["verify_icon"] = "✅" if _all_ok else ("❌" if not ok else "⚠️")
+                        icons["verify_t"]    = f"{ms//1000}s"
+                        steps  = _query_steps(fs_info=state["fs_info"], **icons)
+                        proofs = _build_proofs_dict(
+                            state["pdata"]["zac"], state["pdata"]["sc"],
+                            state["pdata"]["corpus_proofs"],
+                            proof_id, result,
+                            fs_layers=state["fs_layers"], mode="full",
+                        )
+                        vtl_updated = build_vtl_html(steps, proofs)
+                    else:
+                        vtl_updated = gr.update()
+                    return phase3_html, gr.update(active=False), vtl_updated
 
-                zkllm_timer.tick(fn=_auto_refresh, inputs=[proof_id_state],
-                                 outputs=[zkllm_timer])
+                zkllm_timer.tick(fn=_phase3_status_refresh,
+                                 inputs=[proof_id_state],
+                                 outputs=[phase3_status, zkllm_timer, vtl_html])
 
                 outputs = [gallery, vtl_html, ans_html, proof_id_state]
-                q_input.submit(fn=on_query, inputs=[q_input], outputs=outputs)
+                q_input.submit(fn=on_query, inputs=[q_input, mode_radio], outputs=outputs)
                 proof_id_state.change(
                     fn=lambda pid: gr.update(active=bool(pid)),
                     inputs=[proof_id_state], outputs=[zkllm_timer],

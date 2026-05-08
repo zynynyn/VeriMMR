@@ -1,17 +1,18 @@
 {
   "meanpool_ok": true,
-  "l2norm_ok": "True",
-  "all_ok": "True",
+  "l2norm_ok": true,
+  "all_ok": true,
   "K": 501,
   "meanpool": {
     "ok": true,
     "K": 501
   },
   "l2norm": {
-    "ok": "True",
-    "rms_inv_q": 64,
-    "norm": 1017.6470594005563,
-    "max_error": 0.0005417969310479859,
-    "error_bound": 0.0013560621510107518
+    "ok": true,
+    "sq_norm": "4447891915147345",
+    "r_hat_int": 276593907594,
+    "constraint_error": "1178165508402290209640428964",
+    "tolerance": "1230259792731635497191244308",
+    "scheme": "algebraic_constraint_v2"
   }
 }

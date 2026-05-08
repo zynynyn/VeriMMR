@@ -52,3 +52,10 @@ zkllm-workdir/
 
 # Archive of original UltraRAG files (not part of this project)
 _archive/
+
+# 论文草稿、实验数据、实现记录（本地保留，不上传）
+notes/
+
+# 实验日志
+logs/
+nohup.out

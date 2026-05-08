@@ -1533,3 +1533,86 @@ PatchMerger proof: ✓ PASS  (3167ms  fold=3/3  binding=3/3)
   进度: 19/20  通过: 19  均值: 1328s/图  预计剩余: 0h22m
 
 [Sun_et_al._-_2024_-_zkLLM_Zero_Knowledge] 开始全量证明  gpu=0
+  [hook] 激活捕获完成  1862ms
+Conv3d embed proof: ✓ PASS  (893ms  fold=✓  binding=✓)
+  [conv3d] ✓  893ms
+  Block 0: ✓ PASS  (24586ms  fold=9/9  binding=9/9)
+  Block 1: ✓ PASS  (25168ms  fold=9/9  binding=9/9)
+  Block 2: ✓ PASS  (24848ms  fold=9/9  binding=9/9)
+  Block 3: ✓ PASS  (25030ms  fold=9/9  binding=9/9)
+  Block 4: ✓ PASS  (24535ms  fold=9/9  binding=9/9)
+  Block 5: ✓ PASS  (25621ms  fold=9/9  binding=9/9)
+  Block 6: ✓ PASS  (24942ms  fold=9/9  binding=9/9)
+  Block 7: ✓ PASS  (38005ms  fold=9/9  binding=9/9)
+  Block 8: ✓ PASS  (24633ms  fold=9/9  binding=9/9)
+  Block 9: ✓ PASS  (24981ms  fold=9/9  binding=9/9)
+  Block 10: ✓ PASS  (25190ms  fold=9/9  binding=9/9)
+  Block 11: ✓ PASS  (25613ms  fold=9/9  binding=9/9)
+  Block 12: ✓ PASS  (25298ms  fold=9/9  binding=9/9)
+  Block 13: ✓ PASS  (24659ms  fold=9/9  binding=9/9)
+  Block 14: ✓ PASS  (24492ms  fold=9/9  binding=9/9)
+  Block 15: ✓ PASS  (37778ms  fold=9/9  binding=9/9)
+  Block 16: ✓ PASS  (24799ms  fold=9/9  binding=9/9)
+  Block 17: ✓ PASS  (25181ms  fold=9/9  binding=9/9)
+  Block 18: ✓ PASS  (24760ms  fold=9/9  binding=9/9)
+  Block 19: ✓ PASS  (26055ms  fold=9/9  binding=9/9)
+  Block 20: ✓ PASS  (25873ms  fold=9/9  binding=9/9)
+  Block 21: ✓ PASS  (25585ms  fold=9/9  binding=9/9)
+  Block 22: ✓ PASS  (25257ms  fold=9/9  binding=9/9)
+  Block 23: ✓ PASS  (38599ms  fold=9/9  binding=9/9)
+  Block 24: ✓ PASS  (26143ms  fold=9/9  binding=9/9)
+  Block 25: ✓ PASS  (26067ms  fold=9/9  binding=9/9)
+  Block 26: ✓ PASS  (25601ms  fold=9/9  binding=9/9)
+  Block 27: ✓ PASS  (24979ms  fold=9/9  binding=9/9)
+  Block 28: ✓ PASS  (25316ms  fold=9/9  binding=9/9)
+  Block 29: ✓ PASS  (25614ms  fold=9/9  binding=9/9)
+  Block 30: ✓ PASS  (25489ms  fold=9/9  binding=9/9)
+  Block 31: ✓ PASS  (37281ms  fold=9/9  binding=9/9)
+  [ViT 32 blocks] 32/32 通过
+PatchMerger proof: ✓ PASS  (3404ms  fold=3/3  binding=3/3)
+  [patchmerger] ✓  3404ms
+  [pooling] ✓
+  [LLM layer 0] ✓
+  [LLM layer 1] ✓
+  [LLM layer 2] ✓
+  [LLM layer 3] ✓
+  [LLM layer 4] ✓
+  [LLM layer 5] ✓
+  [LLM layer 6] ✓
+  [LLM layer 7] ✓
+  [LLM layer 8] ✓
+  [LLM layer 9] ✓
+  [LLM layer 10] ✓
+  [LLM layer 11] ✓
+  [LLM layer 12] ✓
+  [LLM layer 13] ✓
+  [LLM layer 14] ✓
+  [LLM layer 15] ✓
+  [LLM layer 16] ✓
+  [LLM layer 17] ✓
+  [LLM layer 18] ✓
+  [LLM layer 19] ✓
+  [LLM layer 20] ✓
+  [LLM layer 21] ✓
+  [LLM layer 22] ✓
+  [LLM layer 23] ✓
+  [LLM layer 24] ✓
+  [LLM layer 25] ✓
+  [LLM layer 26] ✓
+  [LLM layer 27] ✓
+  [LLM layer 28] ✓
+  [LLM layer 29] ✓
+  [LLM layer 30] ✓
+  [LLM layer 31] ✓
+  [LLM layer 32] ✓
+  [LLM layer 33] ✓
+  [LLM layer 34] ✓
+  [LLM layer 35] ✓
+  [LLM 36 layers] 36/36 通过
+  [Sun_et_al._-_2024_-_zkLLM_Zero] ✓ PASS  总耗时 1376799ms
+  进度: 20/20  通过: 20  均值: 1330s/图  预计剩余: 0h0m
+
+============================================================
+全量证明完成  通过 20/20
+总耗时: 26609s
+============================================================

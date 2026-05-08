@@ -4075,3 +4075,341 @@ GPU 模式（`open-ipa` C++ binary）oracle proof 生成降至 ~2s，Verifier cm
 | Verifier 存储 | `embedding.npy` 2.4 MB | `embedding_commitments.bin` 43 KB（57× 压缩） |
 | 信任假设 | 信任原始浮点矩阵 | 密码学 Binding（BLS12-381 DL 困难） |
 | Phase 3 绑定 | 无 | cm_i 结构与 Phase 3 承诺兼容，可扩展绑定 |
+
+---
+
+## Phase 9：L2Norm 代数约束补丁 + 语料库 20 张端到端验证（2026-05-04）
+
+### 9.1 L2Norm 代数约束实现（algebraic\_constraint\_v2）
+
+**问题**：`prove_pooling.py` 的 `_l2norm_prove()` 原仅做浮点量化误差界检查（`error ≤ bound`），且存在 `rms_inv_q=0` 下溢 bug（`norm ≈ 1.3e6` 时 `rms_inv × SCALE ≈ 0.05`，`round` 后 = 0）。
+
+**修复方案**（类比 RMSNorm Rescaling，参见 thesis §2.6.2 ⑤）：
+
+| 参数 | 定义 |
+|------|------|
+| `sq_norm` | $\sum_j p_{\mathrm{int}}[j]^2$（Python big int，避免 int64 溢出） |
+| `S_R` | $2^{48}$（$\hat{r}$ 量化尺度） |
+| `r_hat_int` | $\lfloor S_R \cdot \mathrm{SCALE} / \sqrt{\mathrm{sq\_norm}} \rceil$ |
+| 约束目标 | $\hat{r}^2 \cdot \mathrm{sq\_norm} \approx S_R^2 \cdot \mathrm{SCALE}^2$（$= 2^{128}$） |
+| 误差容限 | $2 S_R \cdot \mathrm{SCALE}^2 \approx 2^{97}$ |
+
+**dry-run 验证**（nikon/page\_0.jpg，K=641）：
+
+```json
+{"ok": true, "sq_norm": "8636580453039938849024",
+ "r_hat_int": 198494652, "constraint_error": "1325738151672063234656936488960",
+ "tolerance": "1714315036982458905060468486720", "scheme": "algebraic_constraint_v2"}
+```
+
+约束误差 / 容限 = 0.773 < 1，PASS。
+
+### 9.2 语料库全量 L2Norm 补丁（303 张）
+
+新建 `script/patch_l2norm_proofs.py`，双 GPU 并行对所有已有 `corpus_proof_*.json` 重新运行前向传播→计算 `p_int`→`_l2norm_prove()`→更新 `l2norm` 字段（不触碰 IPA proof .bin 文件）。
+
+| Worker | 处理量 | 耗时 | 结果 |
+|--------|:------:|:----:|:----:|
+| GPU0 | 152 张 | 69s（1m9s） | 152/152 PASS |
+| GPU1 | 151 张 | 69s（1m9s） | 151/151 PASS |
+| **合计** | **303 张** | **~70s（双并行）** | **303/303（100%）** |
+
+每张图前向传播约 400–500ms，`_l2norm_prove()` 计算约 1ms，总耗时瓶颈为模型推理。
+
+### 9.3 端到端语料库全量证明（20 张图像，5 组件全覆盖）
+
+从 303 张语料库中选取 20 张（17 张尼康文档 + 3 张 zkLLM 论文），运行 `build_corpus_full_proof.py`（单 worker，GPU0），验证完整 5 组件证明链。
+
+**实测逐张耗时**（单 GPU，`--num-workers 1`）：
+
+| 统计量 | 值 |
+|--------|:--:|
+| 最短 | 1307.7s（21.8 min） |
+| 最长 | 1379.8s（23.0 min） |
+| **均值** | **1330.5s（22.2 min）** |
+| 总 wall clock（20 张串行） | 26609s（7.4h） |
+
+**组件层面**（首张图 nikon\_page\_12 实测）：
+
+| 组件 | 耗时 | 结果 |
+|------|:----:|:----:|
+| hook 激活捕获 | 3038ms（首张冷启动） | — |
+| Conv3d embed | 886ms | fold=✓  binding=✓ |
+| ViT 32 blocks（单 GPU） | ~796s | 32/32 PASS（fold 9/9，binding 9/9/块） |
+| PatchMerger | 3235ms | fold=3/3  binding=3/3 |
+| Pooling（Sumcheck + 代数约束） | — | ✓ |
+| LLM 36 layers（单 GPU 串行） | ~530s | 36/36 ✓ |
+
+**端到端全部通过率**：
+
+| 维度 | 结果 |
+|------|:----:|
+| all\_ok=True | **20/20（100%）** |
+| 各组件独立通过 | Conv3d 20/20、ViT 20×32=640/640、PM 20/20、Pool 20/20、LLM 20×36=720/720 |
+| 输出文件 | `zkllm-workdir/jina-v4/corpus_proof_{sid}.json` × 20 |
+
+**全量语料库外推**：均值 1330s/图，303 张 / 2 worker → **预计墙钟 ~56h**（每 worker ~152 张，1330s × 152 ≈ 202560s ≈ 56.3h）。
+
+---
+
+## Phase 10：端到端可验证检索实验 E3（2026-05-05）
+
+### 10.1 实验设计
+
+**目标**：在真实查询下联合验证 Phase 1（ZAC 语料库指纹）+ Phase 2（Sumcheck 检索证明）+ Phase 3C（语料库侧 LLM 层激活证明）+ Phase 3Q（查询侧 LLM 层激活证明），构成完整的端到端可验证检索流水线。
+
+**配置参数**：
+
+| 参数 | 值 |
+|------|:--:|
+| 查询数 | 5 条（英文 4 条 + 中文 1 条） |
+| top-k | 5 |
+| K（Fiat-Shamir 随机层数） | 6 |
+| 语料库规模 N | 303 张图像 |
+| 嵌入维度 D | 2048 |
+| 序列长度 seq\_len | 1024 |
+
+**Fiat-Shamir 层选择机制**：
+
+$$
+\text{challenge} = \mathrm{SHA256}(\text{query} \,\|\, \text{nonce})
+$$
+
+$$
+\text{layers} = \text{sorted}\left(\mathrm{Random}(\text{challenge}).\text{sample}(\{0,\ldots,35\},\, K=6)\right)
+$$
+
+服务端生成 8 字节 nonce（`uuid4()[:8]`），每次查询的挑战层组合均不同。
+
+**流水线执行顺序**：
+
+```
+query
+  ├── [同步] encode → FAISS → Sumcheck (Phase 2) → ZAC (Phase 1)     ~10.6s
+  ├── [同步] corpus proof read (Phase 3C, 读预计算文件)               ~4ms
+  └── [后台线程] Phase 3Q（2-GPU 并行，6 层 FFN+Attn）                ~36.5s
+e2e = max(sync, phase3q) ≈ 36.5s
+```
+
+Phase 3Q 使用 2-GPU 并行：GPU0 处理前 3 层，GPU1 处理后 3 层，每层依次运行 FFN → self-attn linear → self-attn attn 三个 C++ binary（在各自 `worker0/`、`worker1/` 目录下，避免临时文件冲突）。
+
+### 10.2 调试记录（两个关键 bug）
+
+#### Bug 1：FAISS-GPU 内存池与 FFN 子进程冲突（GPU0 全部 SIGABRT）
+
+**现象**：所有 GPU0 层（前 3 层）的 FFN 子进程返回码 -6（SIGABRT），GPU1 层正常。
+
+**根因**：原始代码使用 `faiss.index_cpu_to_gpu()` 在 GPU0 预分配 ~1.5GB 显存内存池（`StandardGpuResources` 默认行为）。后台 FFN 子进程启动时也需在 GPU0 初始化 CUDA，尝试分配 IPA 公共参数 pp 文件（`down_proj`：72MB，$2^{19}$ 个 G1 点）时，显存已被 FAISS-GPU 占用，CUDA malloc 失败 → C++ 调用 `abort()` → SIGABRT。
+
+**对比**：`interactive_demo.py` 使用纯 CPU FAISS（`faiss.read_index()` 不加 `index_cpu_to_gpu()`），无此问题。
+
+**修复**：移除 `faiss.index_cpu_to_gpu()` 调用，直接使用 CPU FAISS。N=303 时 CPU FAISS 检索耗时 <2ms，性能无影响。
+
+```python
+# 修复后（CPU FAISS，不预分配 GPU 显存）
+index = faiss.read_index(str(INDEX_PATH))
+# N=303 时 CPU FAISS <2ms，无需 GPU 加速
+```
+
+#### Bug 2：Phase 3C 文件命名不匹配（Phase 3C 始终 0/5）
+
+**现象**：Phase 3C 检索始终失败，即使所有 303 张语料库证明均已完成。
+
+**根因**：`corpus_proof_*.json` 文件名使用完整 `image_id` 的安全替换形式（`image_id.replace("/","_")`），例如 `nikon/page_236.jpg` → `corpus_proof_nikon_page_236.jpg.json`。原代码用 `Path(p).name` 只取文件名部分（`page_236.jpg`），导致查找文件 `corpus_proof_page_236.jpg.json`（不存在）。
+
+**修复**：从 corpus JSONL 中读取 `image_id` 字段，应用与 `build_corpus_full_proof.py` 中 `safe_id()` 相同的替换逻辑。
+
+```python
+corpus_image_ids = [d["image_id"] for d in corpus_data]
+# ...
+image_id = corpus_image_ids[sid]
+safe = image_id.replace("/", "_").replace("\\", "_").replace(" ", "_")
+pf = ZKLLM_WORKDIR / f"corpus_proof_{safe}.json"
+```
+
+### 10.3 实验结果
+
+#### 延迟分解（5 次查询均值 ± 标准差）
+
+| 阶段 | 均值（ms） | 标准差（ms） | 说明 |
+|------|:----------:|:----------:|------|
+| encode | 339 | 138 | jina-v4 查询文本编码 |
+| faiss | 1 | 0.7 | CPU FAISS top-5 检索 |
+| sumcheck | 1022 | 67 | Phase 2 Sumcheck 验证 |
+| ZAC | 9260 | 104 | Phase 1 ZAC 成员证明验证 |
+| corpus\_read | 4 | 2 | Phase 3C 预计算文件读取（5 个 top-k 文件） |
+| **sync 小计** | **10627** | **198** | encode + faiss + sumcheck + ZAC + corpus\_read |
+| phase3Q | 36543 | 127 | Phase 3Q（2-GPU 并行 6 层，后台线程） |
+| **e2e 总计** | **36543** | **127** | max(sync, phase3Q)，瓶颈为 phase3Q |
+
+e2e 总延迟约 **36.5s**，其中 sync 阶段（~10.6s）与 phase3Q（~36.5s）并行执行，实际等待时间取决于较慢的 phase3Q。
+
+#### 各阶段通过率
+
+| 验证阶段 | 通过 / 总数 | 通过率 |
+|----------|:-----------:|:------:|
+| Phase 2 Sumcheck | 5 / 5 | 100% |
+| Phase 1 ZAC | 5 / 5 | 100% |
+| Phase 3C（语料库侧） | 5 / 5 | 100% |
+| Phase 3Q（查询侧） | 5 / 5 | 100% |
+| **全部通过** | **5 / 5** | **100%** |
+
+Phase 3Q 每次查询验证 6 层，每层 3 个 C++ binary（FFN + self-attn linear + self-attn attn），共 $5 \times 6 \times 3 = 90$ 次 binary 调用，全部返回码 0。
+
+#### 代表性查询与 Fiat-Shamir 层选择
+
+| 查询 | nonce | 挑战层 |
+|------|-------|--------|
+| "What is the sensor resolution of the Nikon Z8?" | `8141803b` | 0, 3, 5, 6, 7, 29 |
+| "How to set ISO sensitivity in manual exposure mode?" | `d7b8c3ef` | 0, 5, 6, 12, 30, 35 |
+| "Battery life and USB-C charging specifications" | `a8940890` | 1, 7, 23, 27, 30, 31 |
+| "AF tracking performance for 4K 60fps video" | `3b04b568` | 0, 1, 10, 13, 19, 22 |
+| "尼康Z7的电子减震功能在哪些拍摄场景下不可用？" | `b0c8b9ca` | 3, 11, 18, 26, 28, 33 |
+
+5 次挑战覆盖 36 层中的 22 个不同层（1~6 层出现概率符合均匀分布）。
+
+### 10.4 系统特性总结
+
+| 特性 | 状态 |
+|------|:----:|
+| 真实激活可证明（jina-v4，1024 tokens） | ✅ |
+| 语料库完整覆盖（303/303 预计算证明） | ✅ |
+| 双重异步流水线（sync ‖ phase3Q） | ✅ |
+| Fiat-Shamir 随机挑战（SHA256，K=6/36 层） | ✅ |
+| 多语言查询支持（英/中） | ✅ |
+| 所有 4 个验证阶段联合通过 | ✅ |
+
+**关键工程结论**：
+1. **GPU 资源隔离**：FAISS-GPU 与 zkLLM C++ binary 不可在同一进程中共用 GPU，改用 CPU FAISS 即可消除冲突。
+2. **文件命名规范**：语料库证明文件名须与 `build_corpus_full_proof.py` 中的 `safe_id()` 函数保持一致，使用完整 `image_id`（含目录前缀）做 `/`→`_` 替换。
+3. **e2e 瓶颈**：Phase 3Q 的 2-GPU 并行（~36.5s）已是当前系统端到端延迟的主要瓶颈；sync 阶段（~10.6s）已被完全掩盖。进一步加速方向为 verify-ipa C++ GPU binary（已在 Phase 5 计划中设计）。
+
+**实验数据文件**：`notes/experiment_results/experiment_e3_end_to_end.json`
+
+---
+
+## Phase 11：E4 扩展攻击类型实验（2026-05-06）
+
+### 11.1 动机与背景
+
+前序安全实验（§7.4.2）使用 Nikon 语料库 50 个样本/攻击类型，样本量偏少（Wilson CI 半宽 ≈ 6pp），且仅覆盖 B1（图像替换）、B2（Embedding 替换）、B3（排名操控）、B4（权重篡改）四类基础攻击。E4 实验的目标：
+
+1. **样本扩充**：各攻击类型扩展至 120+ 样本，将 95% Wilson CI 半宽压至 < 5pp。
+2. **新攻击类型**：基于三篇文献引入两类新变体：
+   - **B5（跨模态联合篡改）**：受 Spa-VLM 启发，构造外部合成 (img_fake, emb_fake) 对注入语料库（B5-Ext），同时设计 B5-Swap（语料内位置互换）来揭示 ZAC 的"成员性 ≠ 位置绑定"盲区。
+   - **B6（语义嵌入替换）**：受 MedThreatRAG CMCI 启发，图像不变但 embedding 替换为高余弦相似度的另一条目 emb_j（三层：high ≥ 0.85、mid 0.70–0.85、low 0.50–0.70）。
+3. **FPR 净基准**：对齐 SecureRAG-SoK §5.1 AFR 框架，统一记录 Phase1/2 误报率。
+4. **多数据集迁移验证**：将验证从 Nikon（N=303）迁移至 4 个公开多模态基准（SlideVQA/ChartQA/MP-DocVQA/InfoVQA，N=459~1284），构建全量临时 ZAC（n_filters=2）。
+
+**参考文献**：Spa-VLM（跨模态联合攻击）、MedThreatRAG CMCI（语义冲突攻击）、SecureRAG-SoK §5.1（AFR 统一评估框架）。
+
+---
+
+### 11.2 脚本实现（`script/experiment_e4_attack_types.py`）
+
+**关键设计决策**：
+
+| 设计点 | 实现方式 | 原因 |
+|--------|---------|------|
+| `--dataset` 逗号分隔 + `all` | `args.dataset.split(",")` 支持多数据集批量 | 允许双 GPU 分组并行 |
+| `--n-corpus 0` = 全量 | `n = len(ds_corpus) if n_corpus==0 else min(n_corpus, len(ds_corpus))` | VQA 全语料构建 ZAC |
+| `--gpu-id` 内部设置 CUDA_VISIBLE_DEVICES | `os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)` 在 `import torch` 前执行 | 绕过 CUDA_VISIBLE_DEVICES 在进程内不能修改的限制；模型始终用 `cuda:0` |
+| VQA ZAC `n_filters=2` | `ZACAccumulator(S=S, n_filters=2)` | 与 Nikon 预构建 ZAC 保持一致（compound FPR ε²=0.0001） |
+| B2 排除 victim 自身 | `candidates = high_idx[high_idx != vid]` | V1 存在 victim 被选作 donor 的代码缺陷（见 11.4） |
+| 临时目录自动清理 | `tmpdir = tempfile.mkdtemp(); shutil.rmtree(tmpdir)` | VQA 图像无需持久化，避免磁盘占用 |
+
+**并行化方案**（总壁钟时间 ≈ 42 min）：
+
+```
+进程 0（CPU）：Nikon，无 GPU 需求（ZAC 验证 + Sumcheck 均为 CPU）
+进程 1（GPU0）：SlideVQA + ChartQA，jina-v4 全量编码
+进程 2（GPU1）：DocVQA + InfoVQA，jina-v4 全量编码
+```
+
+---
+
+### 11.3 攻击类型矩阵（V2 结果，B2 bug 已修复）
+
+**各攻击检测率（5 数据集）**：
+
+| 攻击 | 拦截 Phase | Nikon(303) | SlideVQA(1284) | ChartQA(500) | DocVQA(741) | InfoVQA(459) | 合计 |
+|------|:---------:|:---------:|:-------------:|:-----------:|:-----------:|:-----------:|:---:|
+| B1-Ext（图像替换） | Phase 1 | 120/120 | 120/120 | 120/120 | 120/120 | 120/120 | 600/600 |
+| B2-Ext（emb 替换，V2） | Phase 1 | 120/120 | 120/120 | 120/120 | 120/120 | 120/120 | **600/600** |
+| B3-Ext（排名操控） | Phase 2 | 300/300 | 300/300 | 300/300 | 300/300 | 300/300 | 1500/1500 |
+| B5-Ext（跨模态注入） | Phase 1 | 120/120 | 120/120 | 120/120 | 120/120 | 120/120 | 600/600 |
+| B5-Swap（位置互换） | **不检出** | 0/60 ★ | 0/60 ★ | 0/60 ★ | 0/60 ★ | 0/60 ★ | 0/300 ★ |
+| B6-Semantic（语义替换） | Phase 1 | 120/120 | 120/120 | 120/120 | 119/120 ‡ | 120/120 | 599/600 |
+| FPR Phase1（干净样本） | 不拦截 | 0/100 | 0/100 | 0/100 | 0/100 | 0/100 | 0/500 |
+| FPR Phase2（干净 query） | 不拦截 | 0/60 | 0/60 | 0/60 | 0/60 | 0/60 | 0/300 |
+
+★ B5-Swap 0% 为预期设计行为（ZAC 盲区，见 11.5）。  
+‡ DocVQA B6 1次漏检：victim=60, donor=581, cosine-sim=0.9996，真实 BF 假阳性（P(X≥1)≈3.7%，理论上合理）。
+
+**V2 数据来源**（B2 bug 修复后，全部完成）：
+- SlideVQA V2 B2 = 120/120 ✅  ChartQA V2 B2 = 120/120 ✅（GPU0）
+- DocVQA V2 B2 = 120/120 ✅  InfoVQA V2 B2 = 120/120 ✅（GPU1）
+- V2 日志：`logs/experiment_e4_gpu0_v2.log`、`logs/experiment_e4_gpu1_v2.log`
+- V2 输出：`notes/experiment_results/experiment_e4_gpu0_v2.json`、`experiment_e4_gpu1_v2.json`
+
+---
+
+### 11.4 V1 代码缺陷与修复（B2-Ext Bug）
+
+**问题**：`run_b2_ext` 中 high_norm/low_norm 层从候选区间随机采样 donor 时，未排除 victim 自身索引。当 victim 落在对应区间时，`rng.choice(high_idx)` 可能返回 `vid` 本身，导致 `emb_fake = embeddings[vid]`，ZAC 验证的是 SHA256(img[v] ∥ emb[v]) ∈ S（真实成员），正确返回 True，却被误计为漏检。
+
+**定位**：
+- ChartQA V1：victim=27 region=high_norm（victim 在高范数区间 → 被选为 donor）
+- DocVQA V1：victim=156 region=low_norm（victim 在低范数区间 → 被选为 donor）
+
+**修复**（`script/experiment_e4_attack_types.py`，2026-05-06）：
+
+```python
+# 修复前（有缺陷）
+emb_fake = embeddings[int(rng.choice(high_idx))].copy()
+
+# 修复后（排除 victim 自身）
+candidates = high_idx[high_idx != vid]
+src = int(rng.choice(candidates)) if len(candidates) > 0 else int(rng.integers(N))
+while src == vid: src = int(rng.integers(N))
+emb_fake = embeddings[src].copy()
+```
+
+同理对 low_norm 层修复。此缺陷不影响 random_unit 层（tier=0，使用 `rng.standard_normal` 生成，与任何 corpus embedding 不同）。
+
+---
+
+### 11.5 ZAC 安全边界：成员性 vs 位置绑定
+
+**B5-Swap 实验设计**：将语料库内位置 j 的真实对 (img_j, emb_j) 放置在位置 i。由于 SHA256(img_j ∥ emb_j) ∈ S，Phase 1 ZAC 验证通过；Sumcheck 以 emb_j 正常计算分值；Phase 3C 读取位置 j 的预计算证明——三个阶段全部通过，攻击不被检出。
+
+**根本原因**：ZAC 的 Bloom Filter + Pointproofs 承诺对集合 S 中的元素证明"∃ 成员关系"，而非"此元素应绑定到位置 i"。承诺结构本质是无序集合承诺（set commitment），没有索引绑定语义。
+
+**安全影响**：攻击者可将语料库内某一条目（例如低权重文档的 embedding）放置在高权重位置，操控检索排名，而绕过所有三个验证阶段。
+
+**修复方案**：将位置索引 i 纳入 ZAC 承诺哈希：
+
+```python
+# 当前（无位置绑定）
+elem = SHA256(img_bytes_i || emb_i_float32)
+
+# 修复方案（含位置绑定）
+elem_i = SHA256(i_uint32_le || img_bytes_i || emb_i_float32)
+```
+
+修复后，SHA256(j ∥ img_j ∥ emb_j) ≠ SHA256(i ∥ img_j ∥ emb_j)（因 j ≠ i），Phase 1 即可检出位置互换。代价：ZAC 不再支持语料库重排序而不重建（位置一旦固定，重排需重新构建承诺）。
+
+---
+
+### 11.6 实验数据文件
+
+| 文件 | 内容 |
+|------|------|
+| `notes/experiment_results/experiment_e4_nikon.json` | Nikon V1 全量结果（N=303，n_filters=2） |
+| `notes/experiment_results/experiment_e4_gpu0.json` | SlideVQA + ChartQA V1 结果（含 B2 缺陷） |
+| `notes/experiment_results/experiment_e4_gpu1.json` | DocVQA + InfoVQA V1 结果（含 B2 缺陷 + 1 次 B6 BF FP） |
+| `notes/experiment_results/experiment_e4_gpu0_v2.json` | SlideVQA + ChartQA V2 结果（B2 已修复，进行中） |
+| `notes/experiment_results/experiment_e4_gpu1_v2.json` | DocVQA + InfoVQA V2 结果（B2 已修复，进行中） |
+| `script/experiment_e4_attack_types.py` | 实验脚本（705+行，含 B2 修复） |
+
+---
