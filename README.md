@@ -8,6 +8,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.8.0%2Bcu128-ee4c2c?logo=pytorch&logoColor=white)
 ![CUDA](https://img.shields.io/badge/CUDA-12.8-76b900?logo=nvidia&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![Third Party](https://img.shields.io/badge/Includes-Apache%202.0%20%7C%20MIT-lightgrey)
 
 </div>
 
@@ -130,7 +131,7 @@ UltraRAG/
 │       ├── Makefile                     # nvcc sm_89
 │       ├── load_jina_weights.py         # jina-v4 权重提取
 │       └── bin/                         # 编译产物（需本地 make）
-├── servers/                             # UltraRAG MCP 服务模块
+├── servers/                             # UltraRAG 检索/生成服务模块（直接 import 使用）
 ├── corpora/image.jsonl                  # 图像语料库索引
 ├── output/phase1/prover_state.json      # ZAC prover state + 语料指纹
 └── zkllm-workdir/jina-v4/
@@ -277,7 +278,7 @@ UltraRAG/
 │       ├── Makefile                     # nvcc sm_89
 │       ├── load_jina_weights.py         # jina-v4 weight extraction
 │       └── bin/                         # Compiled binaries (build with make)
-├── servers/                             # UltraRAG MCP server modules
+├── servers/                             # UltraRAG retrieval/generation modules (imported directly)
 ├── corpora/image.jsonl                  # Image corpus index
 ├── output/phase1/prover_state.json      # ZAC prover state + corpus fingerprint
 └── zkllm-workdir/jina-v4/
