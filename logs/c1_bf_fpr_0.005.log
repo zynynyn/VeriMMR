@@ -1,19 +1,0 @@
-nohup: ignoring input
-`torch_dtype` is deprecated! Use `dtype` instead!
-
-================================================================
-实验 C1 补充：Bloom Filter 误报率统计验证
-================================================================
-  数据集   : openbmb/VisRAG-Ret-Test-InfoVQA
-  ZAC 大小 : 50
-  试验次数 : 400 × 2 = 800 次
-  随机种子 : 42
-  理论 ε   : 0.005
-  开始     : 2026-04-25 17:53:52
-
-[17:53:52] 加载 jina-v4 ...
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.33it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.28it/s]
-  loaded  (8.6s)
-
-[17:54:06] 加载数据集 ...
-Generating train split:   0%|          | 0/459 [00:00<?, ? examples/s]Generating train split:  22%|██▏       | 100/459 [00:00<00:01, 243.28 examples/s]Generating train split:  44%|████▎     | 200/459 [00:00<00:00, 423.31 examples/s]Generating train split:  65%|██████▌   | 300/459 [00:00<00:00, 456.99 examples/s]Generating train split: 100%|██████████| 459/459 [00:00<00:00, 559.08 examples/s]

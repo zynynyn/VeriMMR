@@ -1,6 +1,0 @@
-usage: setup_rmsnorm_params.py [-h] [--layers LAYERS [LAYERS ...]]
-                               [--workdir WORKDIR]
-setup_rmsnorm_params.py: error: argument --layers: invalid int value: '>'
-usage: setup_rmsnorm_params.py [-h] [--layers LAYERS [LAYERS ...]]
-                               [--workdir WORKDIR]
-setup_rmsnorm_params.py: error: argument --layers: invalid int value: '>'

@@ -1,69 +1,0 @@
-
-libgomp: Invalid value for environment variable OMP_NUM_THREADS
-
-libgomp: Invalid value for environment variable OMP_NUM_THREADS
-
-libgomp: Invalid value for environment variable OMP_NUM_THREADS
-`torch_dtype` is deprecated! Use `dtype` instead!
-
-================================================================
-实验 C1：chartvqa  (openbmb/VisRAG-Ret-Test-ChartQA)
-================================================================
-  模型      : /root/autodl-tmp/models/jina-embeddings-v4
-  缓存目录  : /root/autodl-tmp/UltraRAG/data/huggingface_cache
-  结果输出  : /root/autodl-tmp/UltraRAG/notes/experiment_c1_chartvqa.json
-  清理缓存  : 否
-  开始时间  : 2026-04-04 05:20:50
-
-[05:20:50] 加载 jina-v4 模型...
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.94it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.90it/s]
-  loaded  (10.6s)
-
-[05:21:06] 加载数据集...
-Generating train split:   0%|          | 0/500 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 500/500 [00:00<00:00, 4741.41 examples/s]Generating train split: 100%|██████████| 500/500 [00:00<00:00, 4719.49 examples/s]
-Generating train split:   0%|          | 0/63 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 63/63 [00:00<00:00, 11356.42 examples/s]
-Generating train split:   0%|          | 0/63 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 63/63 [00:00<00:00, 13927.95 examples/s]
-  corpus=500  queries=63  qrels=63  (17.1s)
-  corpus 字段 : ['corpus-id', 'image']
-  qrels  字段 : ['query-id', 'corpus-id', 'score']
-
-[05:21:23] 构建 qrels 索引...
-  有标注查询：63 条
-  corpus_id 字段 : corpus-id
-  query_id  字段 : query-id
-  query_text字段 : query
-  图像字段       : image
-
-[05:21:23] 编码语料图像（500 张，batch=4）...
-  [05:21:44] 100/500  4.80 img/s  ETA 1.4 min
-  [05:22:19] 200/500  3.60 img/s  ETA 1.4 min
-  [05:22:47] 300/500  3.58 img/s  ETA 0.9 min
-  [05:23:20] 400/500  3.43 img/s  ETA 0.5 min
-  [05:23:53] 500/500  3.35 img/s  ETA 0.0 min
-  完成  shape=(500, 2048)  耗时=149.3s
-
-[05:23:53] 编码查询文本（63 条）...
-  完成  shape=(63, 2048)  耗时=0.3s
-
-[05:23:53] FAISS 构建索引并搜索...
-  ntotal=500  D=2048
-  搜索完成  (0.009s)
-
-[05:23:53] 计算指标...
-
-================================================================
-结果：chartvqa
-================================================================
-  评测查询：63  跳过：0
-  指标                jina-v4  VisRAG-Ret OOD
-  ──────────────────────────────────────────
-  MRR@10              87.43           75.99
-  Recall@1            82.54               —
-  Recall@3            92.06               —
-  Recall@5            93.65               —
-  Recall@10           93.65           91.40
-
-结果已保存：/root/autodl-tmp/UltraRAG/notes/experiment_c1_chartvqa.json
-缓存保留：/root/autodl-tmp/UltraRAG/data/huggingface_cache
-
-完成时间：2026-04-04 05:23:53

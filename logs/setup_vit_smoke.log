@@ -1,19 +1,0 @@
-`torch_dtype` is deprecated! Use `dtype` instead!
-Loading jina-v4 via SentenceTransformer ...
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.20it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.17it/s]
-  loaded.
-
-── 提取 ViT block 权重 (blocks [0, 7, 15, 23, 31]) ──────────────────────────
-Traceback (most recent call last):
-  File "/root/autodl-tmp/UltraRAG/script/setup_vit_params.py", line 213, in <module>
-    main()
-  File "/root/autodl-tmp/UltraRAG/script/setup_vit_params.py", line 209, in main
-    setup_vit_params(blocks=args.blocks, workdir=ROOT / args.workdir)
-  File "/root/autodl-tmp/UltraRAG/script/setup_vit_params.py", line 188, in setup_vit_params
-    extract_block_weights(vit_blocks, bi, workdir)
-  File "/root/autodl-tmp/UltraRAG/script/setup_vit_params.py", line 92, in extract_block_weights
-    m = getattr(block, which)
-        ^^^^^^^^^^^^^^^^^^^^^
-  File "/root/miniconda3/envs/ultrarag/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1964, in __getattr__
-    raise AttributeError(
-AttributeError: 'Qwen2_5_VLVisionBlock' object has no attribute 'input_layernorm'

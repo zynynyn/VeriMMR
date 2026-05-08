@@ -1,5 +1,0 @@
-Testing block 0 (window block, n_real=2520, n_wins=40)...
-  Block 0: ✓ PASS  (64761ms  fold=9/9  binding=9/9)
-Total: 69.1s
-step_ms: {'rmsnorm_pre': '1.0s', 'attn_linear': '2.0s', 'zkAttn': '55.5s', 'o_proj': '0.9s', 'skip1': '0.3s', 'rmsnorm_post': '0.9s', 'ffn': '3.8s', 'skip2': '0.3s'}
-all_pass: True

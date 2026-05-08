@@ -1,16 +1,0 @@
-
-语料库全量证明  worker=0/1  gpu=0
-  workdir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
-  out_dir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
-
-加载 jina-v4 模型...
-`torch_dtype` is deprecated! Use `dtype` instead!
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.70it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 19.66it/s]
-  ✓ 模型加载完成
-
-本 worker 处理 1 张图像
-
-[nikon_page_0.jpg] 开始全量证明  gpu=0
-  [hook] 激活捕获完成  2205ms
-Conv3d embed proof: ✓ PASS  (848ms  fold=✓  binding=✓)
-  [conv3d] ✓  848ms

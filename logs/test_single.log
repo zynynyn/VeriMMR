@@ -1,29 +1,0 @@
-
-语料库全量证明  worker=0/2  gpu=0
-  workdir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
-  out_dir : /root/autodl-tmp/UltraRAG/zkllm-workdir/jina-v4
-
-加载 jina-v4 模型...
-`torch_dtype` is deprecated! Use `dtype` instead!
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 17.96it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 17.91it/s]
-  ✓ 模型加载完成
-
-本 worker 处理 1 张图像
-
-[nikon_page_0.jpg] 开始全量证明  gpu=0
-  [hook] 激活捕获完成  3159ms
-Conv3d embed proof: ✓ PASS  (842ms  fold=✓  binding=✓)
-  [conv3d] ✓  842ms
-  Block 0: ✓ PASS  (22059ms  fold=9/9  binding=9/9)
-  Block 1: ✓ PASS  (21821ms  fold=9/9  binding=9/9)
-  Block 2: ✓ PASS  (21978ms  fold=9/9  binding=9/9)
-  Block 3: ✓ PASS  (22183ms  fold=9/9  binding=9/9)
-  Block 4: ✓ PASS  (22215ms  fold=9/9  binding=9/9)
-  Block 5: ✓ PASS  (22237ms  fold=9/9  binding=9/9)
-  Block 6: ✓ PASS  (22098ms  fold=9/9  binding=9/9)
-  Block 7: ✓ PASS  (36199ms  fold=9/9  binding=9/9)
-  Block 8: ✓ PASS  (23206ms  fold=9/9  binding=9/9)
-  Block 9: ✓ PASS  (22462ms  fold=9/9  binding=9/9)
-  Block 10: ✓ PASS  (22368ms  fold=9/9  binding=9/9)
-  Block 11: ✓ PASS  (22100ms  fold=9/9  binding=9/9)
-  Block 12: ✓ PASS  (22150ms  fold=9/9  binding=9/9)
