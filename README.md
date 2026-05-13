@@ -16,7 +16,7 @@
 
 <a id="中文"></a>
 
-# VeriMMR：面向多模态语义检索的可验证框架
+# VeriMMR：面向多模态语义数据的可验证检索机制
 
 > 在不信任服务提供方的前提下，对"编码—嵌入—匹配—排序"全链路施加密码学约束，使任意第三方可独立验证多模态语义数据检索结果的完整性和可靠性。
 
@@ -55,7 +55,7 @@ VeriMMR 将可验证性分解为三个独立但衔接的验证环节，每个环
 
 ## 🔬 核心创新
 
-**全链路统一可验证框架**：现有方案通常只覆盖存储层（签名/Merkle）或计算层（TEE），无法跨越两层的信任边界。VeriMMR 提出三环节联合架构，首次将密码学可验证性从原始模态输入延伸至最终检索排名，使持有少量公开承诺（无需模型权重或语料库明文）的弱客户端可独立复现验证，填补"结果正确但过程欺骗"的信任盲区。
+**全链路统一可验证机制**：现有方案通常只覆盖存储层（签名/Merkle）或计算层（TEE），无法跨越两层的信任边界。VeriMMR 提出三环节联合架构，首次将密码学可验证性从原始模态输入延伸至最终检索排名，使持有少量公开承诺（无需模型权重或语料库明文）的弱客户端可独立复现验证，填补"结果正确但过程欺骗"的信任盲区。
 
 **级联 ZAC 成员证明**：以复合指纹 `SHA256(image_bytes ∥ embedding_bytes)` 同时绑定文档与嵌入向量，用级联 BloomFilter（n=2）与 Pointproofs 向量承诺组合实现 O(1) 通信的聚合成员证明（96 字节，与语料库规模 N 无关），假阳性率从单层 ε 降至 ε²（实测 1% → 0%），在不暴露语料库明文或索引结构的前提下同时防御文档替换（B1）与嵌入替换（B2）两类攻击。
 
@@ -177,7 +177,7 @@ UltraRAG/
 
 <a id="english"></a>
 
-# VeriMMR: A Verifiable Framework for Multimodal Semantic Retrieval
+# VeriMMR: A Verifiable Retrieval Mechanism for Multimodal Semantic Data
 
 > Applying cryptographic constraints across the full "encode–embed–match–rank" pipeline without trusting the service provider, enabling any third party to independently verify the integrity and reliability of multimodal semantic retrieval results.
 
@@ -216,7 +216,7 @@ User receives independently verifiable retrieval results
 
 ## 🔬 Key Innovations
 
-**Full-Pipeline Unified Verifiable Framework**: Existing approaches typically cover either the storage layer (signatures/Merkle trees) or the compute layer (TEE), without bridging both trust boundaries. VeriMMR introduces a three-stage joint architecture that, for the first time, extends cryptographic verifiability from raw multimodal input to the final retrieval ranking. A lightweight Verifier holding only compact public commitments — no model weights, no raw corpus — can independently re-run verification, closing the trust gap of "correct results, deceptive process."
+**Full-Pipeline Unified Verifiable Mechanism**: Existing approaches typically cover either the storage layer (signatures/Merkle trees) or the compute layer (TEE), without bridging both trust boundaries. VeriMMR introduces a three-stage joint architecture that, for the first time, extends cryptographic verifiability from raw multimodal input to the final retrieval ranking. A lightweight Verifier holding only compact public commitments — no model weights, no raw corpus — can independently re-run verification, closing the trust gap of "correct results, deceptive process."
 
 **Cascade ZAC Membership Proof**: Documents and their embedding vectors are jointly bound via the composite fingerprint `SHA256(image_bytes ∥ embedding_bytes)`. Combining a cascaded BloomFilter (n=2) with Pointproofs vector commitments yields O(1)-communication aggregated membership proofs of constant size (96 bytes, independent of corpus size N), reducing the false positive rate from ε (single layer) to ε² (measured: 1% → 0%). This simultaneously defends against document substitution (B1) and embedding substitution (B2) without exposing corpus content or index structure.
 
