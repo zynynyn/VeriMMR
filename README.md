@@ -85,7 +85,7 @@ conda activate ultrarag
 ```bash
 cd src/zkllm
 make all -j$(nproc)
-mkdir -p bin && cp ppgen commit-param self-attn ffn rmsnorm skip-connection patch-merger conv3d-embed verify-ipa bin/
+mkdir -p bin && cp ppgen commit-param self-attn ffn rmsnorm skip-connection patch-merger conv3d-embed verify-ipa open-ipa bin/
 ```
 
 要求：CUDA ≥ 12.0，sm_89（RTX 4090）。其他 GPU 修改 Makefile 中 `ARCH`。
@@ -116,6 +116,8 @@ python script/build_verifiable_corpus.py --pdf data/nikon.pdf
 python script/interactive_demo.py
 # 浏览器访问 http://127.0.0.1:7860
 ```
+
+> Demo 默认启用 IPA 向量承诺模式（在 `build_verifiable_corpus.py` 建库过程中已一次性完成嵌入承诺初始化）；若承诺产物缺失，则自动回落到 Mersenne 域 Sumcheck 路径，不影响功能演示。
 
 ## 📁 目录结构
 
@@ -244,7 +246,7 @@ Key dependencies: `torch 2.9.0+cu128`, `faiss-gpu`, `sentence-transformers`, `py
 ```bash
 cd src/zkllm
 make all -j$(nproc)
-mkdir -p bin && cp ppgen commit-param self-attn ffn rmsnorm skip-connection patch-merger conv3d-embed verify-ipa bin/
+mkdir -p bin && cp ppgen commit-param self-attn ffn rmsnorm skip-connection patch-merger conv3d-embed verify-ipa open-ipa bin/
 ```
 
 Requires: CUDA ≥ 12.0, sm_89 (RTX 4090). Adjust `ARCH` in Makefile for other GPUs.
@@ -275,6 +277,8 @@ A sample PDF is available [here](https://download.nikonimglib.com/archive4/ywJ4K
 python script/interactive_demo.py
 # Open http://127.0.0.1:7860 in your browser
 ```
+
+> The demo enables the IPA vector commitment mode by default (the embedding commitment is initialized in one shot during `build_verifiable_corpus.py`); if the commitment artifacts are missing, it automatically falls back to the Mersenne-field Sumcheck path without affecting the demonstration.
 
 ## 📁 Repository Structure
 

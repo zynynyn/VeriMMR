@@ -40,6 +40,8 @@ INDEX_PATH     = ROOT / "index" / "index.index"
 ZAC_STATE      = ROOT / "output" / "phase1" / "prover_state.json"
 ZKLLM_WORKDIR  = ROOT / "zkllm-workdir" / "jina-v4"
 ZKLLM_BIN_DIR  = ROOT / "src" / "zkllm"
+EMBEDDING_PP_PATH         = ZKLLM_WORKDIR / "embedding-pp.bin"
+EMBEDDING_COMMITMENT_PATH = ROOT / "embedding" / "embedding_commitments.bin"
 MODEL_PATH     = "/root/autodl-tmp/models/jina-embeddings-v4"
 GEN_MODEL_PATH = "/root/autodl-tmp/models/MiniCPM-V-4"
 TOP_K          = 5
@@ -324,26 +326,56 @@ def run_zac(paths: List, emb_ids: List[int] = None) -> Dict:
 
 
 def run_sumcheck(q_emb: np.ndarray) -> Dict:
-    print(f"[Step 4] Sumcheck 内积证明  N={len(_sc_embeddings) if _sc_embeddings is not None else 0}  k={TOP_K}")
+    # 检查 IPA 模式所需文件
+    ipa_available = EMBEDDING_PP_PATH.exists() and EMBEDDING_COMMITMENT_PATH.exists()
+    mode_str = "IPA mode" if ipa_available else "classic mode"
+
+    print(f"[Step 4] Sumcheck ({mode_str})  N={len(_sc_embeddings) if _sc_embeddings is not None else 0}  k={TOP_K}")
+
+    if not ipa_available:
+        print(f"[Step 4] IPA 承诺文件缺失，降级到 Mersenne 域 Sumcheck")
+
     try:
         from sumcheck.inner_product import prove_global_batch, verify_global_batch
         q_list = q_emb.tolist()
         corpus_vecs = _sc_embeddings.tolist()
+
         t0 = time.perf_counter()
-        proof = prove_global_batch(q_list, corpus_vecs)
+        if ipa_available:
+            proof = prove_global_batch(
+                q_list, corpus_vecs,
+                ipa_mode=True,
+                pp_path=str(EMBEDDING_PP_PATH),
+                workdir=str(ZKLLM_WORKDIR),
+            )
+        else:
+            proof = prove_global_batch(q_list, corpus_vecs)
         prove_ms = round((time.perf_counter() - t0) * 1000, 1)
+
         t0 = time.perf_counter()
-        vr = verify_global_batch(q_list, corpus_vecs, proof, TOP_K)
+        if ipa_available:
+            vr = verify_global_batch(
+                q_list, None, proof, TOP_K,
+                commitment_path=str(EMBEDDING_COMMITMENT_PATH),
+            )
+        else:
+            vr = verify_global_batch(q_list, corpus_vecs, proof, TOP_K)
         verify_ms = round((time.perf_counter() - t0) * 1000, 1)
+
         ok = vr.get("verified", False)
+        oracle_ok = vr.get("oracle_ok", None)
         proof_bytes = len(json.dumps(proof).encode())
-        print(f"[Step 4] 完成  verified={ok}  prove={prove_ms}ms  verify={verify_ms}ms  proof_bytes={proof_bytes}")
+
+        print(f"[Step 4] 完成  verified={ok}  oracle_ok={oracle_ok}  prove={prove_ms}ms  verify={verify_ms}ms  proof_bytes={proof_bytes}")
+
         return {
             "verified": ok, "N": len(corpus_vecs), "k": TOP_K,
             "proof_bytes": proof_bytes,
             "top_k_indices": vr.get("top_k_indices", []),
             "top_k_scores": [int(s) for s in vr.get("top_k_scores", [])],
             "prove_ms": prove_ms, "verify_ms": verify_ms,
+            "ipa_mode": ipa_available,
+            "oracle_ok": oracle_ok,
         }
     except Exception as e:
         print(f"[Step 4] 异常: {e}")
@@ -698,16 +730,19 @@ def _build_proofs_dict(zac: Dict, sc: Dict, corpus_proofs: List, proof_id: str,
             "prover": (
                 f"实时计算 · 覆盖全量语料库 N={N} 个向量\n"
                 f"提交内容：\n"
-                f"  · 全部 N={N} 个查询-文档内积值（N×8B）\n"
+                f"  · 全部 N={N} 个查询-文档内积值（N×{'32B' if sc.get('ipa_mode') else '8B'}）\n"
                 f"  · Sumcheck 多项式证明（~264B）\n"
-                f"总证明大小：约 {N*8 + 264} 字节"
+                + (f"  · IPA oracle proof（BLS12-381，约 1-2KB）\n" if sc.get('ipa_mode') else "")
+                + f"总证明大小：约 {sc.get('proof_bytes', N*8 + 264)} 字节"
             ),
             "verifier": (
                 f"接收全 N={N} 个内积分值，独立验证：\n"
                 f"  1. Sumcheck：Σᵢ sᵢ = 证明声明的总和\n"
-                f"  2. 独立对 N 个分值排序，得到自己的 top-{TOP_K}\n"
-                f"  3. 比对 Prover 返回的 top-k 是否一致\n\n"
-                f"Verifier 不信任 Prover 的排名，自行确认最优解。"
+                + (f"  2. IPA oracle：验证聚合向量 w 的密码学绑定\n" if sc.get('ipa_mode') else "")
+                + f"  {'3' if sc.get('ipa_mode') else '2'}. 独立对 N 个分值排序，得到自己的 top-{TOP_K}\n"
+                + f"  {'4' if sc.get('ipa_mode') else '3'}. 比对 Prover 返回的 top-k 是否一致\n\n"
+                + (f"IPA 模式：Verifier 无需持有语料嵌入明文。\n" if sc.get('ipa_mode') else "")
+                + f"Verifier 不信任 Prover 的排名，自行确认最优解。"
             ),
             "data": None,
         },
@@ -735,8 +770,11 @@ def _build_proofs_dict(zac: Dict, sc: Dict, corpus_proofs: List, proof_id: str,
     # 填充实际证明数据
     if sc and not sc.get("error"):
         idx = sc.get("top_k_indices", [])
+        ipa_mode = sc.get("ipa_mode", False)
+        oracle_ok = sc.get("oracle_ok", None)
         proofs["sumcheck"]["data"] = (
             f"verified={sc.get('verified')}  N={sc.get('N')}  k={TOP_K}\n"
+            f"mode={'IPA' if ipa_mode else 'classic'}  oracle_ok={oracle_ok}\n"
             f"proof_bytes={sc.get('proof_bytes')}\n"
             f"prove_ms={sc.get('prove_ms')}  verify_ms={sc.get('verify_ms')}\n"
             f"top_k_indices={idx}"
