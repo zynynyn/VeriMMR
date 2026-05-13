@@ -18,7 +18,7 @@
 
 # VeriMMR：面向多模态语义数据的可验证检索机制
 
-> 面向多模态 RAG 服务外包场景，使弱客户端无需信任算力方、无需重算或访问模型权重，即可独立验证从语义编码、相似度计算到结果排序的全链路诚实性。
+> 面向依赖多模态大模型进行语义检索的服务外包场景，使弱客户端无需信任算力方、无需重算或访问模型权重，即可独立验证从语义编码、相似度计算到结果排序的全链路诚实性。
 
 ## ❓ 为什么需要可验证检索？
 
@@ -179,7 +179,7 @@ UltraRAG/
 
 # VeriMMR: A Verifiable Retrieval Mechanism for Multimodal Semantic Data
 
-> Designed for multimodal RAG service outsourcing scenarios, enabling weak clients to independently verify the end-to-end honesty of semantic encoding, similarity computation, and result ranking — without trusting the compute provider, re-running computation, or accessing model weights.
+> Designed for outsourced services that rely on multimodal large models for semantic retrieval, enabling weak clients to independently verify the end-to-end honesty of semantic encoding, similarity computation, and result ranking — without trusting the compute provider, re-running computation, or accessing model weights.
 
 ## ❓ Why Verifiable Retrieval?
 
