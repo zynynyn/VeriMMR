@@ -38,18 +38,54 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import mmh3
 
-from py_ecc.optimized_bls12_381 import (
-    G1, G2,
-    add,          # point addition  (G1 or G2)
-    multiply,     # scalar mult      (G1 or G2)
-    pairing,      # e: G2 × G1 → GT  (note: G2 first!)
-    Z1, Z2,       # identity elements for G1, G2
-    curve_order,  # prime order p of G1/G2
-    field_modulus,
+from pyblst import BlstP1Element, BlstP2Element, BlstFP12Element, miller_loop, final_verify
+
+
+# ---------------------------------------------------------------------------
+# BLS12-381 constants and pyblst helpers
+# ---------------------------------------------------------------------------
+
+curve_order = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
+
+# BLS12-381 generator points (standard compressed encoding)
+_G1_BYTES = bytes.fromhex(
+    "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac5"
+    "86c55e83ff97a1aeffb3af00adb22c6bb"
 )
-from py_ecc.fields import optimized_bls12_381_FQ as FQ
-from py_ecc.fields import optimized_bls12_381_FQ12 as FQ12
-from py_ecc.fields import optimized_bls12_381_FQ2 as FQ2
+_G2_BYTES = bytes.fromhex(
+    "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049"
+    "334cf11213945d57e5ac7d055d042b7e"
+    "024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d17"
+    "70bac0326a805bbefd48056c8c121bdb8"
+)
+_G1: BlstP1Element = BlstP1Element.uncompress(_G1_BYTES)
+_G2: BlstP2Element = BlstP2Element.uncompress(_G2_BYTES)
+
+
+def _g1_mult(pt: BlstP1Element, scalar: int) -> BlstP1Element:
+    return pt.scalar_mul(int(scalar) % curve_order)
+
+
+def _g1_add(pt1: BlstP1Element, pt2: BlstP1Element) -> BlstP1Element:
+    return pt1 + pt2
+
+
+def _g2_mult(pt: BlstP2Element, scalar: int) -> BlstP2Element:
+    return pt.scalar_mul(int(scalar) % curve_order)
+
+
+def _g2_add(pt1: BlstP2Element, pt2: BlstP2Element) -> BlstP2Element:
+    return pt1 + pt2
+
+
+def _p1_is_inf(pt: BlstP1Element) -> bool:
+    """True iff pt is the G1 point at infinity."""
+    return pt.compress()[0] == 0xC0
+
+
+def _p2_is_inf(pt: BlstP2Element) -> bool:
+    """True iff pt is the G2 point at infinity."""
+    return pt.compress()[0] == 0xC0
 
 
 # ---------------------------------------------------------------------------
@@ -68,27 +104,22 @@ def _hash_to_zp(data: bytes) -> int:
 
 
 # ---------------------------------------------------------------------------
-# G1 compression  (BLS12-381 standard 48-byte encoding)
+# G1 compression / decompression  (BLS12-381 standard 48-byte encoding)
 # ---------------------------------------------------------------------------
 
-def _g1_compress(point) -> bytes:
-    """Compress a G1 affine point to 48 bytes (standard BLS12-381 serialization)."""
-    if point == Z1:
-        return b"\xc0" + b"\x00" * 47  # compressed infinity flag
+def _g1_compress(pt: BlstP1Element) -> bytes:
+    """Compress a G1 point to 48 bytes (standard BLS12-381 serialization)."""
+    return pt.compress()
 
-    # Convert from projective (X:Y:Z) to affine (x, y)
-    x_fq, y_fq, z_fq = point
-    z_inv = pow(z_fq.n, field_modulus - 2, field_modulus)
-    x = (x_fq.n * z_inv) % field_modulus
-    y = (y_fq.n * z_inv) % field_modulus
 
-    flag = 0x80  # compression bit
-    if y > (field_modulus - 1) // 2:
-        flag |= 0x20  # sign bit
-
-    x_bytes = bytearray(x.to_bytes(48, "big"))
-    x_bytes[0] |= flag
-    return bytes(x_bytes)
+def _g1_decompress(data: bytes) -> "BlstP1Element | None":
+    """Decompress 48-byte BLS12-381 G1 point. Returns None on failure."""
+    if len(data) != 48:
+        return None
+    try:
+        return BlstP1Element.uncompress(data)
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -172,10 +203,10 @@ class Pointproofs:
 
     Verify(C, I, m[I], π̂):
       e(C, ∑ᵢ tᵢ·g2^{α^{q+1-i}}) ?= e(π̂, g2) · gT^{α^{q+1}·∑ᵢ mᵢ·tᵢ}
-
-    Performance note:
-      py_ecc is pure Python; CRS generation for q~100 takes ~10-60 s.
-      For production use the Rust Pointproofs library (github.com/algorand/pointproofs).
+      Implemented as 2-pairing check via bilinearity:
+        gT^{α^{q+1}·exp_sum} = e(exp_sum·P[0], V[q-1])
+      So: final_verify( miller_loop(C, V_sum),
+                        miller_loop(π̂, G2) * miller_loop(exp_sum·P[0], V[q-1]) )
     """
 
     def __init__(self, q: int, alpha: Optional[int] = None) -> None:
@@ -193,17 +224,13 @@ class Pointproofs:
             a[i] = (a[i - 1] * alpha) % p
 
         # P[i-1] = g1^{α^i},  i = 1..q
-        self._P: List = [multiply(G1, a[i]) for i in range(1, self.q + 1)]
+        self._P: List[BlstP1Element] = [_g1_mult(_G1, a[i]) for i in range(1, self.q + 1)]
 
         # Px[j] = g1^{α^{q+2+j}},  j = 0..q-2  (i.e. α^{q+2}..α^{2q})
-        self._Px: List = [multiply(G1, a[self.q + 2 + j]) for j in range(self.q - 1)]
+        self._Px: List[BlstP1Element] = [_g1_mult(_G1, a[self.q + 2 + j]) for j in range(self.q - 1)]
 
         # V[i-1] = g2^{α^i},  i = 1..q
-        self._V: List = [multiply(G2, a[i]) for i in range(1, self.q + 1)]
-
-        # gT^{α^{q+1}} = e(g2^{α^q}, g1^α)  = e(V[q-1], P[0])
-        # pairing signature: pairing(Q: G2, P: G1) → FQ12
-        self._gT_aq1: FQ12 = pairing(self._V[self.q - 1], self._P[0])
+        self._V: List[BlstP2Element] = [_g2_mult(_G2, a[i]) for i in range(1, self.q + 1)]
 
     # -----------------------------------------------------------------------
     # CRS serialization  (skip expensive _setup on reload)
@@ -211,72 +238,37 @@ class Pointproofs:
 
     def save_crs(self, path: str) -> None:
         """
-        Serialize the precomputed CRS to a binary file (projective coordinates).
-        Format (big-endian, fixed 48 bytes per field element):
-          [4B] q
-          [q   × 144B] P   (G1 projective: X 48B, Y 48B, Z 48B)
-          [q-1 × 144B] Px  (G1 projective)
-          [q   × 288B] V   (G2 projective: X0,X1, Y0,Y1, Z0,Z1 each 48B)
-        gT_aq1 is recomputed from V[q-1] and P[0] on load (one pairing, ~0.3 s).
+        Serialize the precomputed CRS to a binary file (compressed coordinates).
+        Format (big-endian):
+          [4B]      q
+          [q × 48B]   P   (G1 compressed)
+          [q-1 × 48B] Px  (G1 compressed)
+          [q × 96B]   V   (G2 compressed)
         """
-        def fq_n(fq) -> int:
-            return fq.n if hasattr(fq, "n") else int(fq)
-
-        def g1_bytes(pt) -> bytes:
-            x, y, z = pt
-            return (fq_n(x).to_bytes(48, "big") +
-                    fq_n(y).to_bytes(48, "big") +
-                    fq_n(z).to_bytes(48, "big"))
-
-        def g2_bytes(pt) -> bytes:
-            x, y, z = pt
-            out = b""
-            for coord in (x, y, z):
-                c0, c1 = coord.coeffs
-                out += fq_n(c0).to_bytes(48, "big") + fq_n(c1).to_bytes(48, "big")
-            return out  # 6 × 48 = 288 bytes
-
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:
             f.write(self.q.to_bytes(4, "big"))
             for pt in self._P:
-                f.write(g1_bytes(pt))
+                f.write(pt.compress())      # 48B each
             for pt in self._Px:
-                f.write(g1_bytes(pt))
+                f.write(pt.compress())      # 48B each
             for pt in self._V:
-                f.write(g2_bytes(pt))
+                f.write(pt.compress())      # 96B each
 
     def _setup_from_cache(self, path: str) -> None:
-        """Load precomputed CRS from projective-format binary file."""
-        def read_g1(f) -> tuple:
-            data = f.read(144)
-            x = FQ(int.from_bytes(data[0:48],   "big"))
-            y = FQ(int.from_bytes(data[48:96],  "big"))
-            z = FQ(int.from_bytes(data[96:144], "big"))
-            return (x, y, z)
-
-        def read_g2(f) -> tuple:
-            data = f.read(288)
-            def rd(i): return int.from_bytes(data[i*48:(i+1)*48], "big")
-            x = FQ2((rd(0), rd(1)))
-            y = FQ2((rd(2), rd(3)))
-            z = FQ2((rd(4), rd(5)))
-            return (x, y, z)
-
+        """Load precomputed CRS from compressed-format binary file."""
         with open(path, "rb") as f:
             q = int.from_bytes(f.read(4), "big")
             assert q == self.q, f"CRS cache mismatch: expected q={self.q}, got {q}"
-            self._P  = [read_g1(f) for _ in range(q)]
-            self._Px = [read_g1(f) for _ in range(q - 1)]
-            self._V  = [read_g2(f) for _ in range(q)]
-        # Recompute gT^{α^{q+1}} = e(V[q-1], P[0])  — one pairing, ~0.3 s
-        self._gT_aq1: FQ12 = pairing(self._V[self.q - 1], self._P[0])
+            self._P  = [BlstP1Element.uncompress(f.read(48)) for _ in range(q)]
+            self._Px = [BlstP1Element.uncompress(f.read(48)) for _ in range(q - 1)]
+            self._V  = [BlstP2Element.uncompress(f.read(96)) for _ in range(q)]
 
     # -----------------------------------------------------------------------
     # CRS accessors
     # -----------------------------------------------------------------------
 
-    def _g1_alpha_i(self, i: int):
+    def _g1_alpha_i(self, i: int) -> BlstP1Element:
         """g1^{α^i} for i ∈ [1,q] ∪ [q+2, 2q].  α^{q+1} not in CRS."""
         if 1 <= i <= self.q:
             return self._P[i - 1]
@@ -284,7 +276,7 @@ class Pointproofs:
             return self._Px[i - (self.q + 2)]
         raise ValueError(f"α^{i} not available in CRS (q={self.q}).")
 
-    def _g2_alpha_i(self, i: int):
+    def _g2_alpha_i(self, i: int) -> BlstP2Element:
         """g2^{α^i} for i ∈ [1, q]."""
         if 1 <= i <= self.q:
             return self._V[i - 1]
@@ -294,18 +286,22 @@ class Pointproofs:
     # Protocol
     # -----------------------------------------------------------------------
 
-    def commit(self, m: List[int], r: int):
+    def commit(self, m: List[int], r: int) -> BlstP1Element:
         """
         C = g1^{r·α^q} · ∏_{i=1}^{q-1} (g1^{α^i})^{mᵢ}
         m is 0-indexed, length q-1; internally 1-indexed.
         """
-        C = multiply(self._P[self.q - 1], r % curve_order)  # g1^{r·α^q}
-        for i1 in range(1, self.q):                          # i = 1..q-1
-            if m[i1 - 1] != 0:
-                C = add(C, multiply(self._P[i1 - 1], m[i1 - 1]))
+        C = _g1_mult(self._P[self.q - 1], r % curve_order)  # g1^{r·α^q}
+        for i1 in range(1, self.q):                           # i = 1..q-1
+            mi = m[i1 - 1]
+            if mi == 0:
+                continue
+            # BF fast path: m ∈ {0,1}, so scalar_mul(1) = identity; use add directly
+            base = self._P[i1 - 1]
+            C = _g1_add(C, base if mi == 1 else _g1_mult(base, mi))
         return C
 
-    def prove(self, pos: int, m: List[int], r: int):
+    def prove(self, pos: int, m: List[int], r: int) -> BlstP1Element:
         """
         πᵢ = ∏_{j∈[q], j≠i} g1^{m'ⱼ · α^{q+1-i+j}}
         pos is 0-indexed.  Internally: i = pos+1 (1-indexed).
@@ -314,19 +310,26 @@ class Pointproofs:
         i = pos + 1                           # 1-indexed position
         m_prime = list(m[: self.q - 1]) + [r]  # length q
 
-        pi = Z1
+        pi: Optional[BlstP1Element] = None
         for j in range(1, self.q + 1):        # j = 1..q  (1-indexed)
             if j == i:
                 continue
             exp = self.q + 1 - i + j          # α^{q+1-i+j}
             if exp == self.q + 1:             # not in CRS
                 continue
-            if m_prime[j - 1] == 0:
+            mj = m_prime[j - 1]
+            if mj == 0:
                 continue
-            pi = add(pi, multiply(self._g1_alpha_i(exp), m_prime[j - 1]))
+            # BF fast path: m ∈ {0,1}, skip scalar_mul for mj==1
+            base = self._g1_alpha_i(exp)
+            term = base if mj == 1 else _g1_mult(base, mj)
+            pi = term if pi is None else _g1_add(pi, term)
+        # Identity fallback (all-zero m_prime edge case)
+        if pi is None:
+            pi = _g1_mult(_G1, 0)
         return pi
 
-    def _challenge(self, pos: int, C, I: List[int], v_I: List[int]) -> int:
+    def _challenge(self, pos: int, C: BlstP1Element, I: List[int], v_I: List[int]) -> int:
         """tᵢ = H'(i, C, I, v[I]) — Fiat-Shamir challenge."""
         data = (
             pos.to_bytes(4, "big")
@@ -336,44 +339,51 @@ class Pointproofs:
         )
         return _hash_to_zp(data)
 
-    def aggregate(self, C, I: List[int], v_I: List[int], proofs: List):
+    def aggregate(self, C: BlstP1Element, I: List[int], v_I: List[int],
+                  proofs: List[BlstP1Element]) -> BlstP1Element:
         """
         π̂ = ∏ᵢ∈I πᵢ^{tᵢ}   (aggregated proof, single G1 point)
         """
-        agg = Z1
+        agg: Optional[BlstP1Element] = None
         for pos, pi in zip(I, proofs):
             t = self._challenge(pos, C, I, v_I)
-            agg = add(agg, multiply(pi, t))
+            term = _g1_mult(pi, t)
+            agg = term if agg is None else _g1_add(agg, term)
+        if agg is None:
+            agg = _g1_mult(_G1, 0)
         return agg
 
-    def verify(self, C, I: List[int], v_I: List[int], pi_hat) -> bool:
+    def verify(self, C: BlstP1Element, I: List[int], v_I: List[int],
+               pi_hat: BlstP1Element) -> bool:
         """
-        Check: e(C, Σᵢ tᵢ·g2^{α^{q+1-i}}) ?= e(π̂, g2) · gT^{α^{q+1}·Σᵢ vᵢ·tᵢ}
-        pairing order: pairing(Q: G2, P: G1) → FQ12
-        GT operation: FQ12 field multiplication and exponentiation.
+        Check: e(C, V_sum) == e(π̂, G2) · e(exp_sum·P[0], V[q-1])
+        where V_sum = Σᵢ tᵢ · g2^{α^{q+1-i}},  exp_sum = Σᵢ vᵢ·tᵢ mod p.
+
+        Implemented via bilinearity to avoid GT exponentiation:
+          gT^{α^{q+1}·exp_sum} = e(exp_sum·P[0], V[q-1])
+        Single final_verify(lhs_ml, rhs_ml) call (one final_exp for both sides).
         """
         t_vals = [self._challenge(pos, C, I, v_I) for pos in I]
 
-        # --- LHS ---
-        # Σᵢ tᵢ · g2^{α^{q+1-i1}}   where i1 = pos+1 (1-indexed)
-        V_sum = Z2
+        # V_sum = Σᵢ tᵢ · g2^{α^{q+1-i1}}   where i1 = pos+1 (1-indexed)
+        V_sum: Optional[BlstP2Element] = None
         for pos, t in zip(I, t_vals):
-            i1 = pos + 1
+            i1  = pos + 1
             exp = self.q + 1 - i1           # = q - pos  (≥1 when pos ≤ q-1)
             if 1 <= exp <= self.q:
-                V_sum = add(V_sum, multiply(self._g2_alpha_i(exp), t))
-        # If V_sum is Z2 (all exps out of range), verification cannot succeed
-        if V_sum == Z2:
+                term = _g2_mult(self._g2_alpha_i(exp), t)
+                V_sum = term if V_sum is None else _g2_add(V_sum, term)
+        if V_sum is None or _p2_is_inf(V_sum):
             return False
-        lhs: FQ12 = pairing(V_sum, C)      # e(g2_part, C_G1)
 
-        # --- RHS ---
-        # e(π̂, g2) · gT^{α^{q+1} · Σᵢ vᵢ·tᵢ}
-        rhs_pairing: FQ12 = pairing(G2, pi_hat)   # e(g2, π̂)
         exp_sum = sum(v * t for v, t in zip(v_I, t_vals)) % curve_order
-        rhs: FQ12 = rhs_pairing * (self._gT_aq1 ** exp_sum)
+        p0_scaled = _g1_mult(self._P[0], exp_sum)   # exp_sum · P[0]
 
-        return lhs == rhs
+        # e(C, V_sum) == e(π̂, G2) · e(exp_sum·P[0], V[q-1])
+        lhs_ml = miller_loop(C, V_sum)                                         # G1=C, G2=V_sum
+        rhs_ml = (miller_loop(pi_hat, _G2)
+                  * miller_loop(p0_scaled, self._V[self.q - 1]))               # G1 first, G2 second
+        return final_verify(lhs_ml, rhs_ml)
 
 
 # ---------------------------------------------------------------------------
@@ -804,35 +814,3 @@ class ZACAccumulator:
                 S.add(h)
 
         return cls(S=S, epsilon=epsilon, n_filters=n_filters)
-
-
-# ---------------------------------------------------------------------------
-# G1 decompression  (48 bytes → projective point)
-# ---------------------------------------------------------------------------
-
-def _g1_decompress(data: bytes):
-    """Decompress 48-byte BLS12-381 G1 point. Returns None on failure."""
-    if len(data) != 48:
-        return None
-    if data == b"\xc0" + b"\x00" * 47:
-        return Z1
-
-    if not (data[0] & 0x80):
-        return None  # not compressed
-
-    sort_flag = bool(data[0] & 0x20)
-    x_bytes = bytearray(data)
-    x_bytes[0] &= 0x1f
-    x = int.from_bytes(bytes(x_bytes), "big")
-
-    p = field_modulus
-    y_sq = (pow(x, 3, p) + 4) % p
-    # Tonelli-Shanks shortcut: p ≡ 3 (mod 4)
-    y = pow(y_sq, (p + 1) // 4, p)
-    if pow(y, 2, p) != y_sq:
-        return None  # x not on curve
-
-    if sort_flag != (y > p // 2):
-        y = p - y
-
-    return (FQ(x), FQ(y), FQ(1))  # projective Z=1

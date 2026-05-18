@@ -74,7 +74,7 @@ conda env create -f environment_no_builds.yml
 conda activate ultrarag
 ```
 
-主要依赖：`torch 2.9.0+cu128`、`faiss-gpu`、`sentence-transformers`、`pymupdf`、`py_ecc`、`mmh3`、`gradio`
+主要依赖：`torch 2.9.0+cu128`、`faiss-gpu`、`sentence-transformers`、`pymupdf`、`pyblst`、`mmh3`、`gradio`
 
 **模型路径**（默认）：
 - 检索模型：`/path/to/models/jina-embeddings-v4`
@@ -235,7 +235,7 @@ conda env create -f environment_no_builds.yml
 conda activate ultrarag
 ```
 
-Key dependencies: `torch 2.9.0+cu128`, `faiss-gpu`, `sentence-transformers`, `pymupdf`, `py_ecc`, `mmh3`, `gradio`
+Key dependencies: `torch 2.9.0+cu128`, `faiss-gpu`, `sentence-transformers`, `pymupdf`, `pyblst`, `mmh3`, `gradio`
 
 **Model paths** (defaults):
 - Retrieval encoder: `/path/to/models/jina-embeddings-v4`
@@ -324,7 +324,7 @@ UltraRAG/
 
 ## 🔒 Trust Model
 
-The service provider (Prover) holds complete model weights and corpus, and is responsible for running inference and returning proofs alongside retrieval results. The user or auditor (Verifier) only needs to hold public commitment values: the ZAC Root (48 bytes, published once after corpus construction) and per-layer model weight commitments (published once at deployment). The Verifier requires neither the model nor the original corpus to independently verify the three-stage proof for any retrieval request.
+The service provider (Prover) holds complete model weights and corpus, and is responsible for running inference and returning proofs alongside retrieval results. The user or auditor (Verifier) only needs to hold public commitment values: the ZAC Root (96 bytes, published once after corpus construction) and per-layer model weight commitments (published once at deployment). The Verifier requires neither the model nor the original corpus to independently verify the three-stage proof for any retrieval request.
 
 ## 💡 Applications
 
