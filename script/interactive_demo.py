@@ -364,7 +364,7 @@ def run_sumcheck(q_emb: np.ndarray) -> Dict:
 
         ok = vr.get("verified", False)
         oracle_ok = vr.get("oracle_ok", None)
-        proof_bytes = len(json.dumps(proof).encode())
+        proof_bytes = len(json.dumps(proof, default=lambda x: x.hex() if isinstance(x, bytes) else str(x)).encode())
 
         print(f"[Step 4] 完成  verified={ok}  oracle_ok={oracle_ok}  prove={prove_ms}ms  verify={verify_ms}ms  proof_bytes={proof_bytes}")
 
@@ -1003,7 +1003,7 @@ def answer_html(text: str = "", loading: bool = False, blocked: bool = False) ->
 # 主查询流程
 # Yields: (gallery, vtl_html, answer_html_str, proof_id_state)
 # ─────────────────────────────────────────────────────────────────────────────
-def on_query(query: str, mode: str = "随机抽样 (K=6层, ~46s)"):
+def on_query(query: str, mode: str = "随机抽样 (K=6层, ~30s)"):
     if not query.strip():
         yield [], build_vtl_html(_query_steps()), answer_html(), ""
         return
@@ -1391,7 +1391,7 @@ def build_ui():
                         # Phase 3 查询侧验证模式选择
                         mode_radio = gr.Radio(
                             choices=["随机抽样 (K=6层, ~30s)", "全量验证 (36层, ~3.5min)"],
-                            value="随机抽样 (K=6层, ~46s)",
+                            value="随机抽样 (K=6层, ~30s)",
                             label="zkLLM 查询侧验证模式",
                             info=(
                                 "随机：Fiat-Shamir 从36层中随机挑战K=6层，验证完成后返回结果。\n"
