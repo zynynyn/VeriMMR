@@ -16,7 +16,7 @@
 
 <a id="中文"></a>
 
-# VeriMMR：面向多模态语义数据的可验证检索机制
+# VeriMMR：面向多模态语义数据的零知识可验证检索机制设计与实现
 
 > 面向依赖多模态大模型进行语义检索的服务外包场景，使弱客户端无需信任算力方、无需重算或访问模型权重，即可独立验证从语义编码、相似度计算到结果排序的全链路诚实性。
 
@@ -59,7 +59,7 @@ VeriMMR 将可验证性分解为三个独立但衔接的验证环节，每个环
 
 **级联 ZAC 成员证明**：以复合指纹 `SHA256(image_bytes ∥ embedding_bytes)` 同时绑定文档与嵌入向量，用级联 BloomFilter（n=2）与 Pointproofs 向量承诺组合实现 O(1) 通信的聚合成员证明（96 字节，与语料库规模 N 无关），假阳性率从单层 ε 降至 ε²（实测 1% → 0%），在不暴露语料库明文或索引结构的前提下同时防御文档替换（B1）与嵌入替换（B2）两类攻击。
 
-**批量内积聚合与密码学排序绑定**：将 N 条独立内积验证通过 Fiat-Shamir 随机线性组合聚合为单次 Sumcheck，在线验证复杂度从 O(N) 降至 O(1) 且无需可信设置；以 IPA 向量承诺取代原始浮点嵌入矩阵，将 Verifier 的信任基础从数值正确性提升为密码学绑定，不泄露查询或文档向量内容。
+**批量内积聚合与密码学排序绑定**：将 N 条独立内积验证通过 Schwartz-Zippel 随机线性组合折叠为单条聚合 Sumcheck 证明，并以 Fiat-Shamir 变换消除多轮交互，无需可信设置；以 IPA 向量承诺取代原始浮点嵌入矩阵，将 Verifier 的信任基础从数值正确性提升为密码学绑定，不泄露查询或文档向量内容。
 
 **多模态嵌入推理链端到端可验证化**：将 zkLLM 从单模态语言模型扩展为覆盖五个环节（Conv3d → ViT → PatchMerger → LM → Pooling）的多模态推理证明系统，核心技术包括 GQA 注意力密码学适配、窗口/全局注意力 NTT 精确切分、跨组件 Sumcheck 批量化（gate/up 投影与 q/k/v 投影分别归约为单次验证），在不公开模型参数的前提下向验证者证明嵌入向量由约定编码器真实计算所得。
 
@@ -177,7 +177,7 @@ UltraRAG/
 
 <a id="english"></a>
 
-# VeriMMR: A Verifiable Retrieval Mechanism for Multimodal Semantic Data
+# VeriMMR: A Zero-Knowledge Verifiable Retrieval Mechanism for Multimodal Semantic Data
 
 > Designed for outsourced services that rely on multimodal large models for semantic retrieval, enabling weak clients to independently verify the end-to-end honesty of semantic encoding, similarity computation, and result ranking — without trusting the compute provider, re-running computation, or accessing model weights.
 
@@ -220,7 +220,7 @@ User receives independently verifiable retrieval results
 
 **Cascade ZAC Membership Proof**: Documents and their embedding vectors are jointly bound via the composite fingerprint `SHA256(image_bytes ∥ embedding_bytes)`. Combining a cascaded BloomFilter (n=2) with Pointproofs vector commitments yields O(1)-communication aggregated membership proofs of constant size (96 bytes, independent of corpus size N), reducing the false positive rate from ε (single layer) to ε² (measured: 1% → 0%). This simultaneously defends against document substitution (B1) and embedding substitution (B2) without exposing corpus content or index structure.
 
-**Batch Inner Product Aggregation and Cryptographic Ranking Binding**: N independent inner product verifications are aggregated into a single Sumcheck via Fiat-Shamir random linear combination, reducing online verification complexity from O(N) to O(1) with no trusted setup. Replacing the raw floating-point embedding matrix with IPA vector commitments elevates the Verifier's trust basis from numerical correctness to cryptographic binding, without leaking query or document vector contents.
+**Batch Inner Product Aggregation and Cryptographic Ranking Binding**: N independent inner product verifications are folded into a single aggregated Sumcheck proof via Schwartz-Zippel random linear combination, with Fiat-Shamir eliminating multi-round interaction — no trusted setup required. Replacing the raw floating-point embedding matrix with IPA vector commitments elevates the Verifier's trust basis from numerical correctness to cryptographic binding, without leaking query or document vector contents.
 
 **End-to-End Verifiable Multimodal Embedding Inference**: zkLLM is extended from a single-modality language model to a five-stage multimodal inference proof system (Conv3d → ViT → PatchMerger → LM → Pooling). Key contributions include cryptographic adaptation for GQA attention, precise NTT partitioning for window/global attention, and cross-component Sumcheck batching (gate/up projections and q/k/v projections each reduced to a single verification), enabling a Verifier to confirm that embedding vectors were genuinely computed by the agreed encoder without disclosing model parameters.
 

@@ -52,6 +52,9 @@ _R_FP_INV: int = pow(_R_FP, -1, _P_FP)
 _ROOT = Path(__file__).parent.parent.parent.resolve()
 _BIN_DIR = _ROOT / "src" / "zkllm"
 
+# 进程级缓存：commitment_path → List[BlstP1Element]
+_g1_commitments_blst_cache: dict = {}
+
 
 def _m(x: int) -> int:
     """Reduce x modulo P.  Python's % always returns non-negative result."""
@@ -708,6 +711,24 @@ def _read_g1_jacobian(data: bytes, offset: int):
     return (FQ((X * z_inv2) % _P_FP), FQ((Y * z_inv3) % _P_FP), FQ(1))
 
 
+def _read_g1_jacobian_blst(data: bytes, offset: int):
+    """blstrs Jacobian (Montgomery coords) → BlstP1Element (via affine compress)."""
+    from pyblst import BlstP1Element
+    X = _read_fp_mont(data, offset)
+    Y = _read_fp_mont(data, offset + 48)
+    Z = _read_fp_mont(data, offset + 96)
+    if Z == 0:
+        return BlstP1Element.uncompress(bytes([0xC0]) + bytes(47))
+    z_inv  = pow(Z, _P_FP - 2, _P_FP)
+    z_inv2 = (z_inv * z_inv) % _P_FP
+    z_inv3 = (z_inv2 * z_inv) % _P_FP
+    x_aff  = (X * z_inv2) % _P_FP
+    y_aff  = (Y * z_inv3) % _P_FP
+    x_bytes = x_aff.to_bytes(48, "big")
+    flag = 0x80 | (0x20 if y_aff > (_P_FP >> 1) else 0)
+    return BlstP1Element.uncompress(bytes([x_bytes[0] | flag]) + x_bytes[1:])
+
+
 def _read_fr_le(data: bytes, offset: int) -> int:
     return int.from_bytes(data[offset:offset + 32], "little")
 
@@ -718,6 +739,18 @@ def _load_g1_commitments(commitment_path: str):
         data = f.read()
     n = len(data) // 144
     return [_read_g1_jacobian(data, i * 144) for i in range(n)]
+
+
+def _load_g1_commitments_blst(commitment_path: str):
+    """Load N×144-byte Jacobian G1 commitments → BlstP1Element list（进程级缓存）."""
+    if commitment_path in _g1_commitments_blst_cache:
+        return _g1_commitments_blst_cache[commitment_path]
+    with open(commitment_path, "rb") as f:
+        data = f.read()
+    n = len(data) // 144
+    pts = [_read_g1_jacobian_blst(data, i * 144) for i in range(n)]
+    _g1_commitments_blst_cache[commitment_path] = pts
+    return pts
 
 
 def verify_ipa_embedding(
@@ -754,44 +787,43 @@ def verify_ipa_embedding(
 
     off = 12
     try:
-        C_init = _read_g1_jacobian(oracle_proof, off); off += 144
-        u_out  = [_read_fr_le(oracle_proof, off + i * 32) for i in range(com_log)]
+        C_init  = _read_g1_jacobian_blst(oracle_proof, off); off += 144
+        u_out   = [_read_fr_le(oracle_proof, off + i * 32) for i in range(com_log)]
         off += com_log * 32
-        u_in   = [_read_fr_le(oracle_proof, off + i * 32) for i in range(k)]
+        u_in    = [_read_fr_le(oracle_proof, off + i * 32) for i in range(k)]
         off += k * 32
-        rounds = []
+        rounds  = []
         for _ in range(k):
-            L0 = _read_g1_jacobian(oracle_proof, off); off += 144
-            L1 = _read_g1_jacobian(oracle_proof, off); off += 144
+            L0 = _read_g1_jacobian_blst(oracle_proof, off); off += 144
+            L1 = _read_g1_jacobian_blst(oracle_proof, off); off += 144
             rounds.append((L0, L1))
-        g_final = _read_g1_jacobian(oracle_proof, off); off += 144
+        g_final = _read_g1_jacobian_blst(oracle_proof, off); off += 144
         w_final = _read_fr_le(oracle_proof, off)
     except Exception:
         return FAIL
 
-    # Fold check (G1 arithmetic, Python)
-    from py_ecc.optimized_bls12_381 import add, multiply, eq
+    # Fold check（pyblst G1 算术，~0.1ms/mult × k 轮）
     C = C_init
     for u, (L0, L1) in zip(u_in, rounds):
         omu  = (1 - u) % P_FR
         omu2 = (omu * omu) % P_FR
         uomu = (u * omu) % P_FR
         u2   = (u * u) % P_FR
-        C = add(add(multiply(L0, omu2), multiply(C, uomu)), multiply(L1, u2))
-    fold_ok = eq(C, multiply(g_final, w_final))
+        C = L0.scalar_mul(omu2) + C.scalar_mul(uomu) + L1.scalar_mul(u2)
+    fold_ok = (C.compress() == g_final.scalar_mul(w_final % P_FR).compress())
 
-    # Binding check: C_init == cm_w = Σᵢ ρⁱ · cm_i
+    # Binding check: C_init == cm_w = Σᵢ ρⁱ · cm_i（pyblst + 进程级缓存）
     binding_ok = False
     if commitment_path and os.path.exists(commitment_path):
         try:
-            cms = _load_g1_commitments(commitment_path)
-            from py_ecc.optimized_bls12_381 import Z1 as G1_ZERO
-            cm_w = G1_ZERO
+            cms = _load_g1_commitments_blst(commitment_path)
+            cm_w = None
             rho_pow = 1
             for cm in cms:
-                cm_w = add(cm_w, multiply(cm, rho_pow))
+                term = cm.scalar_mul(rho_pow)
+                cm_w = term if cm_w is None else (cm_w + term)
                 rho_pow = (rho_pow * rho) % P_FR
-            binding_ok = eq(C_init, cm_w)
+            binding_ok = (cm_w is not None and C_init.compress() == cm_w.compress())
         except Exception:
             binding_ok = False
 
@@ -849,10 +881,13 @@ def _generate_oracle_proof(
             for r in reversed(challenges):
                 uf.write(r.to_bytes(32, "little"))
 
+        # 用 GPU 1（Jina 常驻 GPU 0，避免带宽竞争）
+        ipa_env = {**os.environ, "CUDA_VISIBLE_DEVICES": "1"}
         result = subprocess.run(
             [str(open_ipa), pp_path, w_file, u_file, proof_file, str(len(w_int))],
             capture_output=True,
             timeout=60,
+            env=ipa_env,
         )
         if result.returncode != 0:
             raise RuntimeError(

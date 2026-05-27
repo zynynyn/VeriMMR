@@ -1045,9 +1045,7 @@ def on_query(query: str, mode: str = "随机抽样 (K=6层, ~30s)"):
     zkllm_thread = threading.Thread(
         target=_run_zkllm_query_bg, args=(proof_id, act_ready, fs_layers), daemon=True)
     # 全量模式：延迟到 MiniCPM 生成完成后再启动（避免 GPU1 内存竞争）
-    # 随机模式：立即启动，Step 6 会 join 等待完成
-    if not is_full:
-        zkllm_thread.start()
+    # 随机模式：延迟到 Sumcheck + ZAC 完成后再启动（避免 IPA oracle GPU 竞争）
     yield y([], answer_html(), input_icon="✅", encode_icon="⏳", zkllm_q_icon="⏳")
 
     # ── Step 1: 向量编码（同时捕获 hook 激活，完成后 act_ready.set()）──────────
@@ -1101,6 +1099,10 @@ def on_query(query: str, mode: str = "随机抽样 (K=6层, ~30s)"):
             zac_icon=zac_icon_v,
             results_icon="✅",
             verify_icon="⏳", verify_t=("Phase 3 后台进行中…" if is_full else "等待 zkLLM query…"))
+
+    # 随机模式：Sumcheck + ZAC 已完成，GPU 空闲，现在启动 zkLLM 线程
+    if not is_full:
+        zkllm_thread.start()
 
     # ── Step 6: zkLLM query proof ─────────────────────────────────────────────
     if is_full:
